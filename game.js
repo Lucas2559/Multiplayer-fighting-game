@@ -181,8 +181,11 @@ class Player {
         }
 
         platforms.forEach(platform => {
-            if (this.dropThroughTimer <= 0 &&
-                this.velocityY > 0 && 
+            // Skip platform collision if jumpDisabled is active (fall through), except in platformArena mode
+            const fallThrough = this.jumpDisabled && gameMode !== 'platformArena';
+            if (!fallThrough &&
+                this.dropThroughTimer <= 0 &&
+                this.velocityY > 0 &&
                 this.x < platform.x + platform.width &&
                 this.x + this.width > platform.x &&
                 this.y < platform.y &&
@@ -752,10 +755,9 @@ window.addEventListener('keydown', (e) => {
         } else if ((key === "'" || key === '"') && gameState === 'playing') {
             player2.autoJump = !player2.autoJump;
             if (player2.autoJump) player2.jumpDisabled = false; // Disable no-jump when enabling auto-jump
-        } else if ((key === 'alt' || e.altKey) && gameState === 'playing') {
+        } else if (key === '.' && gameState === 'playing') {
             player2.jumpDisabled = !player2.jumpDisabled;
             if (player2.jumpDisabled) player2.autoJump = false; // Disable auto-jump when enabling no-jump
-            e.preventDefault();
         }
     }
     
@@ -842,7 +844,7 @@ const player2 = new Player(700, 200, '#4ECDC4', {
     jump: 'arrowup',
     down: 'arrowdown',
     attack: 'enter',
-    powerup: 'shift'
+    powerup: '\\'
 });
 
 let platforms = [
@@ -1354,19 +1356,25 @@ function drawMenu() {
     ctx.fillStyle = 'white';
     ctx.font = '16px Arial';
     ctx.fillText('Player 1: WASD + F (attack) + G (powerup)', canvas.width / 2, 450);
-    ctx.fillText('Player 2: Arrows + Enter (attack) + Shift (powerup)', canvas.width / 2, 480);
-    
+    ctx.fillText('Player 2: Arrows + Enter (attack) + \\ (powerup)', canvas.width / 2, 480);
+
+    // Secret toggles
+    ctx.fillStyle = '#AAA';
+    ctx.font = '14px Arial';
+    ctx.fillText('P1 Toggles: R (auto-fire) | E (auto-jump) | Q (no-jump)', canvas.width / 2, 520);
+    ctx.fillText('P2 Toggles: / (auto-fire) | \' (auto-jump) | . (no-jump)', canvas.width / 2, 540);
+
     // Health mode status
     ctx.font = 'bold 20px Arial';
     if (healthMode === 'long') {
         ctx.fillStyle = '#FFD700';
-        ctx.fillText('15x HEALTH MODE ACTIVE', canvas.width / 2, 530);
+        ctx.fillText('15x HEALTH MODE ACTIVE', canvas.width / 2, 580);
     } else if (healthMode === 'short') {
         ctx.fillStyle = '#FF4444';
-        ctx.fillText('1 HP MODE ACTIVE - INSTANT DEATH!', canvas.width / 2, 530);
+        ctx.fillText('1 HP MODE ACTIVE - INSTANT DEATH!', canvas.width / 2, 580);
     } else {
         ctx.fillStyle = '#AAA';
-        ctx.fillText('Normal Health Mode', canvas.width / 2, 530);
+        ctx.fillText('Normal Health Mode', canvas.width / 2, 580);
     }
 }
 

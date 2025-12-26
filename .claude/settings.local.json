@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(open index.html)"
+      "Bash(open index.html)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
