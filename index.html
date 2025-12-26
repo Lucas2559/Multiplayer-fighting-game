@@ -3,44 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Fighting Game</title>
+    <title>Game Hub</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            box-sizing: border-box;
+        }
+        body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Georgia', serif;
+            color: #fff;
         }
-        #gameCanvas {
-            border: 3px solid #333;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 50px;
+            text-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+            letter-spacing: 4px;
         }
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+        .games-container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+        .game-card {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
             text-align: center;
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
         }
-        .controls h3 {
-            margin: 5px 0;
+        .game-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(100, 150, 255, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(100, 150, 255, 0.2);
+        }
+        .game-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        .game-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        .game-description {
+            font-size: 0.9rem;
+            color: #aaa;
+            line-height: 1.6;
+        }
+        .fighting-card .game-icon {
+            color: #e94560;
+        }
+        .platform-card .game-icon {
+            color: #88ccff;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <div class="controls">
-        <h3>Player 1 (Red): WASD to move, F to attack</h3>
-        <h3>Player 2 (Blue): Arrow Keys to move, Enter to attack</h3>
+    <h1>GAME HUB</h1>
+    <div class="games-container">
+        <a href="fighting-game/index.html" class="game-card fighting-card">
+            <div class="game-icon">&#9876;</div>
+            <h2 class="game-title">Fighting Game</h2>
+            <p class="game-description">
+                2-player local multiplayer fighting game.
+                Battle your friends with WASD vs Arrow Keys controls!
+            </p>
+        </a>
+        <a href="platform-game/index.html" class="game-card platform-card">
+            <div class="game-icon">&#9733;</div>
+            <h2 class="game-title">Platform Game</h2>
+            <p class="game-description">
+                Hollow Knight style platformer with wall jumping,
+                dashing, combat, and a built-in level editor!
+            </p>
+        </a>
     </div>
-    <script src="game.js"></script>
 </body>
 </html>

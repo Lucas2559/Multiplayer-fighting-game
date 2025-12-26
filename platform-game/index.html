@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hollow Knight Style Platformer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0f;
+            font-family: 'Georgia', serif;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #2a3a4a;
+            border-radius: 4px;
+            box-shadow: 0 0 30px rgba(100, 150, 200, 0.2);
+        }
+        #instructions {
+            color: #6a7a8a;
+            margin-top: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .key {
+            background: #1a2a3a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #8ac;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <p id="instructions">
+            <span class="key">Arrow Keys</span> Move |
+            <span class="key">Z</span> Jump |
+            <span class="key">X</span> Dash |
+            <span class="key">C</span> Attack |
+            <span class="key">A</span> Focus |
+            <span class="key">E</span> Toggle Editor
+        </p>
+        <p id="editorHelp" style="color: #6a7a8a; margin-top: 5px; font-size: 12px; display: none;">
+            <span class="key">1</span> Platform |
+            <span class="key">2</span> Wall |
+            <span class="key">3</span> Enemy |
+            <span class="key">4</span> Geo |
+            <span class="key">5</span> Spike |
+            <span class="key">6</span> Spawner |
+            <span class="key">Click+Drag</span> Place |
+            <span class="key">Right-Click</span> Delete |
+            <span class="key">S</span> Save |
+            <span class="key">L</span> Load
+        </p>
+        <div style="margin-top: 10px;">
+            <label style="color: #8ac;">Nail Size: <span id="nailSizeValue">450</span>px</label>
+            <input type="range" id="nailSize" min="20" max="900" value="450" style="width: 200px; vertical-align: middle;">
+        </div>
+        <div style="margin-top: 10px;">
+            <button id="pauseBtn" style="background: #2a2a4a; color: #aac; border: 1px solid #5a5a7a; padding: 5px 15px; cursor: pointer; border-radius: 3px; margin-right: 15px;">Pause</button>
+            <button id="spawnToggle" style="background: #1a2a3a; color: #8ac; border: 1px solid #4a5a6a; padding: 5px 15px; cursor: pointer; border-radius: 3px;">Start Spawner</button>
+            <label style="color: #8ac; margin-left: 15px;">Spawn Rate: <span id="spawnRateValue">2</span>s</label>
+            <input type="range" id="spawnRate" min="0.2" max="5" step="0.1" value="2" style="width: 120px; vertical-align: middle;">
+            <button id="spawnOne" style="background: #2a3a4a; color: #8ac; border: 1px solid #4a5a6a; padding: 5px 10px; cursor: pointer; border-radius: 3px; margin-left: 10px;">Spawn 1</button>
+            <button id="clearEnemies" style="background: #3a2a2a; color: #c88; border: 1px solid #6a4a4a; padding: 5px 10px; cursor: pointer; border-radius: 3px; margin-left: 5px;">Clear All</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Pause
+        const pauseBtn = document.getElementById('pauseBtn');
+        let paused = false;
+
+        pauseBtn.addEventListener('click', () => {
+            paused = !paused;
+            pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+            pauseBtn.style.background = paused ? '#4a2a2a' : '#2a2a4a';
+        });
+
+        // Nail size slider
+        const nailSizeSlider = document.getElementById('nailSize');
+        const nailSizeValue = document.getElementById('nailSizeValue');
+        let nailSize = 450;
+
+        nailSizeSlider.addEventListener('input', (e) => {
+            nailSize = parseInt(e.target.value);
+            nailSizeValue.textContent = nailSize;
+        });
+
+        // Enemy spawner
+        const spawnToggleBtn = document.getElementById('spawnToggle');
+        const spawnRateSlider = document.getElementById('spawnRate');
+        const spawnRateValue = document.getElementById('spawnRateValue');
+        const spawnOneBtn = document.getElementById('spawnOne');
+        const clearEnemiesBtn = document.getElementById('clearEnemies');
+
+        let spawnerActive = false;
+        let spawnRate = 2;
+        let spawnTimer = null;
+
+        function spawnEnemy() {
+            const x = Math.random() * (canvas.width - 100) + 50;
+            const y = 50;
+            enemies.push({
+                x: x,
+                y: y,
+                width: 30,
+                height: 30,
+                velX: Math.random() > 0.5 ? 1 : -1,
+                health: 2,
+                maxHealth: 2,
+                patrolLeft: Math.max(0, x - 100),
+                patrolRight: Math.min(canvas.width, x + 100),
+                color: '#553333',
+                hit: 0
+            });
+        }
+
+        function startSpawner() {
+            if (spawnTimer) clearInterval(spawnTimer);
+            spawnTimer = setInterval(spawnEnemy, spawnRate * 1000);
+        }
+
+        spawnToggleBtn.addEventListener('click', () => {
+            spawnerActive = !spawnerActive;
+            if (spawnerActive) {
+                spawnToggleBtn.textContent = 'Stop Spawner';
+                spawnToggleBtn.style.background = '#3a2a2a';
+                startSpawner();
+            } else {
+                spawnToggleBtn.textContent = 'Start Spawner';
+                spawnToggleBtn.style.background = '#1a2a3a';
+                if (spawnTimer) clearInterval(spawnTimer);
+            }
+        });
+
+        spawnRateSlider.addEventListener('input', (e) => {
+            spawnRate = parseFloat(e.target.value);
+            spawnRateValue.textContent = spawnRate.toFixed(1);
+            if (spawnerActive) {
+                startSpawner();
+            }
+        });
+
+        spawnOneBtn.addEventListener('click', spawnEnemy);
+
+        clearEnemiesBtn.addEventListener('click', () => {
+            enemies.length = 0;
+        });
+
+        // Game constants
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const DOUBLE_JUMP_FORCE = -11;
+        const MOVE_SPEED = 5;
+        const DASH_SPEED = 18;
+        const DASH_DURATION = 10;
+        const DASH_COOLDOWN = 30;
+        const WALL_SLIDE_SPEED = 2;
+        const WALL_JUMP_FORCE_X = 8;
+        const WALL_JUMP_FORCE_Y = -12;
+        const ATTACK_DURATION = 15;
+        const ATTACK_COOLDOWN = 0;
+        const ATTACK_RANGE = 45;
+        const FOCUS_TIME = 90;
+        const KNOCKBACK_FORCE = 6;
+
+        // Player
+        const player = {
+            x: 100,
+            y: 400,
+            width: 28,
+            height: 38,
+            velX: 0,
+            velY: 0,
+            facing: 1, // 1 = right, -1 = left
+
+            // Jump
+            grounded: false,
+            canDoubleJump: true,
+            jumpBufferTime: 0,
+            coyoteTime: 0,
+
+            // Dash
+            isDashing: false,
+            dashTime: 0,
+            dashCooldown: 0,
+            canDash: true,
+
+            // Wall
+            onWall: false,
+            wallDir: 0,
+            wallJumpTime: 0,
+
+            // Attack
+            isAttacking: false,
+            attackTime: 0,
+            attackCooldown: 0,
+            attackDir: { x: 0, y: 0 },
+
+            // Focus/Heal
+            isFocusing: false,
+            focusTime: 0,
+
+            // Stats
+            health: 5,
+            maxHealth: 5,
+            soul: 0,
+            maxSoul: Infinity,
+
+            // Invincibility
+            invincible: false,
+            invincibleTime: 0,
+
+            // Animation
+            animFrame: 0,
+            animTimer: 0
+        };
+
+        // Level - walls and platforms
+        const walls = [
+            // Boundaries
+            { x: 0, y: 580, width: 900, height: 20, color: '#1a2520' },
+            { x: -20, y: 0, width: 20, height: 600, color: '#1a2520' },
+            { x: 900, y: 0, width: 20, height: 600, color: '#1a2520' },
+
+            // Platforms
+            { x: 50, y: 480, width: 120, height: 15, color: '#2a3530' },
+            { x: 250, y: 420, width: 100, height: 15, color: '#2a3530' },
+            { x: 420, y: 360, width: 80, height: 15, color: '#2a3530' },
+            { x: 580, y: 300, width: 100, height: 15, color: '#2a3530' },
+            { x: 750, y: 380, width: 100, height: 15, color: '#2a3530' },
+
+            // Tall walls for wall jumping
+            { x: 180, y: 280, width: 20, height: 200, color: '#1a2a25' },
+            { x: 700, y: 180, width: 20, height: 200, color: '#1a2a25' },
+
+            // Upper platforms
+            { x: 30, y: 250, width: 100, height: 15, color: '#2a3530' },
+            { x: 220, y: 180, width: 80, height: 15, color: '#2a3530' },
+            { x: 380, y: 220, width: 90, height: 15, color: '#2a3530' },
+            { x: 550, y: 160, width: 80, height: 15, color: '#2a3530' },
+            { x: 750, y: 100, width: 120, height: 15, color: '#2a3530' },
+
+            // Ground decorative platforms
+            { x: 600, y: 520, width: 150, height: 15, color: '#2a3530' },
+            { x: 350, y: 540, width: 80, height: 15, color: '#2a3530' },
+        ];
+
+        // Enemies
+        const enemies = [
+            { x: 280, y: 385, width: 30, height: 30, velX: 1, health: 2, maxHealth: 2, patrolLeft: 250, patrolRight: 340, color: '#553333', hit: 0 },
+            { x: 600, y: 265, width: 30, height: 30, velX: -1, health: 2, maxHealth: 2, patrolLeft: 580, patrolRight: 670, color: '#553333', hit: 0 },
+            { x: 780, y: 345, width: 30, height: 30, velX: 1, health: 2, maxHealth: 2, patrolLeft: 750, patrolRight: 840, color: '#553333', hit: 0 },
+            { x: 100, y: 545, width: 30, height: 30, velX: 1, health: 2, maxHealth: 2, patrolLeft: 50, patrolRight: 200, color: '#553333', hit: 0 },
+        ];
+
+        // Geo (collectibles)
+        const geo = [
+            { x: 300, y: 390, collected: false },
+            { x: 450, y: 330, collected: false },
+            { x: 630, y: 270, collected: false },
+            { x: 100, y: 220, collected: false },
+            { x: 400, y: 190, collected: false },
+            { x: 800, y: 70, collected: false },
+        ];
+
+        let geoCount = 0;
+
+        // Spikes
+        const spikes = [];
+
+        // Particles
+        let particles = [];
+
+        // ===== EDITOR =====
+        let editorMode = false;
+        let editorTool = 'platform'; // platform, wall, enemy, geo, spike
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let dragEnd = { x: 0, y: 0 };
+        let mousePos = { x: 0, y: 0 };
+
+        const toolTypes = {
+            '1': 'platform',
+            '2': 'wall',
+            '3': 'enemy',
+            '4': 'geo',
+            '5': 'spike',
+            '6': 'spawner'
+        };
+
+        // Spawner blocks
+        const spawnerBlocks = [];
+
+        const editorHelp = document.getElementById('editorHelp');
+
+        // Mouse handling
+        canvas.addEventListener('mousedown', (e) => {
+            if (!editorMode) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (e.button === 2) {
+                // Right click - delete
+                deleteObjectAt(x, y);
+            } else {
+                // Left click - start drag
+                isDragging = true;
+                dragStart = { x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10 };
+                dragEnd = { ...dragStart };
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = e.clientX - rect.left;
+            mousePos.y = e.clientY - rect.top;
+
+            if (isDragging) {
+                dragEnd = { x: Math.round(mousePos.x / 10) * 10, y: Math.round(mousePos.y / 10) * 10 };
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!editorMode || e.button !== 0) return;
+
+            if (isDragging) {
+                placeObject();
+                isDragging = false;
+            }
+        });
+
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        function deleteObjectAt(x, y) {
+            // Check walls (skip first 3 which are boundaries)
+            for (let i = walls.length - 1; i >= 3; i--) {
+                const w = walls[i];
+                if (x >= w.x && x <= w.x + w.width && y >= w.y && y <= w.y + w.height) {
+                    walls.splice(i, 1);
+                    return;
+                }
+            }
+            // Check enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                if (x >= e.x && x <= e.x + e.width && y >= e.y && y <= e.y + e.height) {
+                    enemies.splice(i, 1);
+                    return;
+                }
+            }
+            // Check geo
+            for (let i = geo.length - 1; i >= 0; i--) {
+                const g = geo[i];
+                if (Math.hypot(x - g.x, y - g.y) < 15) {
+                    geo.splice(i, 1);
+                    return;
+                }
+            }
+            // Check spikes
+            for (let i = spikes.length - 1; i >= 0; i--) {
+                const s = spikes[i];
+                if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
+                    spikes.splice(i, 1);
+                    return;
+                }
+            }
+            // Check spawner blocks
+            for (let i = spawnerBlocks.length - 1; i >= 0; i--) {
+                const s = spawnerBlocks[i];
+                if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
+                    spawnerBlocks.splice(i, 1);
+                    return;
+                }
+            }
+        }
+
+        function placeObject() {
+            const x = Math.min(dragStart.x, dragEnd.x);
+            const y = Math.min(dragStart.y, dragEnd.y);
+            const width = Math.max(20, Math.abs(dragEnd.x - dragStart.x));
+            const height = Math.max(10, Math.abs(dragEnd.y - dragStart.y));
+
+            switch (editorTool) {
+                case 'platform':
+                    walls.push({
+                        x, y,
+                        width: Math.max(40, width),
+                        height: 15,
+                        color: '#2a3530'
+                    });
+                    break;
+                case 'wall':
+                    walls.push({
+                        x, y,
+                        width: 20,
+                        height: Math.max(40, height),
+                        color: '#1a2a25'
+                    });
+                    break;
+                case 'enemy':
+                    enemies.push({
+                        x: dragStart.x,
+                        y: dragStart.y,
+                        width: 30,
+                        height: 30,
+                        velX: 1,
+                        health: 2,
+                        maxHealth: 2,
+                        patrolLeft: dragStart.x - 50,
+                        patrolRight: dragStart.x + 80,
+                        color: '#553333',
+                        hit: 0
+                    });
+                    break;
+                case 'geo':
+                    geo.push({
+                        x: dragStart.x,
+                        y: dragStart.y,
+                        collected: false
+                    });
+                    break;
+                case 'spike':
+                    spikes.push({
+                        x, y,
+                        width: Math.max(30, width),
+                        height: 20
+                    });
+                    break;
+                case 'spawner':
+                    spawnerBlocks.push({
+                        x: dragStart.x - 20,
+                        y: dragStart.y - 20,
+                        width: 40,
+                        height: 40,
+                        timer: 0,
+                        spawnRate: 6 // frames between spawns (10 per second at 60fps)
+                    });
+                    break;
+            }
+        }
+
+        function saveLevel() {
+            const levelData = {
+                walls: walls.slice(3), // Skip boundaries
+                enemies: enemies.map(e => ({
+                    x: e.x, y: e.y, patrolLeft: e.patrolLeft, patrolRight: e.patrolRight
+                })),
+                geo: geo.map(g => ({ x: g.x, y: g.y })),
+                spikes: spikes,
+                spawnerBlocks: spawnerBlocks.map(s => ({ x: s.x, y: s.y }))
+            };
+            const json = JSON.stringify(levelData);
+            localStorage.setItem('hollowKnightLevel', json);
+            console.log('Level saved!');
+            alert('Level saved to browser storage!');
+        }
+
+        function loadLevel() {
+            const json = localStorage.getItem('hollowKnightLevel');
+            if (!json) {
+                alert('No saved level found!');
+                return;
+            }
+            const levelData = JSON.parse(json);
+
+            // Clear current level (keep boundaries)
+            walls.length = 3;
+            enemies.length = 0;
+            geo.length = 0;
+            spikes.length = 0;
+            spawnerBlocks.length = 0;
+
+            // Load saved data
+            levelData.walls.forEach(w => walls.push({ ...w }));
+            levelData.enemies.forEach(e => enemies.push({
+                x: e.x, y: e.y,
+                width: 30, height: 30,
+                velX: 1,
+                health: 2, maxHealth: 2,
+                patrolLeft: e.patrolLeft,
+                patrolRight: e.patrolRight,
+                color: '#553333',
+                hit: 0
+            }));
+            levelData.geo.forEach(g => geo.push({ x: g.x, y: g.y, collected: false }));
+            levelData.spikes.forEach(s => spikes.push({ ...s }));
+            if (levelData.spawnerBlocks) {
+                levelData.spawnerBlocks.forEach(s => spawnerBlocks.push({
+                    x: s.x, y: s.y,
+                    width: 40, height: 40,
+                    timer: 0, spawnRate: 6
+                }));
+            }
+
+            console.log('Level loaded!');
+            alert('Level loaded!');
+        }
+
+        // Input
+        const keys = {};
+        const keysJustPressed = {};
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+
+            if (!keys[key]) {
+                keysJustPressed[key] = true;
+            }
+            keys[key] = true;
+
+            // Editor toggle
+            if (key === 'e') {
+                editorMode = !editorMode;
+                editorHelp.style.display = editorMode ? 'block' : 'none';
+                if (editorMode) {
+                    // Reset player when entering editor
+                    player.velX = 0;
+                    player.velY = 0;
+                }
+            }
+
+            // Tool selection in editor mode
+            if (editorMode) {
+                if (toolTypes[key]) {
+                    editorTool = toolTypes[key];
+                }
+                if (key === 's') {
+                    saveLevel();
+                }
+                if (key === 'l') {
+                    loadLevel();
+                }
+            }
+
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'z', 'x', 'c', 'a'].includes(key)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // Collision
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // Create particles
+        function spawnParticles(x, y, color, count, spread) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    velX: (Math.random() - 0.5) * spread,
+                    velY: (Math.random() - 0.5) * spread,
+                    life: 30 + Math.random() * 20,
+                    color: color,
+                    size: 2 + Math.random() * 3
+                });
+            }
+        }
+
+        // Damage player
+        function damagePlayer() {
+            if (player.invincible || player.isDashing) return;
+
+            player.health--;
+            player.invincible = true;
+            player.invincibleTime = 60;
+            player.isFocusing = false;
+            player.focusTime = 0;
+
+            spawnParticles(player.x + player.width/2, player.y + player.height/2, '#fff', 10, 8);
+
+            if (player.health <= 0) {
+                // Respawn
+                player.x = 100;
+                player.y = 400;
+                player.velX = 0;
+                player.velY = 0;
+                player.health = player.maxHealth;
+                player.soul = 0;
+                geoCount = Math.floor(geoCount / 2);
+            }
+        }
+
+        // Update
+        function update() {
+            // Handle just pressed keys
+            const jumpPressed = keysJustPressed['z'] || keysJustPressed[' '] || keysJustPressed['arrowup'];
+            const dashPressed = keysJustPressed['x'];
+            const attackPressed = keysJustPressed['c'];
+
+            // Clear just pressed
+            for (let key in keysJustPressed) {
+                keysJustPressed[key] = false;
+            }
+
+            // Invincibility timer
+            if (player.invincible) {
+                player.invincibleTime--;
+                if (player.invincibleTime <= 0) {
+                    player.invincible = false;
+                }
+            }
+
+            // Cooldowns
+            if (player.dashCooldown > 0) player.dashCooldown--;
+            if (player.attackCooldown > 0) player.attackCooldown--;
+            if (player.wallJumpTime > 0) player.wallJumpTime--;
+
+            // Coyote time and jump buffer
+            if (player.grounded) {
+                player.coyoteTime = 6;
+                player.canDoubleJump = true;
+                player.canDash = true;
+            } else {
+                if (player.coyoteTime > 0) player.coyoteTime--;
+            }
+            if (player.jumpBufferTime > 0) player.jumpBufferTime--;
+
+            // ===== FOCUS / HEAL =====
+            if (keys['a'] && player.grounded && player.soul >= 33 && player.health < player.maxHealth && !player.isAttacking) {
+                player.isFocusing = true;
+                player.focusTime++;
+                player.velX = 0;
+
+                if (player.focusTime >= FOCUS_TIME) {
+                    player.health = Math.min(player.health + 1, player.maxHealth);
+                    player.soul -= 33;
+                    player.focusTime = 0;
+                    player.isFocusing = false;
+                    spawnParticles(player.x + player.width/2, player.y + player.height/2, '#fff', 15, 6);
+                }
+            } else {
+                player.isFocusing = false;
+                player.focusTime = 0;
+            }
+
+            // Skip movement during focus
+            if (player.isFocusing) {
+                player.velY += GRAVITY;
+                player.y += player.velY;
+                resolveCollisions();
+                updateParticles();
+                return;
+            }
+
+            // ===== DASH =====
+            if (dashPressed && player.canDash && player.dashCooldown <= 0 && !player.isDashing) {
+                player.isDashing = true;
+                player.dashTime = DASH_DURATION;
+                player.dashCooldown = DASH_COOLDOWN;
+                player.canDash = false;
+                player.velY = 0;
+                spawnParticles(player.x + player.width/2, player.y + player.height/2, '#88ccff', 8, 4);
+            }
+
+            if (player.isDashing) {
+                player.dashTime--;
+                player.velX = DASH_SPEED * player.facing;
+                player.velY = 0;
+
+                if (player.dashTime <= 0) {
+                    player.isDashing = false;
+                    player.velX = MOVE_SPEED * player.facing;
+                }
+            } else {
+                // ===== MOVEMENT =====
+                if (player.wallJumpTime <= 0) {
+                    if (keys['arrowleft']) {
+                        player.velX = -MOVE_SPEED;
+                        player.facing = -1;
+                    } else if (keys['arrowright']) {
+                        player.velX = MOVE_SPEED;
+                        player.facing = 1;
+                    } else {
+                        player.velX *= 0.7;
+                        if (Math.abs(player.velX) < 0.5) player.velX = 0;
+                    }
+                }
+
+                // ===== WALL SLIDE =====
+                player.onWall = false;
+                if (!player.grounded) {
+                    for (const wall of walls) {
+                        // Check left wall
+                        if (keys['arrowleft'] &&
+                            player.x <= wall.x + wall.width + 2 &&
+                            player.x >= wall.x + wall.width - 2 &&
+                            player.y + player.height > wall.y &&
+                            player.y < wall.y + wall.height) {
+                            player.onWall = true;
+                            player.wallDir = -1;
+                            break;
+                        }
+                        // Check right wall
+                        if (keys['arrowright'] &&
+                            player.x + player.width >= wall.x - 2 &&
+                            player.x + player.width <= wall.x + 2 &&
+                            player.y + player.height > wall.y &&
+                            player.y < wall.y + wall.height) {
+                            player.onWall = true;
+                            player.wallDir = 1;
+                            break;
+                        }
+                    }
+                }
+
+                // Wall slide
+                if (player.onWall && player.velY > 0) {
+                    player.velY = WALL_SLIDE_SPEED;
+                    player.canDoubleJump = true;
+                    player.canDash = true;
+                }
+
+                // ===== JUMP =====
+                if (jumpPressed) {
+                    player.jumpBufferTime = 8;
+                }
+
+                if (player.jumpBufferTime > 0) {
+                    // Wall jump
+                    if (player.onWall) {
+                        player.velY = WALL_JUMP_FORCE_Y;
+                        player.velX = WALL_JUMP_FORCE_X * -player.wallDir;
+                        player.facing = -player.wallDir;
+                        player.wallJumpTime = 10;
+                        player.jumpBufferTime = 0;
+                        player.onWall = false;
+                        spawnParticles(player.x + player.width/2, player.y + player.height/2, '#aaa', 5, 4);
+                    }
+                    // Normal jump
+                    else if (player.coyoteTime > 0) {
+                        player.velY = JUMP_FORCE;
+                        player.coyoteTime = 0;
+                        player.jumpBufferTime = 0;
+                        spawnParticles(player.x + player.width/2, player.y + player.height, '#aaa', 5, 3);
+                    }
+                    // Double jump
+                    else if (player.canDoubleJump) {
+                        player.velY = DOUBLE_JUMP_FORCE;
+                        player.canDoubleJump = false;
+                        player.jumpBufferTime = 0;
+                        spawnParticles(player.x + player.width/2, player.y + player.height, '#88f', 8, 5);
+                    }
+                }
+
+                // Variable jump height
+                if (!keys['z'] && !keys[' '] && !keys['arrowup'] && player.velY < -3) {
+                    player.velY = -3;
+                }
+
+                // Gravity
+                player.velY += GRAVITY;
+                if (player.velY > 15) player.velY = 15;
+            }
+
+            // ===== ATTACK =====
+            if (attackPressed && player.attackCooldown <= 0 && !player.isAttacking) {
+                player.isAttacking = true;
+                player.attackTime = ATTACK_DURATION;
+                player.attackCooldown = ATTACK_COOLDOWN;
+
+                // Determine attack direction
+                if (keys['arrowup']) {
+                    player.attackDir = { x: 0, y: -1 };
+                } else if (keys['arrowdown'] && !player.grounded) {
+                    player.attackDir = { x: 0, y: 1 };
+                } else {
+                    player.attackDir = { x: player.facing, y: 0 };
+                }
+            }
+
+            if (player.isAttacking) {
+                player.attackTime--;
+                if (player.attackTime <= 0) {
+                    player.isAttacking = false;
+                }
+            }
+
+            // Apply velocity
+            player.x += player.velX;
+            player.y += player.velY;
+
+            // Resolve collisions
+            resolveCollisions();
+
+            // ===== ATTACK HIT DETECTION =====
+            if (player.isAttacking && player.attackTime === ATTACK_DURATION - 2) {
+                const halfSize = nailSize / 2;
+                const attackBox = {
+                    x: player.x + player.width/2 + player.attackDir.x * (halfSize/2) - halfSize,
+                    y: player.y + player.height/2 + player.attackDir.y * (halfSize/2) - halfSize,
+                    width: nailSize,
+                    height: nailSize
+                };
+
+                for (const enemy of enemies) {
+                    if (enemy.health > 0 && checkCollision(attackBox, enemy)) {
+                        enemy.health--;
+                        enemy.hit = 10;
+                        enemy.velX *= -1;
+                        player.soul = Math.min(player.soul + 11, player.maxSoul);
+
+                        // Knockback player (pogo)
+                        if (player.attackDir.y === 1) {
+                            player.velY = -18;
+                        } else if (player.attackDir.y === -1) {
+                            player.velY = 5;
+                        } else {
+                            player.velX = -player.attackDir.x * KNOCKBACK_FORCE;
+                        }
+
+                        spawnParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#f88', 10, 6);
+
+                        if (enemy.health <= 0) {
+                            geoCount += 5;
+                            spawnParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#fc0', 15, 8);
+                        }
+                    }
+                }
+            }
+
+            // ===== ENEMY UPDATE =====
+            for (const enemy of enemies) {
+                if (enemy.health <= 0) continue;
+
+                if (enemy.hit > 0) enemy.hit--;
+
+                // Initialize velY if not set
+                if (enemy.velY === undefined) enemy.velY = 0;
+
+                // Apply gravity
+                enemy.velY += GRAVITY * 0.8;
+                enemy.y += enemy.velY;
+
+                // Ground collision
+                enemy.grounded = false;
+                for (const wall of walls) {
+                    if (checkCollision(enemy, wall)) {
+                        if (enemy.velY > 0 && enemy.y + enemy.height - enemy.velY <= wall.y + 5) {
+                            enemy.y = wall.y - enemy.height;
+                            enemy.velY = 0;
+                            enemy.grounded = true;
+                        }
+                    }
+                }
+
+                // Patrol (only when grounded)
+                if (enemy.grounded) {
+                    enemy.x += enemy.velX;
+                    if (enemy.x <= enemy.patrolLeft || enemy.x + enemy.width >= enemy.patrolRight) {
+                        enemy.velX *= -1;
+                    }
+                }
+
+                // Remove if fallen off screen
+                if (enemy.y > canvas.height + 100) {
+                    enemy.health = 0;
+                }
+
+                // Damage player
+                if (checkCollision(player, enemy)) {
+                    damagePlayer();
+                }
+            }
+
+            // ===== GEO COLLECTION =====
+            for (const g of geo) {
+                if (!g.collected) {
+                    const dist = Math.hypot(player.x + player.width/2 - g.x, player.y + player.height/2 - g.y);
+                    if (dist < 25) {
+                        g.collected = true;
+                        geoCount++;
+                        spawnParticles(g.x, g.y, '#fc0', 8, 4);
+                    }
+                }
+            }
+
+            // ===== SPIKE COLLISION =====
+            for (const spike of spikes) {
+                if (checkCollision(player, spike)) {
+                    damagePlayer();
+                }
+            }
+
+            // ===== SPAWNER BLOCKS =====
+            for (const spawner of spawnerBlocks) {
+                spawner.timer++;
+                if (spawner.timer >= spawner.spawnRate) {
+                    spawner.timer = 0;
+                    // Spawn enemy at spawner location
+                    enemies.push({
+                        x: spawner.x + spawner.width / 2 - 15,
+                        y: spawner.y + spawner.height,
+                        width: 30,
+                        height: 30,
+                        velX: Math.random() > 0.5 ? 1.5 : -1.5,
+                        velY: 0,
+                        health: 2,
+                        maxHealth: 2,
+                        patrolLeft: 0,
+                        patrolRight: canvas.width,
+                        color: '#553333',
+                        hit: 0,
+                        grounded: false
+                    });
+                }
+            }
+
+            // Update particles
+            updateParticles();
+
+            // Animation
+            player.animTimer++;
+            if (player.animTimer > 8) {
+                player.animTimer = 0;
+                player.animFrame = (player.animFrame + 1) % 4;
+            }
+        }
+
+        function resolveCollisions() {
+            player.grounded = false;
+
+            for (const wall of walls) {
+                if (checkCollision(player, wall)) {
+                    // Vertical collision
+                    if (player.velY > 0 && player.y + player.height - player.velY <= wall.y + 5) {
+                        player.y = wall.y - player.height;
+                        player.velY = 0;
+                        player.grounded = true;
+                    } else if (player.velY < 0 && player.y - player.velY >= wall.y + wall.height - 5) {
+                        player.y = wall.y + wall.height;
+                        player.velY = 0;
+                    }
+                    // Horizontal collision
+                    else if (player.velX > 0) {
+                        player.x = wall.x - player.width;
+                        player.velX = 0;
+                    } else if (player.velX < 0) {
+                        player.x = wall.x + wall.width;
+                        player.velX = 0;
+                    }
+                }
+            }
+
+            // Screen bounds
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y > canvas.height) {
+                damagePlayer();
+                player.y = 400;
+                player.x = 100;
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.velX;
+                p.y += p.velY;
+                p.velY += 0.1;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Render
+        function render() {
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0a0a12');
+            gradient.addColorStop(1, '#151520');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Ambient particles (background)
+            ctx.fillStyle = 'rgba(100, 150, 200, 0.1)';
+            for (let i = 0; i < 30; i++) {
+                const x = (Date.now() / 50 + i * 100) % (canvas.width + 50) - 25;
+                const y = (Math.sin(Date.now() / 1000 + i) * 50 + 100 + i * 18) % canvas.height;
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Walls
+            for (const wall of walls) {
+                ctx.fillStyle = wall.color;
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+
+                // Top highlight
+                ctx.fillStyle = 'rgba(100, 150, 130, 0.3)';
+                ctx.fillRect(wall.x, wall.y, wall.width, 2);
+            }
+
+            // Geo
+            for (const g of geo) {
+                if (!g.collected) {
+                    ctx.fillStyle = '#fc0';
+                    ctx.beginPath();
+                    ctx.moveTo(g.x, g.y - 8);
+                    ctx.lineTo(g.x + 6, g.y);
+                    ctx.lineTo(g.x, g.y + 8);
+                    ctx.lineTo(g.x - 6, g.y);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Glow
+                    ctx.fillStyle = 'rgba(255, 200, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(g.x, g.y, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Spikes
+            for (const spike of spikes) {
+                ctx.fillStyle = '#aa3333';
+                ctx.beginPath();
+                const numSpikes = Math.floor(spike.width / 15);
+                const spikeW = spike.width / Math.max(1, numSpikes);
+                for (let i = 0; i < numSpikes; i++) {
+                    const sx = spike.x + i * spikeW;
+                    ctx.moveTo(sx, spike.y + spike.height);
+                    ctx.lineTo(sx + spikeW / 2, spike.y);
+                    ctx.lineTo(sx + spikeW, spike.y + spike.height);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Spawner blocks
+            for (const spawner of spawnerBlocks) {
+                // Pulsing glow effect
+                const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(150, 50, 50, ${pulse})`;
+                ctx.fillRect(spawner.x, spawner.y, spawner.width, spawner.height);
+
+                // Border
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(spawner.x, spawner.y, spawner.width, spawner.height);
+
+                // Skull icon
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('S', spawner.x + spawner.width/2, spawner.y + spawner.height/2 + 7);
+                ctx.textAlign = 'left';
+            }
+
+            // Enemies
+            for (const enemy of enemies) {
+                if (enemy.health <= 0) continue;
+
+                ctx.fillStyle = enemy.hit > 0 ? '#fff' : enemy.color;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+
+                // Eyes
+                ctx.fillStyle = '#f00';
+                ctx.fillRect(enemy.x + 6, enemy.y + 8, 5, 5);
+                ctx.fillRect(enemy.x + 19, enemy.y + 8, 5, 5);
+            }
+
+            // Particles
+            for (const p of particles) {
+                ctx.globalAlpha = p.life / 50;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            }
+            ctx.globalAlpha = 1;
+
+            // Player
+            if (!player.invincible || Math.floor(Date.now() / 50) % 2) {
+                // Cloak (body)
+                ctx.fillStyle = player.isDashing ? '#88ccff' : '#222';
+                ctx.fillRect(player.x, player.y + 8, player.width, player.height - 8);
+
+                // Head (mask)
+                ctx.fillStyle = '#eee';
+                ctx.fillRect(player.x + 2, player.y, player.width - 4, 20);
+
+                // Horns
+                ctx.fillStyle = '#eee';
+                ctx.fillRect(player.x + 2, player.y - 8, 4, 10);
+                ctx.fillRect(player.x + player.width - 6, player.y - 8, 4, 10);
+
+                // Eyes
+                ctx.fillStyle = '#111';
+                const eyeOffset = player.facing === 1 ? 2 : -2;
+                ctx.fillRect(player.x + 7 + eyeOffset, player.y + 8, 4, 6);
+                ctx.fillRect(player.x + 17 + eyeOffset, player.y + 8, 4, 6);
+            }
+
+            // Attack slash
+            if (player.isAttacking && player.attackTime > ATTACK_DURATION - 8) {
+                const slashRadius = nailSize / 2;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = Math.max(3, nailSize / 30);
+                ctx.beginPath();
+
+                const cx = player.x + player.width/2 + player.attackDir.x * (slashRadius / 2);
+                const cy = player.y + player.height/2 + player.attackDir.y * (slashRadius / 2);
+
+                if (player.attackDir.y !== 0) {
+                    ctx.arc(cx, cy, slashRadius, 0, Math.PI, player.attackDir.y === 1);
+                } else {
+                    ctx.arc(cx, cy, slashRadius, -Math.PI/2, Math.PI/2, player.attackDir.x === -1);
+                }
+                ctx.stroke();
+
+                // Show attack area outline when nail is large
+                if (nailSize > 100) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(
+                        player.x + player.width/2 + player.attackDir.x * (slashRadius/2) - slashRadius,
+                        player.y + player.height/2 + player.attackDir.y * (slashRadius/2) - slashRadius,
+                        nailSize, nailSize
+                    );
+                }
+            }
+
+            // Focus effect
+            if (player.isFocusing) {
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(Date.now() / 100) * 0.2})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, 25 + Math.sin(Date.now() / 80) * 5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Focus progress
+                ctx.fillStyle = '#fff';
+                const progress = player.focusTime / FOCUS_TIME;
+                ctx.fillRect(player.x - 5, player.y - 15, (player.width + 10) * progress, 3);
+            }
+
+            // ===== UI =====
+            // Health
+            for (let i = 0; i < player.maxHealth; i++) {
+                ctx.fillStyle = i < player.health ? '#eee' : '#333';
+                ctx.beginPath();
+                ctx.arc(30 + i * 28, 30, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Soul meter
+            ctx.fillStyle = '#222';
+            ctx.fillRect(25, 50, 104, 14);
+            ctx.fillStyle = '#88aacc';
+            const soulBarWidth = Math.min(100, player.soul);
+            ctx.fillRect(27, 52, soulBarWidth, 10);
+            ctx.strokeStyle = '#446';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(25, 50, 104, 14);
+            // Soul count
+            ctx.fillStyle = '#88aacc';
+            ctx.font = 'bold 12px Georgia';
+            ctx.fillText(`${Math.floor(player.soul)}`, 135, 62);
+
+            // Geo count
+            ctx.fillStyle = '#fc0';
+            ctx.font = 'bold 16px Georgia';
+            ctx.fillText(`GEO: ${geoCount}`, 25, 85);
+
+            // Controls reminder
+            ctx.fillStyle = '#335';
+            ctx.font = '12px Georgia';
+            ctx.fillText('Double Jump & Dash unlocked!', canvas.width - 180, 25);
+
+            // ===== EDITOR UI =====
+            if (editorMode) {
+                // Editor overlay
+                ctx.fillStyle = 'rgba(0, 50, 100, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Grid
+                ctx.strokeStyle = 'rgba(100, 150, 200, 0.1)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < canvas.width; x += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+
+                // Tool indicator
+                ctx.fillStyle = '#88ccff';
+                ctx.font = 'bold 16px Georgia';
+                ctx.fillText(`EDITOR MODE - Tool: ${editorTool.toUpperCase()}`, canvas.width / 2 - 100, 30);
+
+                // Drag preview
+                if (isDragging) {
+                    ctx.globalAlpha = 0.5;
+                    const x = Math.min(dragStart.x, dragEnd.x);
+                    const y = Math.min(dragStart.y, dragEnd.y);
+                    const w = Math.abs(dragEnd.x - dragStart.x);
+                    const h = Math.abs(dragEnd.y - dragStart.y);
+
+                    switch (editorTool) {
+                        case 'platform':
+                            ctx.fillStyle = '#2a3530';
+                            ctx.fillRect(x, y, Math.max(40, w), 15);
+                            break;
+                        case 'wall':
+                            ctx.fillStyle = '#1a2a25';
+                            ctx.fillRect(x, y, 20, Math.max(40, h));
+                            break;
+                        case 'enemy':
+                            ctx.fillStyle = '#553333';
+                            ctx.fillRect(dragStart.x, dragStart.y, 30, 30);
+                            break;
+                        case 'geo':
+                            ctx.fillStyle = '#fc0';
+                            ctx.beginPath();
+                            ctx.arc(dragStart.x, dragStart.y, 8, 0, Math.PI * 2);
+                            ctx.fill();
+                            break;
+                        case 'spike':
+                            ctx.fillStyle = '#aa3333';
+                            ctx.fillRect(x, y, Math.max(30, w), 20);
+                            break;
+                        case 'spawner':
+                            ctx.fillStyle = '#963232';
+                            ctx.fillRect(dragStart.x - 20, dragStart.y - 20, 40, 40);
+                            ctx.strokeStyle = '#ff4444';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(dragStart.x - 20, dragStart.y - 20, 40, 40);
+                            break;
+                    }
+                    ctx.globalAlpha = 1;
+                }
+
+                // Cursor crosshair
+                ctx.strokeStyle = '#88ccff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(mousePos.x - 10, mousePos.y);
+                ctx.lineTo(mousePos.x + 10, mousePos.y);
+                ctx.moveTo(mousePos.x, mousePos.y - 10);
+                ctx.lineTo(mousePos.x, mousePos.y + 10);
+                ctx.stroke();
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!paused) {
+                update();
+            }
+            render();
+
+            // Draw pause overlay
+            if (paused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 48px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.textAlign = 'left';
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
