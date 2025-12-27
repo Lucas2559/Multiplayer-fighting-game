@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level Hell</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            color: white;
+            min-height: 100vh;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #ff4444;
+        }
+        .level-select {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        .level-btn {
+            width: 120px;
+            height: 80px;
+            font-size: 18px;
+            cursor: pointer;
+            background: #4a4a6a;
+            color: white;
+            border: 2px solid #6a6aff;
+            border-radius: 10px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .level-btn:hover {
+            background: #5a5a7a;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(106, 106, 255, 0.5);
+        }
+        .level-btn.completed {
+            border-color: #44ff44;
+            background: #2a4a2a;
+        }
+        .level-btn.completed::after {
+            content: '\2713';
+            font-size: 14px;
+            color: #44ff44;
+        }
+        .game-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+        .game-container.active {
+            display: flex;
+        }
+        .level-select-container.hidden {
+            display: none;
+        }
+        .toolbar {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4a4a6a;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #5a5a7a;
+        }
+        #backBtn {
+            background: #6a4a4a;
+        }
+        #backBtn:hover {
+            background: #7a5a5a;
+        }
+        #restartBtn {
+            background: #4a6a4a;
+        }
+        #restartBtn:hover {
+            background: #5a7a5a;
+        }
+        canvas {
+            border: 2px solid #4a4a6a;
+        }
+        .instructions {
+            margin-top: 10px;
+            color: #aaa;
+        }
+        .level-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #6a6aff;
+        }
+        .win-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .win-modal.active {
+            display: flex;
+        }
+        .win-content {
+            background: #2a2a4a;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid #44ff44;
+        }
+        .win-content h2 {
+            color: #44ff44;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        .win-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .win-buttons button {
+            padding: 15px 30px;
+            font-size: 18px;
+        }
+        #nextLevelBtn {
+            background: #2a8a2a;
+        }
+        #nextLevelBtn:hover {
+            background: #3a9a3a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Level Hell</h1>
+
+    <div class="level-select-container" id="levelSelectContainer">
+        <div class="level-select" id="levelSelect"></div>
+    </div>
+
+    <div class="game-container" id="gameContainer">
+        <div class="level-title" id="levelTitle">Level 1</div>
+        <div class="toolbar">
+            <button id="backBtn">Back to Levels</button>
+            <button id="restartBtn">Restart</button>
+        </div>
+        <canvas id="canvas"></canvas>
+        <p class="instructions">Arrow keys or WASD to move, Up/W to jump</p>
+    </div>
+
+    <div class="win-modal" id="winModal">
+        <div class="win-content">
+            <h2>Level Complete!</h2>
+            <div class="win-buttons">
+                <button id="menuBtn">Level Select</button>
+                <button id="nextLevelBtn">Next Level</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // All 13 levels data
+        const LEVELS = [
+            {
+                name: "Level 1",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+---SIGNS---
+{"3,17":"Go to the green"}`
+            },
+            {
+                name: "Level 2",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,B,B,B,B,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"Press up or w to jump"}`
+            },
+            {
+                name: "Level 3",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,G,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,B,B,B,B,B,E,E,E,B,E,B,B,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,B,E,E,E,E,B,E,E,B,E
+E,E,E,E,B,E,B,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E`
+            },
+            {
+                name: "Level 4",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,B,E,E,E,E,E,E,E,E
+SN,E,E,E,S,E,E,E,S,S,E,E,B,E,E,E,B,E,E,S,S,S,E,E,G
+---SIGNS---
+{"0,17":"These are spikes. Don't touch them."}`
+            },
+            {
+                name: "Level 5",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,B,E,E,S,E,E,E,E,E,E,E,E,E,E,E,E
+G,E,E,S,S,S,S,E,E,B,E,E,B,E,E,S,S,E,E,S,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,B,E,E,E
+E,E,E,E,E,E,B,E,S,E,B,E,E,B,E,E,B,E,E,B,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S`
+            },
+            {
+                name: "Level 6",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,TB,E,E,E,E,TS,E,E,E,E,E,TB,E,E,E,E,E,E
+E,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,TB,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"Outlined blocks activate when you walk across them."}`
+            },
+            {
+                name: "Level 7",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,TB,E,E,E,TB,E,E,TB,E,E,E,TB,E,E,TB,E,E,TB,E
+E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,S,S,E,E,S,S,E,S,S,E,E,S,S,E,S,S,E,E
+---SIGNS---
+{"0,17":"Sory if some levels are bad."}`
+            },
+            {
+                name: "Level 8",
+                data: `E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,B,G
+E,B,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E
+E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+TB,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"Like this one"}`
+            },
+            {
+                name: "Level 9",
+                data: `E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,B,E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,E,E,E,E,B,TB,E,E,E,E,B,E,E,B,B,B,E,E,E,E,E,SN
+E,E,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,TB,E,E,E,B,B,B,B
+E,E,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E
+E,E,E,E,E,B,E,B,E,E,E,E,E,B,E,E,E,B,B,TB,B,B,E,E,E
+E,E,E,E,E,B,E,B,B,E,E,E,E,B,E,B,B,B,E,E,E,E,E,E,E
+E,E,E,E,B,B,E,B,E,E,E,E,E,B,E,B,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,B,E,B,B,E,E,E,E,B,E,B,E,E,E,E,E,E,E,E,E
+E,E,E,E,B,B,E,B,E,E,E,E,E,B,E,B,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,B,E,B,B,E,E,E,E,B,TB,B,E,E,E,E,E,E,E,E,E
+E,E,E,E,B,B,E,B,B,B,E,E,E,B,E,B,E,E,E,E,E,E,E,E,E
+E,E,E,B,B,B,E,B,B,B,B,E,E,B,E,B,E,E,E,E,E,E,E,E,E
+E,E,B,B,B,B,E,B,B,B,B,B,E,B,E,B,E,E,E,E,E,E,E,E,E
+SN,B,B,B,B,B,E,E,E,E,E,E,SN,B,TS,B,E,E,E,E,E,E,E,E,G
+---SIGNS---
+{"0,17":"This is a Vertical Neo. I will be using VN for repersentation.","12,17":"Good Job! Now do the other way","20,5":"Go right to try again","24,5":"Go right to restart"}`
+            },
+            {
+                name: "Level 10",
+                data: `E,E,E,B,E,E,B,E,E,E,E,B,E,E,TS,TS,TS,B,B,E,E,E,E,E,B
+E,E,E,B,E,E,B,E,E,E,E,B,G,E,TB,TS,TS,B,E,B,E,E,E,B,E
+E,E,E,B,E,E,B,E,E,E,E,B,B,B,TS,TS,TS,B,E,E,B,E,B,E,E
+E,E,E,B,E,E,B,E,E,E,E,E,E,B,TS,TS,TB,B,E,E,E,B,E,E,E
+E,E,E,B,E,E,B,E,B,E,B,B,E,B,TS,TS,TS,B,E,E,B,E,B,E,E
+E,E,E,B,E,E,B,E,B,E,E,B,E,B,TS,TS,TS,B,E,B,E,E,E,B,E
+E,E,E,B,E,E,B,E,B,B,E,B,E,B,TB,TS,TS,B,B,E,E,E,E,E,B
+E,E,E,B,B,B,B,E,B,E,E,B,E,B,TS,TS,TS,B,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,B,E,B,B,E,B,TS,TS,TS,B,E,E,E,B,E,E,E
+G,E,E,E,E,E,E,E,B,E,E,B,E,B,TS,TS,TB,B,E,E,B,E,E,E,E
+B,B,B,E,B,B,B,B,B,B,E,B,E,B,TS,TS,TS,B,E,B,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,B,E,B,TS,TS,TS,B,B,B,B,B,B,B,B
+E,E,E,E,E,E,E,E,E,E,B,B,E,B,TB,TS,TS,B,E,B,E,E,E,E,E
+E,E,E,E,E,B,B,B,E,B,B,B,E,B,TS,TS,TS,B,E,E,B,E,E,E,E
+E,E,E,E,B,B,E,E,E,E,E,B,E,B,TS,TS,TS,B,E,E,E,B,E,E,E
+E,E,E,B,B,E,E,E,E,E,E,B,E,B,TS,TS,TB,B,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,B,E,B,TS,TS,TS,B,E,E,E,E,E,E,E
+SN,B,E,E,E,E,E,E,E,E,E,B,SN,E,TS,TS,TS,B,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"It is a headhiter","12,17":"You messed up"}`
+            },
+            {
+                name: "Level 11",
+                data: `E,E,E,E,E,E,E,E,B,G,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,B,E,B,E,E,E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,B,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B
+E,B,E,E,E,B,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,B,B,B,E,E,E,B,E,E,B,B,E,E,E,E,E,E,E,E,E,B,E,E
+E,E,E,E,E,E,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,B,E,E,B,E,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,B,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,B,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,B,TB,TB,TB
+E,E,E,B,E,B,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,B,E,E,E
+E,E,E,E,E,B,B,B,E,B,B,B,B,E,E,E,E,E,E,E,E,B,E,E,E
+E,E,E,B,E,B,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,B,TB,E,E
+E,E,E,E,E,B,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,B,E,E,E
+E,E,E,B,E,B,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,B,E,E,TB
+E,E,E,E,E,B,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,B,E,E,E
+SN,E,E,E,E,E,E,E,E,E,E,E,B,TS,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"This is a combination of all the things that we learned"}`
+            },
+            {
+                name: "Level 12",
+                data: `G,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,B
+E,B,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+E,B,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,B,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+E,B,B,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,B
+B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,SN
+E,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB,E,TB
+E,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B
+B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B
+E,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B
+E,B,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B
+E,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B,E,B
+SN,E,B,S,B,S,B,S,B,S,B,S,B,S,B,S,B,S,B,S,B,S,B,S,B
+---SIGNS---
+{"0,17":"Thats a lot of headhiters","24,10":"Ow, my head"}`
+            },
+            {
+                name: "Level 13",
+                data: `E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+G,E,S,E,E,E,S,E,E,E,S,E,E,E,S,E,E,E,S,E,E,E,E,E,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
+E,E,E,B,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,B,B,B,B,E,TB,E,E,B,B,E,TB,E,E,B,B,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E
+E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,B,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E
+E,E,E,E,E,E,E,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S`
+            }
+        ];
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const levelSelectContainer = document.getElementById('levelSelectContainer');
+        const levelSelect = document.getElementById('levelSelect');
+        const gameContainer = document.getElementById('gameContainer');
+        const levelTitle = document.getElementById('levelTitle');
+        const winModal = document.getElementById('winModal');
+
+        // Grid settings
+        const GRID_SIZE = 32;
+        const COLS = 25;
+        const ROWS = 18;
+
+        canvas.width = COLS * GRID_SIZE;
+        canvas.height = ROWS * GRID_SIZE;
+
+        // Level data
+        const level = [];
+        let savedLevel = [];
+        let signTexts = {};
+        let currentLevelIndex = 0;
+        let completedLevels = JSON.parse(localStorage.getItem('levelHellCompleted') || '[]');
+
+        for (let y = 0; y < ROWS; y++) {
+            level[y] = [];
+            for (let x = 0; x < COLS; x++) {
+                level[y][x] = 0;
+            }
+        }
+
+        // Tile code mappings
+        const CODE_TO_TILE = {
+            'E': 0,   // Empty
+            'B': 1,   // Block
+            'S': 2,   // Spike
+            'TB': 3,  // Trigger Block
+            'TS': 4,  // Trigger Spike
+            'G': 5,   // Goal
+            'SN': 6   // Sign/Spawn
+        };
+
+        // Player settings
+        const PLAYER_SIZE = 20;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -13;
+        const JUMP_CUT_MULTIPLIER = 0.4;
+        const MOVE_SPEED = 3.5;
+
+        let player = {
+            x: 2,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            onGround: false,
+            isJumping: false
+        };
+
+        const keys = {
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        let activeTriggers = new Set();
+        let currentSignText = '';
+        let isPlaying = false;
+        let spawnX = 2;
+        let spawnY = (ROWS - 2) * GRID_SIZE;
+
+        // Create level select buttons
+        function createLevelSelect() {
+            levelSelect.innerHTML = '';
+            LEVELS.forEach((lvl, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                if (completedLevels.includes(index)) {
+                    btn.classList.add('completed');
+                }
+                btn.innerHTML = `<span>${lvl.name}</span>`;
+                btn.addEventListener('click', () => startLevel(index));
+                levelSelect.appendChild(btn);
+            });
+        }
+
+        // Parse level data
+        function codeToLevel(codeStr) {
+            const parts = codeStr.trim().split('---SIGNS---');
+            const levelData = parts[0].trim();
+
+            signTexts = {};
+            if (parts[1]) {
+                try {
+                    signTexts = JSON.parse(parts[1].trim());
+                } catch (e) {
+                    console.error('Failed to parse sign data');
+                }
+            }
+
+            const rows = levelData.split('\n');
+            spawnX = 2;
+            spawnY = (ROWS - 2) * GRID_SIZE;
+
+            for (let y = 0; y < ROWS && y < rows.length; y++) {
+                const codes = rows[y].split(',').map(c => c.trim());
+                for (let x = 0; x < COLS && x < codes.length; x++) {
+                    const code = codes[x].toUpperCase();
+                    if (CODE_TO_TILE.hasOwnProperty(code)) {
+                        level[y][x] = CODE_TO_TILE[code];
+                        // Find spawn point
+                        if (code === 'SN') {
+                            spawnX = x * GRID_SIZE + (GRID_SIZE - PLAYER_SIZE) / 2;
+                            spawnY = y * GRID_SIZE + (GRID_SIZE - PLAYER_SIZE);
+                        }
+                    } else {
+                        level[y][x] = 0;
+                    }
+                }
+            }
+        }
+
+        function saveLevel() {
+            savedLevel = level.map(row => [...row]);
+        }
+
+        function restoreLevel() {
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    level[y][x] = savedLevel[y][x];
+                }
+            }
+        }
+
+        // Start a level
+        function startLevel(index) {
+            currentLevelIndex = index;
+            codeToLevel(LEVELS[index].data);
+            saveLevel();
+
+            levelTitle.textContent = LEVELS[index].name;
+            levelSelectContainer.classList.add('hidden');
+            gameContainer.classList.add('active');
+            winModal.classList.remove('active');
+
+            player.x = spawnX;
+            player.y = spawnY;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = false;
+            player.isJumping = false;
+            activeTriggers = new Set();
+            currentSignText = '';
+
+            isPlaying = true;
+            gameLoop();
+        }
+
+        // Back to level select
+        function backToLevelSelect() {
+            isPlaying = false;
+            levelSelectContainer.classList.remove('hidden');
+            gameContainer.classList.remove('active');
+            winModal.classList.remove('active');
+            createLevelSelect();
+        }
+
+        // Button handlers
+        document.getElementById('backBtn').addEventListener('click', backToLevelSelect);
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            restoreLevel();
+            player.x = spawnX;
+            player.y = spawnY;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = false;
+            player.isJumping = false;
+            activeTriggers = new Set();
+            currentSignText = '';
+        });
+        document.getElementById('menuBtn').addEventListener('click', backToLevelSelect);
+        document.getElementById('nextLevelBtn').addEventListener('click', () => {
+            if (currentLevelIndex < LEVELS.length - 1) {
+                startLevel(currentLevelIndex + 1);
+            } else {
+                backToLevelSelect();
+            }
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = true;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = true;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                keys.jump = true;
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                if (isPlaying) {
+                    restoreLevel();
+                    player.x = spawnX;
+                    player.y = spawnY;
+                    player.vx = 0;
+                    player.vy = 0;
+                    player.onGround = false;
+                    player.isJumping = false;
+                    activeTriggers = new Set();
+                    currentSignText = '';
+                }
+            }
+            if (e.key === 'Escape') {
+                backToLevelSelect();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = false;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                keys.jump = false;
+                if (player.isJumping && player.vy < 0) {
+                    player.vy *= JUMP_CUT_MULTIPLIER;
+                }
+                player.isJumping = false;
+            }
+        });
+
+        // Collision detection
+        function isSolid(px, py) {
+            const gridX = Math.floor(px / GRID_SIZE);
+            const gridY = Math.floor(py / GRID_SIZE);
+            if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
+                return gridY >= ROWS || gridY < 0;
+            }
+            return level[gridY][gridX] === 1;
+        }
+
+        function checkCollision(x, y, width, height) {
+            return isSolid(x, y) ||
+                   isSolid(x + width - 1, y) ||
+                   isSolid(x, y + height - 1) ||
+                   isSolid(x + width - 1, y + height - 1) ||
+                   isSolid(x + width / 2, y) ||
+                   isSolid(x + width / 2, y + height - 1);
+        }
+
+        function checkSpike(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height - 1]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 2) return true;
+                }
+            }
+            return false;
+        }
+
+        function checkGoal(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height / 2]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 5) return true;
+                }
+            }
+            return false;
+        }
+
+        function getSignText(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height / 2]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 6) {
+                        const key = `${gridX},${gridY}`;
+                        return signTexts[key] || '';
+                    }
+                }
+            }
+            return '';
+        }
+
+        function getOverlappingTriggers(x, y, width, height) {
+            const triggers = new Set();
+            const startX = Math.floor(x / GRID_SIZE);
+            const endX = Math.floor((x + width - 1) / GRID_SIZE);
+            const startY = Math.floor(y / GRID_SIZE);
+            const endY = Math.floor((y + height - 1) / GRID_SIZE);
+
+            for (let gy = startY; gy <= endY; gy++) {
+                for (let gx = startX; gx <= endX; gx++) {
+                    if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
+                        if (level[gy][gx] === 3 || level[gy][gx] === 4) {
+                            triggers.add(`${gx},${gy}`);
+                        }
+                    }
+                }
+            }
+            return triggers;
+        }
+
+        function checkTriggers(x, y, width, height) {
+            const currentTriggers = getOverlappingTriggers(x, y, width, height);
+
+            for (const key of activeTriggers) {
+                if (!currentTriggers.has(key)) {
+                    const [gx, gy] = key.split(',').map(Number);
+                    if (level[gy][gx] === 3) {
+                        level[gy][gx] = 1;
+                    } else if (level[gy][gx] === 4) {
+                        level[gy][gx] = 2;
+                    }
+                }
+            }
+
+            activeTriggers = currentTriggers;
+        }
+
+        function winLevel() {
+            isPlaying = false;
+            if (!completedLevels.includes(currentLevelIndex)) {
+                completedLevels.push(currentLevelIndex);
+                localStorage.setItem('levelHellCompleted', JSON.stringify(completedLevels));
+            }
+
+            if (currentLevelIndex >= LEVELS.length - 1) {
+                document.getElementById('nextLevelBtn').textContent = 'Back to Menu';
+            } else {
+                document.getElementById('nextLevelBtn').textContent = 'Next Level';
+            }
+
+            winModal.classList.add('active');
+        }
+
+        function resetPlayer() {
+            player.x = spawnX;
+            player.y = spawnY;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = false;
+            player.isJumping = false;
+            activeTriggers = new Set();
+            restoreLevel();
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            if (keys.left) {
+                player.vx = -MOVE_SPEED;
+            } else if (keys.right) {
+                player.vx = MOVE_SPEED;
+            } else {
+                player.vx = 0;
+            }
+
+            if (keys.jump && player.onGround) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+                player.isJumping = true;
+            }
+
+            player.vy += GRAVITY;
+
+            let newX = player.x + player.vx;
+            if (!checkCollision(newX, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                player.x = newX;
+            } else {
+                if (player.vx > 0) {
+                    const blockX = Math.floor((newX + PLAYER_SIZE) / GRID_SIZE) * GRID_SIZE;
+                    player.x = blockX - PLAYER_SIZE;
+                } else if (player.vx < 0) {
+                    const blockX = Math.floor(newX / GRID_SIZE) * GRID_SIZE + GRID_SIZE;
+                    player.x = blockX;
+                }
+            }
+
+            let newY = player.y + player.vy;
+
+            if (newY >= canvas.height - PLAYER_SIZE) {
+                player.y = canvas.height - PLAYER_SIZE;
+                player.vy = 0;
+                player.onGround = true;
+            } else if (!checkCollision(player.x, newY, PLAYER_SIZE, PLAYER_SIZE)) {
+                player.y = newY;
+                player.onGround = false;
+            } else {
+                if (player.vy > 0) {
+                    player.y = Math.floor((newY + PLAYER_SIZE) / GRID_SIZE) * GRID_SIZE - PLAYER_SIZE;
+                    player.onGround = true;
+                } else {
+                    player.y = Math.ceil(newY / GRID_SIZE) * GRID_SIZE;
+                }
+                player.vy = 0;
+            }
+
+            player.x = Math.max(0, Math.min(player.x, canvas.width - PLAYER_SIZE));
+
+            checkTriggers(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            if (checkSpike(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                resetPlayer();
+            }
+
+            if (checkGoal(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                winLevel();
+                return;
+            }
+
+            currentSignText = getSignText(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            renderGame();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Render
+        function renderGame() {
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#3a3a5a';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * GRID_SIZE, 0);
+                ctx.lineTo(x * GRID_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * GRID_SIZE);
+                ctx.lineTo(canvas.width, y * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (level[y][x] === 1) {
+                        ctx.fillStyle = '#6a6aff';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 2) {
+                        ctx.fillStyle = '#ff4444';
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (level[y][x] === 3) {
+                        ctx.strokeStyle = '#6a6aff';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8);
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 4) {
+                        ctx.strokeStyle = '#ff4444';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 5) {
+                        ctx.fillStyle = '#44ff44';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 6) {
+                        ctx.fillStyle = '#8B4513';
+                        ctx.fillRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 12);
+                        ctx.fillRect(x * GRID_SIZE + GRID_SIZE / 2 - 2, y * GRID_SIZE + GRID_SIZE - 10, 4, 8);
+                    }
+                }
+            }
+
+            ctx.fillStyle = '#ff6a6a';
+            ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            if (currentSignText) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(10, 10, canvas.width - 20, 40);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(currentSignText, canvas.width / 2, 35);
+            }
+        }
+
+        // Initialize
+        createLevelSelect();
+    </script>
+</body>
+</html>
