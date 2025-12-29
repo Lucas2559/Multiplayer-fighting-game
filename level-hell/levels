@@ -15,10 +15,10 @@ E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
 ---SIGNS---
-{"3,17":"Go to the green"}
+{"0,16":"Go to the green"}
 
 
 Level 2
@@ -38,10 +38,10 @@ E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 ---SIGNS---
-{"0,17":"Press up or w to jump"}
+{"0,16":"Press up or w to jump"}
 Level 3
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
@@ -59,7 +59,7 @@ E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,B,E,E,E,E,B,E,E,B,E
 E,E,E,E,B,E,B,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 
 Level 4
@@ -79,30 +79,32 @@ E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,B,E,E,E,E,E,E,E,E
-SN,E,E,E,S,E,E,E,S,S,E,E,B,E,E,E,B,E,E,S,S,S,E,E,G
+SN,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,B,E,E,E,E,E,E,E,E
+E,E,E,E,S,E,E,E,S,S,E,E,B,E,E,E,B,E,E,S,S,S,E,E,G
 ---SIGNS---
-{"0,17":"These are spikes. Don't touch them."}
+{"0,16":"These are spikes. Don't touch them."}
 
 Level 5
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,B,E,E,S,E,E,E,E,E,E,E,E,E,E,E,E
-G,E,E,S,S,S,S,E,E,B,E,E,B,E,E,S,S,E,E,S,E,E,E,E,E
-B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,B,B
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,E,E,E,E,E,E,S,E,E,E,E,E,E,E,B,E,E,E
-E,E,E,E,E,E,B,E,S,E,B,E,E,B,E,E,B,E,E,B,E,E,E,E,E
-E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,B,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S
+E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,16":"Jump your way up the stairs!"}
 
 Level 6
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
@@ -121,10 +123,10 @@ E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,TB,E,E,E,E,TS,E,E,E,E,E,TB,E,E,E,E,E,E
 E,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,TB,E,E,E,E,E,E,E,E
-SN,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,TB,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,TB,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
 ---SIGNS---
-{"0,17":"Outlined blocks activate when you walk across them."}
+{"0,16":"Outlined blocks activate when you walk across them."}
 
 Level 7
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
@@ -143,10 +145,10 @@ E,E,E,E,E,E,TB,E,E,E,TB,E,E,TB,E,E,E,TB,E,E,TB,E,E,TB,E
 E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-SN,E,E,E,E,E,E,S,S,E,E,S,S,E,S,S,E,E,S,S,E,S,S,E,E
+SN,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,S,S,E,E,S,S,E,S,S,E,E,S,S,E,S,S,E,E
 ---SIGNS---
-{"0,17":"Sory if some levels are bad."}
+{"0,16":"Sory if some levels are bad."}
 
 Level 8
 
@@ -166,10 +168,10 @@ B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 E,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B
 E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
-TB,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
-SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,E
+TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
 ---SIGNS---
-{"0,17":"Like this one"}
+{"0,16":"Like this one"}
 
 Level 9
 E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
@@ -281,3 +283,155 @@ E,E,E,B,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E
 E,E,E,E,E,E,E,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S
 
 Level 14
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,B,B,B,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S
+---SIGNS---
+{"0,17":"Trust the invisible path"}
+
+Level 15
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+G,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,B,B,B,SN
+---SIGNS---
+{"24,17":"Go left and up"}
+
+Level 16
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+G,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E
+B,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E
+B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,B,SN
+---SIGNS---
+{"24,17":"Wall jump challenge!"}
+
+Level 17
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,G,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,B,E,B,E,B,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,B,E,E,E,B,E,E,E,B,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,B,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,B,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,B,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,B,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,B,E,E
+SN,E,E,E,E,E,E,E,E,E,E,E,B,E,E,E,E,E,E,E,E,E,E,E,SN
+---SIGNS---
+{"0,17":"Race to the top!","24,17":"Race to the top!"}
+
+Level 18
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,G
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TS,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TS,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TS,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,TS,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,TS,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,E,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,TS,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,E,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,TS,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+E,E,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+SN,E,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,E,B,E,B
+---SIGNS---
+{"0,17":"Spike tower ascent"}
+
+Level 19
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+G,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+B,B,TS,TS,B,B,TS,TS,B,B,TS,TS,B,B,TS,TS,B,B,TS,TS,B,B,TS,TS,B
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+TB,TB,E,E,TB,TB,E,E,TB,TB,E,E,TB,TB,E,E,TB,TB,E,E,TB,TB,E,E,TB
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+SN,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+---SIGNS---
+{"0,17":"Time your jumps carefully"}
+
+Level 20
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,G,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,B,B,B,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E
+E,E,TB,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,E,TB,E,E
+SN,E,B,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,S,B,E,SN
+---SIGNS---
+{"0,17":"Final challenge! Good luck!","24,17":"Final challenge! Good luck!"}
