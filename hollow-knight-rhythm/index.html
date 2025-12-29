@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RYG Hollow Knight</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(180deg, #0a0a12 0%, #1a1a2e 50%, #0f0f1a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Georgia', serif;
+            color: #c0c0d0;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5rem;
+            color: #e0e0f0;
+            text-shadow: 0 0 20px rgba(150, 180, 255, 0.5);
+            letter-spacing: 3px;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: #8080a0;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        #game-container {
+            position: relative;
+            width: 900px;
+            height: 520px;
+            background: linear-gradient(180deg, #0d0d18 0%, #151525 100%);
+            border: 2px solid #3a3a5a;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(100, 120, 200, 0.2), inset 0 0 60px rgba(0, 0, 0, 0.5);
+        }
+
+        #game-canvas {
+            display: block;
+        }
+
+        .hit-zone {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 100px;
+            width: 3px;
+            height: 80px;
+            background: linear-gradient(180deg, transparent 0%, #6080c0 20%, #80a0e0 50%, #6080c0 80%, transparent 100%);
+            box-shadow: 0 0 15px rgba(100, 150, 255, 0.5);
+        }
+
+        .lane-row {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            border-bottom: 1px solid rgba(100, 120, 180, 0.2);
+        }
+
+        #ui-container {
+            display: flex;
+            justify-content: space-between;
+            width: 900px;
+            margin-top: 15px;
+            padding: 0 10px;
+        }
+
+        .stat-box {
+            background: rgba(20, 20, 35, 0.8);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid #3a3a5a;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6a6a8a;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            color: #d0d0f0;
+        }
+
+        #combo-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: rgba(200, 220, 255, 0);
+            text-shadow: 0 0 30px rgba(150, 180, 255, 0.8);
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+
+        #combo-display.show {
+            color: rgba(200, 220, 255, 0.9);
+        }
+
+        #hit-feedback {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.15s;
+        }
+
+        #hit-feedback.perfect { color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        #hit-feedback.great { color: #00ff88; text-shadow: 0 0 20px rgba(0, 255, 136, 0.8); }
+        #hit-feedback.good { color: #00aaff; text-shadow: 0 0 20px rgba(0, 170, 255, 0.8); }
+        #hit-feedback.miss { color: #ff4444; text-shadow: 0 0 20px rgba(255, 68, 68, 0.8); }
+        #hit-feedback.show { opacity: 1; }
+
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            font-weight: bold;
+            color: #e0e0f0;
+            text-shadow: 0 0 40px rgba(150, 180, 255, 0.8);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 50;
+        }
+
+        #countdown.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        #main-menu, #difficulty-screen, #end-screen, #edit-screen, #export-screen, #import-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #difficulty-screen, #end-screen, #edit-screen, #export-screen, #import-screen { display: none; }
+
+        .screen-title {
+            font-size: 2rem;
+            color: #e0e0f0;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(150, 180, 255, 0.5);
+        }
+
+        .screen-subtitle {
+            font-size: 1rem;
+            color: #8080a0;
+            margin-bottom: 30px;
+        }
+
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: linear-gradient(180deg, #3a4a7a 0%, #2a3a5a 100%);
+            border: 2px solid #5a6a9a;
+            border-radius: 8px;
+            color: #d0d0f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Georgia', serif;
+        }
+
+        .start-btn:hover {
+            background: linear-gradient(180deg, #4a5a8a 0%, #3a4a6a 100%);
+            box-shadow: 0 0 25px rgba(100, 150, 255, 0.4);
+        }
+
+        .final-stats { margin: 20px 0; text-align: center; }
+        .final-stat { font-size: 1.2rem; margin: 10px 0; color: #a0a0c0; }
+        .final-stat span { color: #d0d0f0; font-size: 1.5rem; }
+
+        .grade {
+            font-size: 4rem;
+            margin: 20px 0;
+            text-shadow: 0 0 30px currentColor;
+        }
+
+        .grade.s { color: #ffd700; }
+        .grade.a { color: #00ff88; }
+        .grade.b { color: #00aaff; }
+        .grade.c { color: #ff8800; }
+        .grade.d { color: #ff4444; }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(150, 180, 255, 0.6);
+            border-radius: 50%;
+            animation: floatH 10s infinite linear;
+        }
+
+        @keyframes floatH {
+            0% { transform: translateX(900px); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { transform: translateX(-20px); opacity: 0; }
+        }
+
+        .instructions {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #6a6a8a;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>RYG Hollow Knight</h1>
+    <p class="subtitle">A Rhythm Journey into the Depths</p>
+
+    <div id="game-container">
+        <canvas id="game-canvas" width="900" height="520"></canvas>
+        <div class="hit-zone"></div>
+        <div id="combo-display">0x</div>
+        <div id="hit-feedback">PERFECT</div>
+        <div id="countdown"></div>
+
+        <div class="particles" id="particles"></div>
+
+        <div id="main-menu">
+            <div class="screen-title">Hollow Knight Rhythm</div>
+            <div class="screen-subtitle">Select a Song</div>
+            <button class="start-btn song-btn" id="song-hallownest" style="margin: 8px 0;">Enter Hallownest</button>
+            <button class="start-btn song-btn" id="song-crystalpeak" style="margin: 8px 0;">Crystal Peak</button>
+            <p class="instructions">SPACE = hit | R = restart | J = back</p>
+        </div>
+
+        <div id="difficulty-screen" style="display: none;">
+            <div class="screen-title" id="diff-song-title">Song Name</div>
+            <div class="screen-subtitle">Select Difficulty or Edit</div>
+            <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                <button class="start-btn" id="easy-btn" style="background: linear-gradient(180deg, #3a6a4a 0%, #2a4a3a 100%); border-color: #5a9a6a;">Easy</button>
+                <button class="start-btn" id="medium-btn" style="background: linear-gradient(180deg, #6a5a3a 0%, #4a3a2a 100%); border-color: #9a7a5a;">Medium</button>
+                <button class="start-btn" id="hard-btn" style="background: linear-gradient(180deg, #6a3a3a 0%, #4a2a2a 100%); border-color: #9a5a5a;">Hard</button>
+            </div>
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <button class="start-btn" id="edit-btn" style="background: linear-gradient(180deg, #5a3a7a 0%, #3a2a5a 100%); border-color: #7a5a9a;">Edit Beats</button>
+                <button class="start-btn" id="import-btn" style="background: linear-gradient(180deg, #3a5a4a 0%, #2a4a3a 100%); border-color: #5a8a6a;">Import Beats</button>
+            </div>
+            <button class="start-btn" id="back-to-songs" style="margin-top: 15px;">Back</button>
+            <p class="instructions">Press J to go back</p>
+        </div>
+
+        <div id="import-screen" style="display: none;">
+            <div class="screen-title">Import Beat Map</div>
+            <div class="screen-subtitle">Paste your beat times below (numbers separated by commas)</div>
+            <textarea id="import-code" placeholder="Example: 1000, 2000, 3000, 4000" style="width: 80%; height: 150px; background: #1a1a2e; color: #80b0ff; border: 2px solid #3a3a5a; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 0.9rem; margin: 20px 0;"></textarea>
+            <button class="start-btn" id="load-btn">Load & Play</button>
+            <button class="start-btn" id="import-back-btn" style="margin-top: 10px;">Back</button>
+        </div>
+
+        <div id="edit-screen" style="display: none;">
+            <div class="screen-title">Beat Editor</div>
+            <div class="screen-subtitle">Press SPACE to mark beats as music plays</div>
+            <div id="edit-time" style="font-size: 2rem; margin: 20px 0;">0:00</div>
+            <div id="beat-count" style="font-size: 1.2rem; color: #80a0c0;">Beats: 0</div>
+            <button class="start-btn" id="stop-edit-btn" style="margin-top: 20px;">Stop & Export</button>
+        </div>
+
+        <div id="export-screen" style="display: none;">
+            <div class="screen-title">Your Beat Map</div>
+            <div class="screen-subtitle">Copy this code into SONG_CHART</div>
+            <textarea id="export-code" style="width: 80%; height: 200px; background: #1a1a2e; color: #80b0ff; border: 2px solid #3a3a5a; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 0.9rem; margin: 20px 0;"></textarea>
+            <button class="start-btn" id="copy-btn">Copy to Clipboard</button>
+            <button class="start-btn" id="back-btn" style="margin-top: 10px;">Back to Menu</button>
+        </div>
+
+        <div id="end-screen">
+            <div class="screen-title">Journey Complete</div>
+            <div class="grade" id="final-grade">S</div>
+            <div class="final-stats">
+                <div class="final-stat">Score: <span id="final-score">0</span></div>
+                <div class="final-stat">Max Combo: <span id="final-combo">0</span></div>
+                <div class="final-stat">Accuracy: <span id="final-accuracy">0%</span></div>
+            </div>
+            <button class="start-btn" id="restart-btn">Play Again</button>
+            <button class="start-btn" id="menu-btn" style="margin-top: 10px;">Menu</button>
+        </div>
+    </div>
+
+    <div id="ui-container">
+        <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Combo</div>
+            <div class="stat-value" id="combo">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Accuracy</div>
+            <div class="stat-value" id="accuracy">100%</div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            barWidth: 60,
+            barHeight: 20,
+            noteSpeed: 6,
+            hitZoneX: 100,
+            perfectWindow: 80,
+            greatWindow: 160,
+            goodWindow: 300,
+            barColor: '#80b0ff'
+        };
+
+        // Songs data
+        const SONGS = {
+            hallownest: {
+                name: 'Enter Hallownest',
+                audio: 'https://archive.org/download/hollow-knight-soundtrack-plus-dlc/02%20Enter%20Hallownest.mp3',
+                easy: [
+                    5591, 6477, 7465, 7923, 8359,
+                    11108, 11550, 12016, 12983, 13407, 13932,
+                    16638, 17539, 18488, 18917, 19411,
+                    21350, 21765, 22190, 23165,
+                    24939, 25867, 26765, 27615, 28660, 29539, 30042, 30539,
+                    33265, 33707, 34207, 35066, 35556, 36068,
+                    38817, 39700, 40650, 41069, 41608,
+                    43440, 43868, 44364, 45302,
+                    48004, 48940, 49815, 50754, 51735, 52173, 52653,
+                    55510, 56350, 57299, 57798, 58251, 59256,
+                    60994, 61890, 62805, 63239, 63714, 64616,
+                    65632, 66002, 66487,
+                    68436, 69124
+                ],
+                medium: [
+                    5690, 6519, 7470, 7904, 8351, 8604, 8832,
+                    11184, 11599, 12101, 13003, 13483, 13921, 14804, 15058, 15766,
+                    16742, 17504, 18471, 18942, 19423,
+                    21315, 21763, 22219, 23200,
+                    24968, 25374, 25886, 26834, 27692, 28647, 29556, 29990, 30475, 30925, 31438, 31916, 32366,
+                    33292, 33736, 34182, 35133, 35583, 36072,
+                    37900, 38389, 38842, 39743, 40648, 41082, 41544,
+                    43448, 43916, 44384, 45299,
+                    48034, 48942, 49414, 49877, 50758, 51676, 52116, 52616, 53618,
+                    55510, 56357, 57280, 57747, 58227, 59022,
+                    60963, 61883, 62816, 63274, 63764, 64620,
+                    65535, 65941, 66470,
+                    68792, 69200, 69560, 69935, 70346, 70716,
+                    75543, 87531
+                ],
+                hard: [
+                    5834, 6507, 7478, 7940, 8382, 8628, 8854, 9287, 9522, 9766,
+                    11189, 11632, 12064, 12973, 13425, 14125, 14397, 15109, 15365, 16045, 16225, 16686,
+                    17518, 18406, 18846, 19413, 19980, 20167, 20884, 21092,
+                    21412, 21778, 22235, 23185,
+                    24983, 25912, 27683, 28623, 29573, 30040, 30499, 30762, 30986, 31216,
+                    33310, 33760, 34205, 35061, 35567, 35959, 36215, 36477, 36981, 37221, 37474, 37906, 38406, 38801,
+                    39731, 40636, 41077, 41601, 42398, 42959, 43439, 43885, 44400, 45279,
+                    47151, 48024, 48927, 49913, 50757, 51665, 52180, 52622, 53267, 53498, 53973, 54433, 54619,
+                    55402, 56310, 57218, 57740, 58241, 59033,
+                    60025, 60920, 61878, 62723, 63298, 63692, 63905, 64416, 65069, 65606, 66025, 66474,
+                    68433, 69083, 69374, 69644, 69898, 70114, 70332, 70540, 70724, 70912,
+                    75437, 77259, 77553, 77804, 78114, 78373, 78623, 78854, 79080, 79288, 79481,
+                    83540, 83916, 84235, 84506, 84716
+                ]
+            },
+            crystalpeak: {
+                name: 'Crystal Peak',
+                audio: 'https://archive.org/download/hollow-knight-soundtrack-plus-dlc/20%20Crystal%20Peak.mp3',
+                easy: [
+                    9201, 10285, 11300, 17167, 18201, 19189, 25259, 26213, 27244, 33180,
+                    34169, 35219, 41172, 42267, 43248, 49288, 50301, 51207, 57324, 58243,
+                    59266, 65288, 66265, 66749, 69337, 70702, 71234, 73167, 74806, 75319,
+                    77302, 78806, 79277, 81205, 82786, 83216, 85301, 86787, 87269, 89164,
+                    90848, 91302, 93434, 97188, 98315, 99347, 99851, 101336, 102456, 103308,
+                    104245, 104722, 105359, 106288, 107324, 108322, 109267, 110365, 111314, 112267,
+                    113360, 114311, 114966, 116355, 117278, 117793, 118665, 119257, 120233, 121238,
+                    121721, 122069, 123260, 124285, 125266, 125684, 126039, 126834, 128421, 129275,
+                    130235, 131261, 132304, 132811, 133322, 133806, 134792, 135316, 135799, 136825,
+                    137299, 137821, 138353, 139331, 139780, 140254, 141256, 141765, 142238, 143290,
+                    143753, 144254, 145277, 145748, 146274, 146776, 147316, 147633, 147846, 148881,
+                    149325, 149809, 150332, 150833, 151046, 151875, 152839, 153308, 153824, 154190,
+                    155356, 155789, 156055, 157334, 157886, 158068, 159303, 160292, 161310, 162035,
+                    162537, 163304, 164099, 164812, 165332, 166064, 166801, 167318, 168084, 168827,
+                    169324, 170097, 170821, 171323, 172103, 172832, 173320, 174099, 174824, 175329,
+                    176120, 176842, 177317, 178090, 178860, 179324, 180085, 180794, 181301, 182068,
+                    182837, 183341, 184090, 184806, 185332, 186131, 186864, 187343, 188113, 188831,
+                    189332, 190091, 190850, 191360, 192113, 192820, 193279, 194119, 194826, 195314,
+                    196080, 196843, 197302, 198086, 198838, 199369, 200108, 200855, 201365, 202092,
+                    202859, 203370, 204123, 204823, 205341, 206119, 206838, 207389, 208121, 208850,
+                    209321, 210124, 210603, 210880, 211106, 211363, 212101, 212556, 212869, 213344,
+                    214074, 214586, 214831, 215407, 216626, 216886, 217369, 217890, 218103, 218621,
+                    218875, 219354, 219866, 220114, 220580, 220820, 221358, 221849, 222079, 222580,
+                    222846, 223364, 223873, 224125, 224573, 224864, 225330, 225862, 226134, 226366,
+                    226652, 226885, 227338, 227822, 228089, 228352, 228578, 228878, 229397, 229893,
+                    230357, 230884, 231388, 231863, 232375, 232842, 233346, 233846, 234070, 234352,
+                    235381, 235871, 236131, 236388, 237390, 237864, 238132, 238354, 239362, 239843,
+                    240098, 240403, 241322
+                ],
+                medium: [
+                    2340, 3351, 4521, 4683, 5355, 6202, 7033, 8939, 10192, 11201,
+                    12261, 13339, 14263, 15195, 17132, 18282, 19334, 20372, 21371, 22372,
+                    23303, 25118, 26258, 27281, 28292, 29278, 30265, 31178, 33189, 34319,
+                    35331, 36258, 37207, 38184, 39118, 41059, 42272, 43270, 44284, 45251,
+                    46150, 47054, 49121, 50208, 51265, 52267, 53226, 54083, 55117, 56014,
+                    57085, 58274, 59301, 60333, 61268, 62183, 63127, 64065, 65090, 66166,
+                    66783, 67288, 68273, 69221, 70153, 70625, 71076, 72049, 73133, 74210,
+                    75151, 76201, 77306, 78293, 78793, 79317, 80491, 81350, 82253, 83205,
+                    84150, 85141, 86284, 86723, 87216, 88200, 89201, 90251, 90717, 91206,
+                    92350, 93373, 94301, 94785, 95315, 96307, 97274, 98283, 98821, 99251,
+                    100257, 101243, 102256, 102690, 103222, 104196, 105274, 106283, 106765, 107299,
+                    108250, 108675, 109232, 110248, 110736, 111240, 112244, 112696, 113282, 114265,
+                    114542, 114755, 115239, 115788, 117239, 117788, 118248, 118495, 118741, 119258,
+                    121271, 121776, 122249, 122522, 122755, 123172, 125272, 125733, 126249, 126502,
+                    126731, 127197, 127747, 128749, 129239, 129793, 130068, 130517, 131185, 133272,
+                    133720, 134009, 134504, 137224, 137763, 138032, 138843, 139063, 141532, 142006,
+                    143049, 145269, 145796, 146073, 147150, 148008, 150034, 150924, 153760, 154088,
+                    154998, 157244, 157756, 157986, 158537, 159000, 160196, 161266, 161732, 162007,
+                    162249, 163266, 163716, 163974, 164230, 164503, 165273, 165757, 166282, 166552,
+                    167271, 167752, 168349, 168566, 169294, 169537, 170242, 170509, 171248, 171495,
+                    172285, 172461, 173287, 173505, 174071, 174804, 175284, 176021, 177289, 177806,
+                    178016, 178250, 178854, 179326, 179807, 180082, 180327, 180865, 181280, 181804,
+                    182056, 182308, 182797, 183299, 183761, 184051, 184275, 185316, 185806, 186049,
+                    186329, 186803, 187303, 187736, 188277, 188775, 189283, 189808, 190296, 190775,
+                    191306, 191765, 192274, 192787, 193303, 193815, 194063, 194300, 194824, 195282,
+                    195753, 196016, 196252, 196769, 197301, 197786, 198040, 198271, 198796, 199306,
+                    199799, 200048, 200282, 200759, 201292, 201758, 202014, 202263, 202738, 202982,
+                    203298, 203768, 204039, 204281, 204786, 205025, 205274, 206325, 207293, 208332,
+                    209364, 210294, 210782, 211266, 212198, 212764, 213257, 214316, 215275, 216299,
+                    217305, 217770, 218256, 219282, 219749, 220218, 221288, 221750, 222253, 223257,
+                    223726, 224190, 225253, 225783, 226056, 226315, 226777, 227268, 228739, 229248,
+                    229723, 229971, 230250, 231284, 232322, 233264, 233784, 234315, 234553, 235249,
+                    235767, 236259, 236525, 237268, 237782, 238281, 238539, 239274, 239759, 240231,
+                    240466, 241314
+                ],
+                hard: [
+                    1291, 2384, 3336, 5746, 6185, 9400, 10322, 11306, 12809, 13243,
+                    14770, 15219, 17268, 18331, 19263, 20782, 21217, 22788, 23211, 25228,
+                    26281, 27290, 27744, 28235, 29279, 29706, 30686, 31451, 33397, 34302,
+                    35284, 36862, 37312, 38784, 39254, 41349, 42236, 43339, 49357, 50293,
+                    50753, 51266, 52363, 53310, 57360, 58505, 58805, 59238, 60304, 61259,
+                    62257, 62704, 63259, 64271, 65328, 66283, 66771, 67274, 68287, 69262,
+                    70254, 70694, 71244, 72178, 73117, 74255, 74710, 75239, 76219, 77217,
+                    78220, 78661, 79148, 80151, 81198, 82203, 82703, 83181, 84256, 85196,
+                    86236, 86685, 87203, 88173, 89219, 90232, 90749, 91248, 92268, 93291,
+                    94318, 94807, 95298, 96254, 97466, 98308, 98794, 99049, 100256, 100819,
+                    101049, 102297, 102784, 103023, 104322, 104987, 105170, 106258, 106749, 107018,
+                    108319, 108802, 109023, 110349, 110816, 111034, 112201, 112754, 113018, 114353,
+                    114811, 115044, 116323, 116807, 117043, 118316, 118829, 119034, 120488, 120854,
+                    121081, 122337, 122825, 123064, 124300, 124770, 125035, 126344, 126816, 127040,
+                    128290, 128788, 129058, 130329, 130777, 131029, 132323, 132710, 133041, 133848,
+                    134317, 134754, 134997, 135770, 136242, 136551, 136773, 137284, 137765, 138307,
+                    138554, 138805, 139321, 139841, 140357, 140620, 140860, 141305, 141769, 142281,
+                    142534, 142771, 143334, 143854, 144329, 144595, 144825, 145329, 145892, 146560,
+                    147303, 147829, 148592, 149348, 149848, 150642, 151337, 151825, 152853, 153364,
+                    153868, 154095, 154608, 155343, 155825, 156051, 156516, 157299, 157789, 158028,
+                    158553, 159290, 159819, 160028, 160841, 161322, 161822, 162096, 162338, 162576,
+                    162847, 163326, 163849, 164351, 164852, 165337, 165840, 166088, 166331, 166559,
+                    166803, 167291, 167823, 168330, 168835, 169321, 169843, 170082, 170323, 170561,
+                    170822, 171278, 171800, 172325, 172825, 173320, 173819, 174089, 174340, 174574,
+                    174793, 175316, 175852, 176341, 176826, 177313, 177846, 178099, 178336, 178556,
+                    178825, 179322, 179838, 180115, 180344, 180671, 180874, 181321, 181802, 182076,
+                    182349, 182577, 182849, 183108, 183316, 183816, 184085, 184350, 184576, 184835,
+                    185339, 185851, 186119, 186352, 186574, 186820, 187316, 187815, 188094, 188334,
+                    188568, 188830, 189335, 189800, 190084, 190351, 190598, 190855, 191181, 191372,
+                    191820, 192100, 192307, 192582, 192830, 193306, 193822, 194069, 194342, 194583,
+                    194840, 195351, 195837, 196109, 196343, 196602, 196866, 197343, 197600, 197831,
+                    198055, 198319, 198548, 198825, 199077, 199340, 199609, 199849, 200062, 200304,
+                    200558, 200805, 201062, 201375, 201881, 202114, 202363, 202589, 202864, 203364,
+                    203843, 204085, 204329, 204577, 204802, 205331, 205825, 206072, 206340, 206574,
+                    206822, 207363, 207816, 208075, 208348, 208573, 208857, 209316, 209833, 210060,
+                    210337, 210581, 210867, 211317, 211816, 212074, 212321, 212538, 212803, 213318,
+                    213824, 214085, 214352, 214585, 214818, 215327, 215797, 216065, 216315, 216534,
+                    216793, 217338, 217793, 218059, 218294, 218557, 218807, 219363, 219820, 220068,
+                    220316, 220566, 220827, 221348, 222332, 223318, 224332, 225322, 225866, 226136,
+                    226349, 226836, 227295, 227820, 228064, 228299, 228549, 228788, 229300, 229783,
+                    230058, 230315, 230800, 231300, 231834, 232069, 232307, 232537, 232820, 233307,
+                    233805, 234086, 234333, 234858, 235329, 235817, 236064, 236326, 236537, 236793,
+                    237339, 237801, 238080, 238318, 238857, 239324, 239814, 240070, 240315, 240536,
+                    240807, 241291
+                ]
+            }
+        };
+
+        let currentSong = 'hallownest';
+        let currentDifficulty = 'easy';
+        let currentChart = SONGS.hallownest.easy;
+        let music = new Audio(SONGS.hallownest.audio);
+        music.volume = 0.7;
+
+        let gameState = {
+            isPlaying: false,
+            isEditing: false,
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            hits: { perfect: 0, great: 0, good: 0, miss: 0 },
+            notes: [],
+            startTime: 0,
+            audioContext: null,
+            spacePressed: false,
+            lastKeyPress: 0,
+            recordedBeats: [],
+            currentScreen: 'main-menu'
+        };
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const mainMenu = document.getElementById('main-menu');
+        const difficultyScreen = document.getElementById('difficulty-screen');
+        const endScreen = document.getElementById('end-screen');
+        const restartBtn = document.getElementById('restart-btn');
+        const diffSongTitle = document.getElementById('diff-song-title');
+        const scoreDisplay = document.getElementById('score');
+        const comboDisplay = document.getElementById('combo');
+        const accuracyDisplay = document.getElementById('accuracy');
+        const comboPopup = document.getElementById('combo-display');
+        const hitFeedback = document.getElementById('hit-feedback');
+
+        function showFeedback(type) {
+            hitFeedback.className = 'show ' + type;
+            hitFeedback.textContent = type.toUpperCase();
+            setTimeout(() => { hitFeedback.className = ''; }, 200);
+        }
+
+        function initAudio() {
+            gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playNote() {
+            if (!gameState.audioContext) return;
+            const osc = gameState.audioContext.createOscillator();
+            const gain = gameState.audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(gameState.audioContext.destination);
+            osc.frequency.value = 330;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.25, gameState.audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + 0.3);
+            osc.start();
+            osc.stop(gameState.audioContext.currentTime + 0.3);
+        }
+
+        function playHitSound(type) {
+            if (!gameState.audioContext) return;
+            const osc = gameState.audioContext.createOscillator();
+            const gain = gameState.audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(gameState.audioContext.destination);
+            osc.frequency.value = type === 'perfect' ? 880 : type === 'great' ? 660 : type === 'good' ? 440 : 220;
+            osc.type = 'triangle';
+            gain.gain.setValueAtTime(0.15, gameState.audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + 0.08);
+            osc.start();
+            osc.stop(gameState.audioContext.currentTime + 0.08);
+        }
+
+        function createParticles() {
+            const container = document.getElementById('particles');
+            container.innerHTML = '';
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 10 + 's';
+                particle.style.opacity = Math.random() * 0.4 + 0.2;
+                container.appendChild(particle);
+            }
+        }
+
+        const countdown = document.getElementById('countdown');
+        const COUNTDOWN_TIME = 3000; // 3 seconds countdown
+
+        function startGame() {
+            initAudio();
+
+            mainMenu.style.display = 'none';
+            difficultyScreen.style.display = 'none';
+            endScreen.style.display = 'none';
+            gameState.currentScreen = 'playing';
+
+            // Start countdown
+            let count = 3;
+            countdown.textContent = count;
+            countdown.className = 'show';
+
+            const countInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdown.textContent = count;
+                    countdown.className = '';
+                    setTimeout(() => { countdown.className = 'show'; }, 50);
+                } else if (count === 0) {
+                    countdown.textContent = 'GO!';
+                    countdown.className = '';
+                    setTimeout(() => { countdown.className = 'show'; }, 50);
+                } else {
+                    clearInterval(countInterval);
+                    countdown.className = '';
+                    actuallyStartGame();
+                }
+            }, 1000);
+        }
+
+        function actuallyStartGame() {
+            gameState = {
+                isPlaying: true,
+                score: 0,
+                combo: 0,
+                maxCombo: 0,
+                hits: { perfect: 0, great: 0, good: 0, miss: 0 },
+                notes: [],
+                startTime: performance.now(),
+                audioContext: gameState.audioContext,
+                spacePressed: false,
+                lastKeyPress: 0
+            };
+
+            // Play music
+            music.currentTime = 0;
+            music.play();
+
+            currentChart.forEach(time => {
+                gameState.notes.push({
+                    targetTime: time,
+                    x: canvas.width + CONFIG.barWidth,
+                    hit: false,
+                    missed: false
+                });
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawNote(note) {
+            const y = canvas.height / 2;
+            const barHeight = CONFIG.barHeight;
+            const barWidth = CONFIG.barWidth;
+            const color = CONFIG.barColor;
+
+            // Glow effect
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = color;
+
+            // Main bar
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(note.x - barWidth/2, y - barHeight/2, barWidth, barHeight, 8);
+            ctx.fill();
+
+            // Highlight on top
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.roundRect(note.x - barWidth/2 + 4, y - barHeight/2 + 4, barWidth - 8, barHeight/3, 4);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+        }
+
+        function drawHitZone() {
+            const y = canvas.height / 2;
+            const now = performance.now();
+            const timeSincePress = now - gameState.lastKeyPress;
+            const flashDuration = 150;
+            const isFlashing = timeSincePress < flashDuration;
+
+            // Check if a beat is approaching (within 300px)
+            let beatProximity = 0;
+            for (let note of gameState.notes) {
+                if (note.hit || note.missed) continue;
+                const distance = Math.abs(note.x - CONFIG.hitZoneX);
+                if (distance < 200) {
+                    beatProximity = Math.max(beatProximity, 1 - (distance / 200));
+                }
+            }
+
+            if (isFlashing) {
+                // Bright flash on spacebar press
+                const flashIntensity = 1 - (timeSincePress / flashDuration);
+                ctx.fillStyle = CONFIG.barColor;
+                ctx.globalAlpha = flashIntensity * 0.7;
+                ctx.beginPath();
+                ctx.roundRect(CONFIG.hitZoneX - 40, y - 35, 80, 70, 12);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Pulse glow when beat is approaching
+            if (beatProximity > 0) {
+                ctx.fillStyle = CONFIG.barColor;
+                ctx.globalAlpha = beatProximity * 0.4;
+                ctx.shadowBlur = 30 * beatProximity;
+                ctx.shadowColor = CONFIG.barColor;
+                ctx.beginPath();
+                ctx.roundRect(CONFIG.hitZoneX - 38, y - 32, 76, 64, 11);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+
+            // Hit target outline - pulses with beat proximity
+            ctx.strokeStyle = CONFIG.barColor;
+            ctx.lineWidth = isFlashing ? 5 : (3 + beatProximity * 3);
+            ctx.globalAlpha = isFlashing ? 1 : (0.4 + beatProximity * 0.6);
+            ctx.beginPath();
+            ctx.roundRect(CONFIG.hitZoneX - 35, y - 30, 70, 60, 10);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        function updateNotes(currentTime) {
+            const elapsed = currentTime - gameState.startTime;
+
+            gameState.notes.forEach(note => {
+                if (note.hit || note.missed) return;
+
+                const timeUntilHit = note.targetTime - elapsed;
+                const travelTime = (canvas.width - CONFIG.hitZoneX) / CONFIG.noteSpeed / 60 * 1000;
+                note.x = CONFIG.hitZoneX + (timeUntilHit / travelTime) * (canvas.width - CONFIG.hitZoneX);
+
+                if (note.x < CONFIG.hitZoneX - CONFIG.goodWindow && !note.hit) {
+                    note.missed = true;
+                    gameState.hits.miss++;
+                    gameState.combo = 0;
+                    showFeedback('miss');
+                    updateUI();
+                }
+            });
+        }
+
+        function checkHit() {
+            const elapsed = performance.now() - gameState.startTime;
+
+            for (let note of gameState.notes) {
+                if (note.hit || note.missed) continue;
+
+                const timeDiff = elapsed - note.targetTime;
+                const absTimeDiff = Math.abs(timeDiff);
+
+                if (absTimeDiff < CONFIG.perfectWindow) {
+                    hitNote(note, 'perfect', 300, timeDiff);
+                    return;
+                } else if (absTimeDiff < CONFIG.greatWindow) {
+                    hitNote(note, 'great', 200, timeDiff);
+                    return;
+                } else if (absTimeDiff < CONFIG.goodWindow) {
+                    hitNote(note, 'good', 100, timeDiff);
+                    return;
+                }
+            }
+        }
+
+        function hitNote(note, type, points, timeDiff) {
+            note.hit = true;
+            gameState.hits[type]++;
+            gameState.combo++;
+            gameState.maxCombo = Math.max(gameState.maxCombo, gameState.combo);
+
+            const comboMultiplier = 1 + Math.floor(gameState.combo / 10) * 0.1;
+            gameState.score += Math.floor(points * comboMultiplier);
+
+            playNote();
+            playHitSound(type);
+            showFeedback(type);
+            updateUI();
+
+            if (gameState.combo >= 5) {
+                comboPopup.textContent = gameState.combo + 'x';
+                comboPopup.className = 'show';
+                setTimeout(() => { comboPopup.className = ''; }, 250);
+            }
+        }
+
+        function updateUI() {
+            scoreDisplay.textContent = gameState.score.toLocaleString();
+            comboDisplay.textContent = gameState.combo;
+
+            const totalHits = gameState.hits.perfect + gameState.hits.great + gameState.hits.good + gameState.hits.miss;
+            if (totalHits > 0) {
+                const accuracy = ((gameState.hits.perfect * 100 + gameState.hits.great * 75 + gameState.hits.good * 50) / totalHits).toFixed(1);
+                accuracyDisplay.textContent = accuracy + '%';
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameState.isPlaying) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawHitZone();
+
+            updateNotes(timestamp);
+
+            gameState.notes.forEach(note => {
+                if (!note.hit && !note.missed && note.x > -CONFIG.barWidth && note.x < canvas.width + CONFIG.barWidth) {
+                    drawNote(note);
+                }
+            });
+
+            const allNotesProcessed = gameState.notes.every(n => n.hit || n.missed);
+            const elapsed = timestamp - gameState.startTime;
+
+            if (allNotesProcessed && elapsed > currentChart[currentChart.length - 1] + 2000) {
+                endGame();
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            gameState.isPlaying = false;
+            music.pause();
+
+            const totalHits = gameState.hits.perfect + gameState.hits.great + gameState.hits.good + gameState.hits.miss;
+            const accuracy = totalHits > 0 ?
+                ((gameState.hits.perfect * 100 + gameState.hits.great * 75 + gameState.hits.good * 50) / totalHits) : 0;
+
+            let grade, gradeClass;
+            if (accuracy >= 95 && gameState.hits.miss === 0) { grade = 'S'; gradeClass = 's'; }
+            else if (accuracy >= 90) { grade = 'A'; gradeClass = 'a'; }
+            else if (accuracy >= 75) { grade = 'B'; gradeClass = 'b'; }
+            else if (accuracy >= 60) { grade = 'C'; gradeClass = 'c'; }
+            else { grade = 'D'; gradeClass = 'd'; }
+
+            document.getElementById('final-grade').textContent = grade;
+            document.getElementById('final-grade').className = 'grade ' + gradeClass;
+            document.getElementById('final-score').textContent = gameState.score.toLocaleString();
+            document.getElementById('final-combo').textContent = gameState.maxCombo;
+            document.getElementById('final-accuracy').textContent = accuracy.toFixed(1) + '%';
+
+            endScreen.style.display = 'flex';
+            gameState.currentScreen = 'end';
+        }
+
+        function resetUI() {
+            scoreDisplay.textContent = '0';
+            comboDisplay.textContent = '0';
+            accuracyDisplay.textContent = '100%';
+        }
+
+        function selectSong(songId) {
+            currentSong = songId;
+            music.pause();
+            music = new Audio(SONGS[songId].audio);
+            music.volume = 0.7;
+            diffSongTitle.textContent = SONGS[songId].name;
+            mainMenu.style.display = 'none';
+            difficultyScreen.style.display = 'flex';
+            gameState.currentScreen = 'difficulty';
+        }
+
+        function setDifficulty(level) {
+            currentDifficulty = level;
+            currentChart = SONGS[currentSong][level];
+            if (level === 'easy') {
+                CONFIG.perfectWindow = 150;
+                CONFIG.greatWindow = 280;
+                CONFIG.goodWindow = 400;
+            } else if (level === 'medium') {
+                CONFIG.perfectWindow = 80;
+                CONFIG.greatWindow = 160;
+                CONFIG.goodWindow = 300;
+            } else if (level === 'hard') {
+                CONFIG.perfectWindow = 50;
+                CONFIG.greatWindow = 100;
+                CONFIG.goodWindow = 200;
+            }
+        }
+
+        // Song selection
+        document.getElementById('song-hallownest').addEventListener('click', () => selectSong('hallownest'));
+        document.getElementById('song-crystalpeak').addEventListener('click', () => selectSong('crystalpeak'));
+
+        // Difficulty selection
+        const easyBtn = document.getElementById('easy-btn');
+        const mediumBtn = document.getElementById('medium-btn');
+        const hardBtn = document.getElementById('hard-btn');
+        const backToSongsBtn = document.getElementById('back-to-songs');
+
+        easyBtn.addEventListener('click', () => {
+            resetUI();
+            setDifficulty('easy');
+            startGame();
+        });
+
+        mediumBtn.addEventListener('click', () => {
+            resetUI();
+            setDifficulty('medium');
+            startGame();
+        });
+
+        hardBtn.addEventListener('click', () => {
+            resetUI();
+            setDifficulty('hard');
+            startGame();
+        });
+
+        backToSongsBtn.addEventListener('click', () => {
+            difficultyScreen.style.display = 'none';
+            mainMenu.style.display = 'flex';
+            gameState.currentScreen = 'main-menu';
+        });
+
+        restartBtn.addEventListener('click', () => {
+            resetUI();
+            startGame();
+        });
+
+        const menuBtn = document.getElementById('menu-btn');
+        menuBtn.addEventListener('click', () => {
+            endScreen.style.display = 'none';
+            difficultyScreen.style.display = 'flex';
+            gameState.currentScreen = 'difficulty';
+        });
+
+        // Editor elements
+        const editBtn = document.getElementById('edit-btn');
+        const editScreen = document.getElementById('edit-screen');
+        const exportScreen = document.getElementById('export-screen');
+        const stopEditBtn = document.getElementById('stop-edit-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const backBtn = document.getElementById('back-btn');
+        const editTime = document.getElementById('edit-time');
+        const beatCount = document.getElementById('beat-count');
+        const exportCode = document.getElementById('export-code');
+
+        let editInterval;
+
+        function startEditing() {
+            gameState.isEditing = true;
+            gameState.recordedBeats = [];
+            gameState.startTime = performance.now();
+
+            difficultyScreen.style.display = 'none';
+            editScreen.style.display = 'flex';
+            gameState.currentScreen = 'editing';
+
+            music.currentTime = 0;
+            music.play();
+
+            editInterval = setInterval(() => {
+                const elapsed = performance.now() - gameState.startTime;
+                const seconds = Math.floor(elapsed / 1000);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                editTime.textContent = mins + ':' + secs.toString().padStart(2, '0');
+            }, 100);
+
+            // Auto-stop when music ends
+            music.onended = stopEditing;
+        }
+
+        function stopEditing() {
+            gameState.isEditing = false;
+            music.pause();
+            clearInterval(editInterval);
+
+            editScreen.style.display = 'none';
+            exportScreen.style.display = 'flex';
+
+            // Generate code
+            const code = 'const SONG_CHART = [\n    ' +
+                gameState.recordedBeats.map(t => Math.round(t)).join(',\n    ') +
+                '\n];';
+            exportCode.value = code;
+        }
+
+        function recordBeat() {
+            if (!gameState.isEditing) return;
+            const elapsed = performance.now() - gameState.startTime;
+            gameState.recordedBeats.push(elapsed);
+            beatCount.textContent = 'Beats: ' + gameState.recordedBeats.length;
+            gameState.lastKeyPress = performance.now();
+
+            // Visual feedback
+            playHitSound('perfect');
+        }
+
+        editBtn.addEventListener('click', startEditing);
+        stopEditBtn.addEventListener('click', stopEditing);
+
+        copyBtn.addEventListener('click', () => {
+            exportCode.select();
+            document.execCommand('copy');
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 1500);
+        });
+
+        backBtn.addEventListener('click', () => {
+            exportScreen.style.display = 'none';
+            difficultyScreen.style.display = 'flex';
+            gameState.currentScreen = 'difficulty';
+        });
+
+        // Import functionality
+        const importBtn = document.getElementById('import-btn');
+        const importScreen = document.getElementById('import-screen');
+        const importCode = document.getElementById('import-code');
+        const loadBtn = document.getElementById('load-btn');
+        const importBackBtn = document.getElementById('import-back-btn');
+
+        let customChart = null;
+
+        importBtn.addEventListener('click', () => {
+            difficultyScreen.style.display = 'none';
+            importScreen.style.display = 'flex';
+            gameState.currentScreen = 'import';
+        });
+
+        importBackBtn.addEventListener('click', () => {
+            importScreen.style.display = 'none';
+            difficultyScreen.style.display = 'flex';
+            gameState.currentScreen = 'difficulty';
+        });
+
+        loadBtn.addEventListener('click', () => {
+            const text = importCode.value;
+            // Extract numbers from the text
+            const numbers = text.match(/[\d.]+/g);
+            if (numbers && numbers.length > 0) {
+                customChart = numbers.map(n => parseFloat(n));
+                importScreen.style.display = 'none';
+                startGameWithChart(customChart);
+            } else {
+                alert('No valid numbers found. Paste beat times like: 1000, 2000, 3000');
+            }
+        });
+
+        function startGameWithChart(chart) {
+            resetUI();
+            initAudio();
+
+            importScreen.style.display = 'none';
+            difficultyScreen.style.display = 'none';
+            endScreen.style.display = 'none';
+            gameState.currentScreen = 'playing';
+
+            // Start countdown
+            let count = 3;
+            countdown.textContent = count;
+            countdown.className = 'show';
+
+            const countInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdown.textContent = count;
+                    countdown.className = '';
+                    setTimeout(() => { countdown.className = 'show'; }, 50);
+                } else if (count === 0) {
+                    countdown.textContent = 'GO!';
+                    countdown.className = '';
+                    setTimeout(() => { countdown.className = 'show'; }, 50);
+                } else {
+                    clearInterval(countInterval);
+                    countdown.className = '';
+                    actuallyStartGameWithChart(chart);
+                }
+            }, 1000);
+        }
+
+        function actuallyStartGameWithChart(chart) {
+            gameState = {
+                isPlaying: true,
+                isEditing: false,
+                score: 0,
+                combo: 0,
+                maxCombo: 0,
+                hits: { perfect: 0, great: 0, good: 0, miss: 0 },
+                notes: [],
+                startTime: performance.now(),
+                audioContext: gameState.audioContext,
+                spacePressed: false,
+                lastKeyPress: 0,
+                recordedBeats: []
+            };
+
+            music.currentTime = 0;
+            music.play();
+
+            chart.forEach(time => {
+                gameState.notes.push({
+                    targetTime: time,
+                    x: canvas.width + CONFIG.barWidth,
+                    hit: false,
+                    missed: false
+                });
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function goBack() {
+            if (gameState.currentScreen === 'playing') {
+                // Playing -> Difficulty
+                gameState.isPlaying = false;
+                music.pause();
+                music.currentTime = 0;
+                resetUI();
+                difficultyScreen.style.display = 'flex';
+                gameState.currentScreen = 'difficulty';
+            } else if (gameState.currentScreen === 'difficulty') {
+                // Difficulty -> Main menu
+                difficultyScreen.style.display = 'none';
+                mainMenu.style.display = 'flex';
+                gameState.currentScreen = 'main-menu';
+            } else if (gameState.currentScreen === 'end') {
+                // End -> Difficulty
+                endScreen.style.display = 'none';
+                difficultyScreen.style.display = 'flex';
+                gameState.currentScreen = 'difficulty';
+            }
+        }
+
+        function returnToMainMenu() {
+            gameState.isPlaying = false;
+            gameState.isEditing = false;
+            music.pause();
+            music.currentTime = 0;
+            resetUI();
+            endScreen.style.display = 'none';
+            editScreen.style.display = 'none';
+            exportScreen.style.display = 'none';
+            importScreen.style.display = 'none';
+            difficultyScreen.style.display = 'none';
+            mainMenu.style.display = 'flex';
+            gameState.currentScreen = 'main-menu';
+        }
+
+        function restartGame() {
+            if (gameState.isPlaying || gameState.currentScreen === 'end') {
+                gameState.isPlaying = false;
+                music.pause();
+                resetUI();
+                endScreen.style.display = 'none';
+                startGame();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+
+                if (gameState.isEditing && !gameState.spacePressed) {
+                    gameState.spacePressed = true;
+                    recordBeat();
+                } else if (!gameState.isPlaying && !gameState.isEditing) {
+                    // Don't auto-start with space if on menu
+                } else if (gameState.isPlaying && !gameState.spacePressed) {
+                    gameState.spacePressed = true;
+                    gameState.lastKeyPress = performance.now();
+                    checkHit();
+                }
+            }
+
+            // J = go back one level
+            if (e.key.toLowerCase() === 'j') {
+                goBack();
+            }
+
+            // R = restart
+            if (e.key.toLowerCase() === 'r') {
+                restartGame();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                gameState.spacePressed = false;
+            }
+        });
+
+        createParticles();
+    </script>
+</body>
+</html>
