@@ -3,7 +3,8 @@
     "allow": [
       "Bash(open index.html)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(open:*)"
     ],
     "deny": [],
     "ask": []

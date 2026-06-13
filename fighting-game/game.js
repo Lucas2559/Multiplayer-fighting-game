@@ -4,7 +4,7 @@ const ctx = canvas.getContext('2d');
 canvas.width = 1000;
 canvas.height = 600;
 
-const gravity = 0.7;
+let gravity = 0.7;
 const groundLevel = canvas.height - 50;
 
 class Player {
@@ -51,6 +51,7 @@ class Player {
         this.gunningHealth = 15;
         this.maxGunningHealth = 15;
         this.gunCooldown = 0;
+        this.baseCooldown = 40; // Base cooldown for shooting
         this.superGunActive = false;
         this.shieldsCollected = 0;  // Track shields for healing in Gunning mode
         this.superBulletsRemaining = 0;  // Track how many super bullets to spawn
@@ -72,7 +73,7 @@ class Player {
                 false
             );
             bullets.push(bullet);
-            this.gunCooldown = 40;
+            this.gunCooldown = this.baseCooldown;
         }
     }
     
@@ -120,7 +121,8 @@ class Player {
                         this.x + this.width > platform.x &&
                         Math.abs(this.y + this.height - platform.y) < 5) {
                         this.dropThroughTimer = 15;
-                        this.y += 5;
+                        this.y += 20;
+                        this.isGrounded = false;
                     }
                 });
             }
@@ -155,13 +157,26 @@ class Player {
         } else {
             this.velocityY += gravity;
         }
-        
+
+        // Apply initial fall speed when starting to fall (capped by maxFallSpeed)
+        // Only apply if already in the air (wasInAir), not when just stepping off a platform
+        const cappedInitialFall = Math.min(initialFallSpeed, maxFallSpeed);
+        if (this.wasInAir && this.velocityY > 0 && this.velocityY < cappedInitialFall) {
+            this.velocityY = cappedInitialFall;
+        }
+
+        // Cap falling speed to prevent glitching through platforms
+        if (this.velocityY > maxFallSpeed) {
+            this.velocityY = maxFallSpeed;
+        }
+
         this.y += this.velocityY;
-        
+
+        // Track if player is in the air (for initial fall speed check)
         if (!this.isGrounded) {
             this.wasInAir = true;
         }
-        
+
         this.isGrounded = false;
 
         // Only use ground collision in non-Platform Arena and non-Gunning modes
@@ -174,6 +189,12 @@ class Player {
                 this.jumpReleased = false;
                 this.wasInAir = false;
             }
+
+            // Invisible ceiling for classic and best of three modes
+            if (this.y < 0) {
+                this.y = 0;
+                this.velocityY = 0;
+            }
         }
 
         if (this.dropThroughTimer > 0) {
@@ -181,8 +202,8 @@ class Player {
         }
 
         platforms.forEach(platform => {
-            // Skip platform collision if jumpDisabled is active (fall through), except in platformArena mode
-            const fallThrough = this.jumpDisabled && gameMode !== 'platformArena';
+            // Skip platform collision if jumpDisabled is active (fall through)
+            const fallThrough = this.jumpDisabled;
             if (!fallThrough &&
                 this.dropThroughTimer <= 0 &&
                 this.velocityY > 0 &&
@@ -715,19 +736,142 @@ const keys = {};
 
 let lastKeyPress = {};
 
+// Hidden test mode variables
+let testModeActive = false;
+let testKeySequence = '';
+let testP1Input = '';
+let testP2Input = '';
+let testP1Input2 = ''; // Attack (normal) or Cooldown (gunning)
+let testP2Input2 = ''; // Attack (normal) or Cooldown (gunning)
+let maxFallSpeed = 100; // Default max fall speed
+let fallSliderDragging = false; // Is the fall speed slider being dragged
+let gameSpeed = 60; // Game speed in FPS (default 60)
+let speedSliderDragging = false; // Is the game speed slider being dragged
+let gravitySliderDragging = false; // Is the gravity slider being dragged
+let initialFallSpeed = 0; // Starting speed when falling (default 0)
+let initialFallSliderDragging = false; // Is the initial fall speed slider being dragged
+let testActiveInput = null; // 'p1', 'p2', 'p1b', 'p2b' or null
+
 window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
-    
+
+    // Hidden test mode sequence detection (tst)
+    if (!testModeActive) {
+        if (key === 't' || key === 's') {
+            testKeySequence += key;
+            if (testKeySequence.length > 3) {
+                testKeySequence = testKeySequence.slice(-3);
+            }
+            if (testKeySequence === 'tst') {
+                testModeActive = true;
+                testKeySequence = '';
+                testActiveInput = null;
+                e.preventDefault();
+                return;
+            }
+        } else if (key !== 'shift') {
+            testKeySequence = '';
+        }
+    }
+
+    // Handle test mode input
+    if (testModeActive) {
+        if (key === 'escape') {
+            applyTestValues();
+            testModeActive = false;
+            testActiveInput = null;
+            e.preventDefault();
+            return;
+        }
+
+        // Tab to switch between inputs
+        if (key === 'tab') {
+            if (testActiveInput === 'p1') {
+                testActiveInput = 'p2';
+            } else if (testActiveInput === 'p2') {
+                testActiveInput = 'p1';
+            } else {
+                testActiveInput = 'p1';
+            }
+            e.preventDefault();
+            return;
+        }
+
+        // Click-like selection with 1, 2, 3, 4 keys when no input active
+        if (testActiveInput === null) {
+            if (key === '1') {
+                testActiveInput = 'p1';
+                e.preventDefault();
+                return;
+            } else if (key === '2') {
+                testActiveInput = 'p2';
+                e.preventDefault();
+                return;
+            } else if (key === '3') {
+                testActiveInput = 'p1b';
+                e.preventDefault();
+                return;
+            } else if (key === '4') {
+                testActiveInput = 'p2b';
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Number input for active field
+        if (testActiveInput) {
+            if (key >= '0' && key <= '9') {
+                const maxLength = gameMode === 'gunning' ? 5 : 3;
+                if (testActiveInput === 'p1') {
+                    if (testP1Input.length < maxLength) testP1Input += key;
+                } else if (testActiveInput === 'p2') {
+                    if (testP2Input.length < maxLength) testP2Input += key;
+                } else if (testActiveInput === 'p1b') {
+                    if (testP1Input2.length < maxLength) testP1Input2 += key;
+                } else if (testActiveInput === 'p2b') {
+                    if (testP2Input2.length < maxLength) testP2Input2 += key;
+                }
+                e.preventDefault();
+                return;
+            }
+
+            if (key === 'backspace') {
+                if (testActiveInput === 'p1') {
+                    testP1Input = testP1Input.slice(0, -1);
+                } else if (testActiveInput === 'p2') {
+                    testP2Input = testP2Input.slice(0, -1);
+                } else if (testActiveInput === 'p1b') {
+                    testP1Input2 = testP1Input2.slice(0, -1);
+                } else if (testActiveInput === 'p2b') {
+                    testP2Input2 = testP2Input2.slice(0, -1);
+                }
+                e.preventDefault();
+                return;
+            }
+
+            // Enter, Shift, or Escape to apply the value and exit text box
+            if (key === 'enter' || key === 'shift') {
+                applyTestValues();
+                testActiveInput = null;
+                e.preventDefault();
+                return;
+            }
+        }
+
+        e.preventDefault();
+        return;
+    }
+
     // Check for first input to start shield spawning (only in playing state)
     if (gameState === 'playing' && !gameStarted) {
-        const validStartKeys = ['q', 'e', 'r', 'g', 'f', 'w', 'a', 's', 'd', 
+        const validStartKeys = ['q', 'e', 'r', 'g', 'f', 'w', 'a', 's', 'd',
                                'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
                                'shift', 'enter', 'alt', '/', "'"];
         if (validStartKeys.includes(key)) {
             gameStarted = true;
         }
     }
-    
+
     // M key always returns to menu from any state
     if (key === 'm' && gameState !== 'menu') {
         returnToMenu();
@@ -778,7 +922,7 @@ canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
-    
+
     if (gameState === 'menu') {
         Object.keys(menuButtons).forEach(key => {
             const button = menuButtons[key];
@@ -786,6 +930,99 @@ canvas.addEventListener('mousemove', (e) => {
                            mouseY >= button.y && mouseY <= button.y + button.height;
         });
     }
+
+    // Handle fall speed slider dragging
+    if (testModeActive && fallSliderDragging && window.fallSliderBounds) {
+        const bounds = window.fallSliderBounds;
+        let newValue = Math.round(((mouseX - bounds.x) / bounds.width) * 249 + 1);
+        newValue = Math.max(1, Math.min(250, newValue));
+        maxFallSpeed = newValue;
+    }
+
+    // Handle game speed slider dragging
+    if (testModeActive && speedSliderDragging && window.speedSliderBounds) {
+        const bounds = window.speedSliderBounds;
+        let newValue = Math.round(((mouseX - bounds.x) / bounds.width) * 179 + 1);
+        newValue = Math.max(1, Math.min(180, newValue));
+        gameSpeed = newValue;
+    }
+
+    // Handle gravity slider dragging
+    if (testModeActive && gravitySliderDragging && window.gravitySliderBounds) {
+        const bounds = window.gravitySliderBounds;
+        let newValue = ((mouseX - bounds.x) / bounds.width) * 2.9 + 0.1;
+        newValue = Math.max(0.1, Math.min(3.0, newValue));
+        gravity = Math.round(newValue * 10) / 10; // Round to 1 decimal
+    }
+
+    // Handle initial fall speed slider dragging
+    if (testModeActive && initialFallSliderDragging && window.initialFallSliderBounds) {
+        const bounds = window.initialFallSliderBounds;
+        let newValue = Math.round((mouseX - bounds.x) / bounds.width * 50);
+        newValue = Math.max(0, Math.min(50, newValue));
+        initialFallSpeed = newValue;
+    }
+});
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Check if clicking on fall speed slider
+    if (testModeActive && window.fallSliderBounds) {
+        const bounds = window.fallSliderBounds;
+        if (mx >= bounds.x && mx <= bounds.x + bounds.width &&
+            my >= bounds.y && my <= bounds.y + bounds.height) {
+            fallSliderDragging = true;
+            let newValue = Math.round(((mx - bounds.x) / bounds.width) * 249 + 1);
+            newValue = Math.max(1, Math.min(250, newValue));
+            maxFallSpeed = newValue;
+        }
+    }
+
+    // Check if clicking on game speed slider
+    if (testModeActive && window.speedSliderBounds) {
+        const bounds = window.speedSliderBounds;
+        if (mx >= bounds.x && mx <= bounds.x + bounds.width &&
+            my >= bounds.y && my <= bounds.y + bounds.height) {
+            speedSliderDragging = true;
+            let newValue = Math.round(((mx - bounds.x) / bounds.width) * 179 + 1);
+            newValue = Math.max(1, Math.min(180, newValue));
+            gameSpeed = newValue;
+        }
+    }
+
+    // Check if clicking on gravity slider
+    if (testModeActive && window.gravitySliderBounds) {
+        const bounds = window.gravitySliderBounds;
+        if (mx >= bounds.x && mx <= bounds.x + bounds.width &&
+            my >= bounds.y && my <= bounds.y + bounds.height) {
+            gravitySliderDragging = true;
+            let newValue = ((mx - bounds.x) / bounds.width) * 2.9 + 0.1;
+            newValue = Math.max(0.1, Math.min(3.0, newValue));
+            gravity = Math.round(newValue * 10) / 10;
+        }
+    }
+
+    // Check if clicking on initial fall speed slider
+    if (testModeActive && window.initialFallSliderBounds) {
+        const bounds = window.initialFallSliderBounds;
+        if (mx >= bounds.x && mx <= bounds.x + bounds.width &&
+            my >= bounds.y && my <= bounds.y + bounds.height) {
+            initialFallSliderDragging = true;
+            let newValue = Math.round((mx - bounds.x) / bounds.width * 50);
+            newValue = Math.max(0, Math.min(50, newValue));
+            initialFallSpeed = newValue;
+        }
+    }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    fallSliderDragging = false;
+    speedSliderDragging = false;
+    gravitySliderDragging = false;
+    initialFallSliderDragging = false;
 });
 
 canvas.addEventListener('click', (e) => {
@@ -1210,6 +1447,8 @@ function resetRound() {
         player2.gunningHealth = baseGunningHealth;
         player1.gunCooldown = 0;
         player2.gunCooldown = 0;
+        player1.baseCooldown = 40;
+        player2.baseCooldown = 40;
         player1.superGunActive = false;
         player2.superGunActive = false;
         player1.shieldsCollected = 0;
@@ -1244,7 +1483,7 @@ function returnToMenu() {
     winner = null;
     roundWinner = null;
     currentFrame = 0;
-    
+
     // Clear all auto and no-jump settings
     player1.autoFire = false;
     player1.autoJump = false;
@@ -1252,9 +1491,26 @@ function returnToMenu() {
     player2.autoFire = false;
     player2.autoJump = false;
     player2.jumpDisabled = false;
-    
+
     gameStarted = false;  // Reset first input tracker
-    
+
+    // Reset hidden test mode
+    testModeActive = false;
+    testKeySequence = '';
+    testP1Input = '';
+    testP2Input = '';
+    testP1Input2 = '';
+    testP2Input2 = '';
+    maxFallSpeed = 100;
+    fallSliderDragging = false;
+    gameSpeed = 60;
+    speedSliderDragging = false;
+    gravity = 0.7;
+    gravitySliderDragging = false;
+    initialFallSpeed = 0;
+    initialFallSliderDragging = false;
+    testActiveInput = null;
+
     // Reset platforms to default
     platforms = defaultPlatforms.map(p => new Platform(p.x, p.y, p.width, p.height));
 }
@@ -1290,6 +1546,371 @@ function setupPlatformArena() {
     }
 }
 
+// Hidden test mode functions
+function applyTestValues() {
+    // Only apply for the currently active input
+    if (!testActiveInput) return;
+
+    // Determine which input and player
+    const isSecondRow = testActiveInput === 'p1b' || testActiveInput === 'p2b';
+    const isP1 = testActiveInput === 'p1' || testActiveInput === 'p1b';
+    const player = isP1 ? player1 : player2;
+
+    if (isSecondRow) {
+        // Second row: Attack modifier (normal) or Cooldown modifier (gunning)
+        const input = isP1 ? testP1Input2 : testP2Input2;
+        if (input === '') return;
+
+        if (gameMode === 'gunning') {
+            // Cooldown modifier (1-100, lower = faster shooting)
+            let value = parseInt(input) || 40;
+            value = Math.max(1, Math.min(100, value));
+            player.gunCooldown = 0; // Reset current cooldown
+            player.baseCooldown = value; // Store custom cooldown
+        } else if (gameMode === 'classic' || gameMode === 'bestOf3' || gameMode === 'platformArena') {
+            // Attack damage multiplier (1-100)
+            let multiplier = parseFloat(input) || 1;
+            multiplier = Math.max(0.1, Math.min(100, multiplier));
+            player.attackDamage = Math.round(player.baseAttackDamage * multiplier);
+        }
+    } else {
+        // First row: Health
+        const input = isP1 ? testP1Input : testP2Input;
+        if (input === '') return;
+
+        if (gameMode === 'gunning') {
+            // In gunning mode: direct health value (1-10000)
+            let value = parseInt(input) || 1;
+            value = Math.max(1, Math.min(10000, value));
+            player.maxGunningHealth = value;
+            player.gunningHealth = value;
+        } else if (gameMode === 'classic' || gameMode === 'bestOf3' || gameMode === 'platformArena') {
+            // In other modes: health multiplier (1-100)
+            let multiplier = parseFloat(input) || 1;
+            multiplier = Math.max(0.1, Math.min(100, multiplier));
+            const baseHealth = healthMode === 'long' ? 1500 : (healthMode === 'short' ? 1 : 100);
+            const newHealth = Math.round(baseHealth * multiplier);
+            player.maxHealth = newHealth;
+            player.health = newHealth;
+        }
+    }
+}
+
+function drawTestPanel() {
+    if (!testModeActive) return;
+
+    const isGunning = gameMode === 'gunning';
+    const label1 = isGunning ? 'Health (1-10000)' : 'HP Multiplier (1-100)';
+    const label2 = isGunning ? 'Cooldown (1-100)' : 'ATK Multiplier (1-100)';
+
+    // Player 1 (Red) - Top Left
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+    ctx.fillRect(10, 40, 150, 115);
+    ctx.strokeStyle = (testActiveInput === 'p1' || testActiveInput === 'p1b') ? '#FFD700' : '#FFF';
+    ctx.lineWidth = (testActiveInput === 'p1' || testActiveInput === 'p1b') ? 3 : 1;
+    ctx.strokeRect(10, 40, 150, 115);
+
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('P1 ' + label1, 15, 53);
+
+    // Input box for P1 health
+    ctx.fillStyle = testActiveInput === 'p1' ? '#333' : '#222';
+    ctx.fillRect(15, 56, 100, 22);
+    ctx.strokeStyle = testActiveInput === 'p1' ? '#FFD700' : '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(15, 56, 100, 22);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(testP1Input || '1', 20, 72);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.fillText('[1]', 120, 72);
+
+    // P1 second row label
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px Arial';
+    ctx.fillText('P1 ' + label2, 15, 95);
+
+    // Input box for P1 attack/cooldown
+    ctx.fillStyle = testActiveInput === 'p1b' ? '#333' : '#222';
+    ctx.fillRect(15, 98, 100, 22);
+    ctx.strokeStyle = testActiveInput === 'p1b' ? '#FFD700' : '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(15, 98, 100, 22);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(testP1Input2 || '1', 20, 114);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.fillText('[3]', 120, 114);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('Shift to apply', 15, 145);
+
+    // Player 2 (Blue) - Top Right
+    const p2X = canvas.width - 160;
+    ctx.fillStyle = 'rgba(0, 100, 200, 0.8)';
+    ctx.fillRect(p2X, 40, 150, 115);
+    ctx.strokeStyle = (testActiveInput === 'p2' || testActiveInput === 'p2b') ? '#FFD700' : '#FFF';
+    ctx.lineWidth = (testActiveInput === 'p2' || testActiveInput === 'p2b') ? 3 : 1;
+    ctx.strokeRect(p2X, 40, 150, 115);
+
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('P2 ' + label1, p2X + 5, 53);
+
+    // Input box for P2 health
+    ctx.fillStyle = testActiveInput === 'p2' ? '#333' : '#222';
+    ctx.fillRect(p2X + 5, 56, 100, 22);
+    ctx.strokeStyle = testActiveInput === 'p2' ? '#FFD700' : '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p2X + 5, 56, 100, 22);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(testP2Input || '1', p2X + 10, 72);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.fillText('[2]', p2X + 110, 72);
+
+    // P2 second row label
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px Arial';
+    ctx.fillText('P2 ' + label2, p2X + 5, 95);
+
+    // Input box for P2 attack/cooldown
+    ctx.fillStyle = testActiveInput === 'p2b' ? '#333' : '#222';
+    ctx.fillRect(p2X + 5, 98, 100, 22);
+    ctx.strokeStyle = testActiveInput === 'p2b' ? '#FFD700' : '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p2X + 5, 98, 100, 22);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(testP2Input2 || '1', p2X + 10, 114);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.fillText('[4]', p2X + 110, 114);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '9px Arial';
+    ctx.fillText('Shift to apply', p2X + 5, 145);
+
+    // Fall Speed Slider - Bottom center
+    const sliderX = canvas.width / 2 - 75;
+    const sliderY = 45;
+    const sliderWidth = 150;
+    const sliderHeight = 50;
+    const trackY = sliderY + 32;
+    const trackWidth = 130;
+    const trackX = sliderX + 10;
+
+    ctx.fillStyle = 'rgba(80, 80, 80, 0.8)';
+    ctx.fillRect(sliderX, sliderY, sliderWidth, sliderHeight);
+    ctx.strokeStyle = fallSliderDragging ? '#FFD700' : '#FFF';
+    ctx.lineWidth = fallSliderDragging ? 3 : 1;
+    ctx.strokeRect(sliderX, sliderY, sliderWidth, sliderHeight);
+
+    ctx.fillStyle = '#FFF';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Fall Speed: ' + maxFallSpeed, sliderX + 5, sliderY + 15);
+
+    // Slider track
+    ctx.fillStyle = '#333';
+    ctx.fillRect(trackX, trackY, trackWidth, 8);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(trackX, trackY, trackWidth, 8);
+
+    // Slider handle
+    const handlePos = trackX + ((maxFallSpeed - 1) / 249) * trackWidth;
+    ctx.fillStyle = fallSliderDragging ? '#FFD700' : '#FFF';
+    ctx.beginPath();
+    ctx.arc(handlePos, trackY + 4, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Store slider bounds for mouse detection
+    window.fallSliderBounds = { x: trackX, y: trackY - 8, width: trackWidth, height: 24 };
+
+    // Game Speed Slider - Same row as fall speed, to the right
+    const speedSliderX = canvas.width / 2 + 85;
+    const speedSliderY = 45;
+    const speedTrackY = speedSliderY + 35;
+    const speedTrackX = speedSliderX + 25;
+    const speedTrackWidth = 100;
+
+    ctx.fillStyle = 'rgba(80, 80, 80, 0.8)';
+    ctx.fillRect(speedSliderX, speedSliderY, 150, 55);
+    ctx.strokeStyle = speedSliderDragging ? '#FFD700' : '#FFF';
+    ctx.lineWidth = speedSliderDragging ? 3 : 1;
+    ctx.strokeRect(speedSliderX, speedSliderY, 150, 55);
+
+    // FPS label at top
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('FPS: ' + gameSpeed, speedSliderX + 10, speedSliderY + 20);
+
+    // Min label (1)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('1', speedTrackX - 5, speedTrackY + 6);
+
+    // Slider track
+    ctx.fillStyle = '#333';
+    ctx.fillRect(speedTrackX, speedTrackY, speedTrackWidth, 8);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(speedTrackX, speedTrackY, speedTrackWidth, 8);
+
+    // Slider handle
+    const speedHandlePos = speedTrackX + ((gameSpeed - 1) / 179) * speedTrackWidth;
+    ctx.fillStyle = speedSliderDragging ? '#FFD700' : '#FFF';
+    ctx.beginPath();
+    ctx.arc(speedHandlePos, speedTrackY + 4, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Max label (180)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('180', speedTrackX + speedTrackWidth + 5, speedTrackY + 6);
+
+    // Store slider bounds for mouse detection
+    window.speedSliderBounds = { x: speedTrackX, y: speedTrackY - 8, width: speedTrackWidth, height: 24 };
+
+    // Gravity Slider - Below fall speed slider
+    const gravSliderX = canvas.width / 2 - 75;
+    const gravSliderY = 105;
+    const gravTrackY = gravSliderY + 35;
+    const gravTrackX = gravSliderX + 25;
+    const gravTrackWidth = 100;
+
+    ctx.fillStyle = 'rgba(80, 80, 80, 0.8)';
+    ctx.fillRect(gravSliderX, gravSliderY, 150, 55);
+    ctx.strokeStyle = gravitySliderDragging ? '#FFD700' : '#FFF';
+    ctx.lineWidth = gravitySliderDragging ? 3 : 1;
+    ctx.strokeRect(gravSliderX, gravSliderY, 150, 55);
+
+    // Gravity label at top
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Gravity: ' + gravity.toFixed(1), gravSliderX + 10, gravSliderY + 20);
+
+    // Min label (0.1)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('0.1', gravTrackX - 3, gravTrackY + 5);
+
+    // Slider track
+    ctx.fillStyle = '#333';
+    ctx.fillRect(gravTrackX, gravTrackY, gravTrackWidth, 8);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gravTrackX, gravTrackY, gravTrackWidth, 8);
+
+    // Slider handle (range 0.1 to 3.0)
+    const gravHandlePos = gravTrackX + ((gravity - 0.1) / 2.9) * gravTrackWidth;
+    ctx.fillStyle = gravitySliderDragging ? '#FFD700' : '#FFF';
+    ctx.beginPath();
+    ctx.arc(gravHandlePos, gravTrackY + 4, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Max label (3.0)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('3.0', gravTrackX + gravTrackWidth + 3, gravTrackY + 5);
+
+    // Store slider bounds for mouse detection
+    window.gravitySliderBounds = { x: gravTrackX, y: gravTrackY - 8, width: gravTrackWidth, height: 24 };
+
+    // Initial Fall Speed Slider - Same row as gravity slider, to the right
+    const initFallSliderX = canvas.width / 2 + 85;
+    const initFallSliderY = 105;
+    const initFallTrackY = initFallSliderY + 35;
+    const initFallTrackX = initFallSliderX + 25;
+    const initFallTrackWidth = 100;
+
+    ctx.fillStyle = 'rgba(80, 80, 80, 0.8)';
+    ctx.fillRect(initFallSliderX, initFallSliderY, 150, 55);
+    ctx.strokeStyle = initialFallSliderDragging ? '#FFD700' : '#FFF';
+    ctx.lineWidth = initialFallSliderDragging ? 3 : 1;
+    ctx.strokeRect(initFallSliderX, initFallSliderY, 150, 55);
+
+    // Initial fall label at top
+    ctx.fillStyle = '#FFF';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Start Fall: ' + initialFallSpeed, initFallSliderX + 10, initFallSliderY + 20);
+
+    // Min label (0)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('0', initFallTrackX - 3, initFallTrackY + 5);
+
+    // Slider track
+    ctx.fillStyle = '#333';
+    ctx.fillRect(initFallTrackX, initFallTrackY, initFallTrackWidth, 8);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(initFallTrackX, initFallTrackY, initFallTrackWidth, 8);
+
+    // Slider handle (range 0 to 50)
+    const initFallHandlePos = initFallTrackX + (initialFallSpeed / 50) * initFallTrackWidth;
+    ctx.fillStyle = initialFallSliderDragging ? '#FFD700' : '#FFF';
+    ctx.beginPath();
+    ctx.arc(initFallHandlePos, initFallTrackY + 4, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Max label (50)
+    ctx.fillStyle = '#FFF';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('50', initFallTrackX + initFallTrackWidth + 3, initFallTrackY + 5);
+
+    // Store slider bounds for mouse detection
+    window.initialFallSliderBounds = { x: initFallTrackX, y: initFallTrackY - 8, width: initFallTrackWidth, height: 24 };
+
+    // Instructions - bottom left
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(10, 165, 150, 45);
+    ctx.fillStyle = '#AAA';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('1-4: Select | Shift: Apply', 15, 180);
+    ctx.fillText('Esc: Close | Drag sliders', 15, 195);
+}
+
+// Draw FPS indicator on bottom left (always visible during gameplay)
+function drawFPSIndicator() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(10, canvas.height - 30, 70, 20);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('FPS: ' + gameSpeed, 15, canvas.height - 15);
+}
+
 function setupGunningMode() {
     // Use same platform setup as Platform Arena
     setupPlatformArena();
@@ -1306,6 +1927,8 @@ function setupGunningMode() {
     player2.gunningHealth = baseGunningHealth;
     player1.gunCooldown = 0;
     player2.gunCooldown = 0;
+    player1.baseCooldown = 40;
+    player2.baseCooldown = 40;
     player1.superGunActive = false;
     player2.superGunActive = false;
     player1.shieldsCollected = 0;
@@ -1379,122 +2002,133 @@ function drawMenu() {
 }
 
 let lastTime = 0;
-const targetFPS = 60;
-const frameDelay = 1000 / targetFPS;
+
+// Game update function (called multiple times per frame for speed > 60)
+function gameUpdate() {
+    if (gameState !== 'playing') return;
+
+    currentFrame++;
+    player1.update(player2);
+    player2.update(player1);
+
+    // Only spawn lootboxes after first input
+    if (gameStarted) {
+        lootboxTimer++;
+        const spawnTime = gameMode === 'gunning' ? LOOTBOX_SPAWN_TIME_GUNNING : LOOTBOX_SPAWN_TIME_NORMAL;
+        if (lootboxTimer >= spawnTime) {
+            const randomX = Math.random() * (canvas.width - 30);
+            const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
+            const lootboxY = randomPlatform.y - 35;
+            lootboxes.push(new Lootbox(randomX, lootboxY));
+            lootboxTimer = 0;
+        }
+    }
+
+    lootboxes = lootboxes.filter(lootbox => !lootbox.collected);
+    lootboxes.forEach(lootbox => {
+        lootbox.update();
+        lootbox.checkCollection(player1);
+        lootbox.checkCollection(player2);
+    });
+
+    // Handle game mode specific updates
+    if (gameMode === 'gunning') {
+        // Update and filter bullets
+        bullets = bullets.filter(bullet => {
+            bullet.update();
+
+            // Check collisions with players
+            if (bullet.owner === 'player1' && bullet.checkCollision(player2)) {
+                if (player2.shieldsCollected > 0 && player2.gunningHealth >= player2.maxGunningHealth) {
+                    player2.shieldsCollected = 0;
+                } else {
+                    player2.gunningHealth--;
+                }
+
+                if (bullet.isSuper) {
+                    const target = player2;
+                    bullet.x = player1.x + player1.width / 2;
+                    bullet.y = player1.y + player1.height / 2;
+                    const dx = (target.x + target.width/2) - bullet.x;
+                    const dy = (target.y + target.height/2) - bullet.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 0) {
+                        bullet.velocityX = (dx / distance) * bullet.speed;
+                        bullet.velocityY = (dy / distance) * bullet.speed;
+                    }
+                    return true;
+                }
+                return false;
+
+            } else if (bullet.owner === 'player2' && bullet.checkCollision(player1)) {
+                if (player1.shieldsCollected > 0 && player1.gunningHealth >= player1.maxGunningHealth) {
+                    player1.shieldsCollected = 0;
+                } else {
+                    player1.gunningHealth--;
+                }
+
+                if (bullet.isSuper) {
+                    const target = player1;
+                    bullet.x = player2.x + player2.width / 2;
+                    bullet.y = player2.y + player2.height / 2;
+                    const dx = (target.x + target.width/2) - bullet.x;
+                    const dy = (target.y + target.height/2) - bullet.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 0) {
+                        bullet.velocityX = (dx / distance) * bullet.speed;
+                        bullet.velocityY = (dy / distance) * bullet.speed;
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            return bullet.active;
+        });
+
+        // Check for gunning mode winner
+        if (player1.gunningHealth <= 0) {
+            winner = 'Player 2';
+            gameState = 'gameOver';
+        } else if (player2.gunningHealth <= 0) {
+            winner = 'Player 1';
+            gameState = 'gameOver';
+        }
+    } else {
+        // Classic, Best of 3, and Platform Arena modes
+        checkCollisions();
+        checkWinner();
+    }
+}
 
 function gameLoop(currentTime) {
+    // Calculate frame delay based on gameSpeed (capped at 60 for rendering)
+    const renderFPS = Math.min(gameSpeed, 60);
+    const frameDelay = 1000 / renderFPS;
     const deltaTime = currentTime - lastTime;
-    
+
     if (deltaTime >= frameDelay) {
-        currentFrame++;
+        // Calculate how many update ticks to run
+        const ticksPerFrame = Math.max(1, Math.round(gameSpeed / 60));
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         if (gameState === 'menu') {
             drawMenu();
         } else if (gameState === 'playing') {
+            // Run multiple update ticks for higher speeds
+            for (let i = 0; i < ticksPerFrame; i++) {
+                gameUpdate();
+            }
+
             drawBackground();
             platforms.forEach(platform => platform.draw());
-            player1.update(player2);
-            player2.update(player1);
-            
-            // Only spawn lootboxes after first input
-            if (gameStarted) {
-                lootboxTimer++;
-                const spawnTime = gameMode === 'gunning' ? LOOTBOX_SPAWN_TIME_GUNNING : LOOTBOX_SPAWN_TIME_NORMAL;
-                if (lootboxTimer >= spawnTime) {
-                    const randomX = Math.random() * (canvas.width - 30);
-                    const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
-                    const lootboxY = randomPlatform.y - 35;
-                    lootboxes.push(new Lootbox(randomX, lootboxY));
-                    lootboxTimer = 0;
-                }
-            }
-            
-            lootboxes = lootboxes.filter(lootbox => !lootbox.collected);
-            lootboxes.forEach(lootbox => {
-                lootbox.update();
-                lootbox.checkCollection(player1);
-                lootbox.checkCollection(player2);
-            });
-            
-            // Handle different game modes
+
+            // Draw bullets in gunning mode
             if (gameMode === 'gunning') {
-                // Update and filter bullets
-                bullets = bullets.filter(bullet => {
-                    bullet.update();
-                    
-                    // Check collisions with players
-                    if (bullet.owner === 'player1' && bullet.checkCollision(player2)) {
-                        // Check if player2 has a shield to absorb damage
-                        if (player2.shieldsCollected > 0 && player2.gunningHealth >= player2.maxGunningHealth) {
-                            player2.shieldsCollected = 0;  // Shield breaks, absorbs damage
-                        } else {
-                            player2.gunningHealth--;
-                        }
-                        
-                        // If it's a super bullet, respawn it from the shooter
-                        if (bullet.isSuper) {
-                            const target = player2;
-                            bullet.x = player1.x + player1.width / 2;
-                            bullet.y = player1.y + player1.height / 2;
-                            // Recalculate trajectory toward target
-                            const dx = (target.x + target.width/2) - bullet.x;
-                            const dy = (target.y + target.height/2) - bullet.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            if (distance > 0) {
-                                bullet.velocityX = (dx / distance) * bullet.speed;
-                                bullet.velocityY = (dy / distance) * bullet.speed;
-                            }
-                            return true;  // Keep the bullet active
-                        }
-                        return false;  // Normal bullets are destroyed
-                        
-                    } else if (bullet.owner === 'player2' && bullet.checkCollision(player1)) {
-                        // Check if player1 has a shield to absorb damage
-                        if (player1.shieldsCollected > 0 && player1.gunningHealth >= player1.maxGunningHealth) {
-                            player1.shieldsCollected = 0;  // Shield breaks, absorbs damage
-                        } else {
-                            player1.gunningHealth--;
-                        }
-                        
-                        // If it's a super bullet, respawn it from the shooter
-                        if (bullet.isSuper) {
-                            const target = player1;
-                            bullet.x = player2.x + player2.width / 2;
-                            bullet.y = player2.y + player2.height / 2;
-                            // Recalculate trajectory toward target
-                            const dx = (target.x + target.width/2) - bullet.x;
-                            const dy = (target.y + target.height/2) - bullet.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            if (distance > 0) {
-                                bullet.velocityX = (dx / distance) * bullet.speed;
-                                bullet.velocityY = (dy / distance) * bullet.speed;
-                            }
-                            return true;  // Keep the bullet active
-                        }
-                        return false;  // Normal bullets are destroyed
-                    }
-                    
-                    return bullet.active;
-                });
-                
-                // Draw bullets
                 bullets.forEach(bullet => bullet.draw());
-                
-                // Check for gunning mode winner
-                if (player1.gunningHealth <= 0) {
-                    winner = 'Player 2';
-                    gameState = 'gameOver';
-                } else if (player2.gunningHealth <= 0) {
-                    winner = 'Player 1';
-                    gameState = 'gameOver';
-                }
-            } else {
-                // Classic, Best of 3, and Platform Arena modes all use normal combat
-                checkCollisions();
-                checkWinner();
             }
-            
+
             lootboxes.forEach(lootbox => lootbox.draw());
             player1.draw();
             player2.draw();
@@ -1529,45 +2163,43 @@ function gameLoop(currentTime) {
                 ctx.fillText('Platform Arena', canvas.width / 2, 30);
             }
             
-            // Draw auto mode indicators (not in Platform Arena mode)
-            if (gameMode !== 'platformArena') {
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'left';
-                
-                // Player 1 indicators
-                let p1Y = 50;
-                if (player1.autoFire) {
-                    ctx.fillStyle = '#FF0000';
-                    ctx.fillText('P1: AUTO-FIRE', 10, p1Y);
-                    p1Y += 20;
-                }
-                if (player1.autoJump) {
-                    ctx.fillStyle = '#00FF00';
-                    ctx.fillText('P1: AUTO-JUMP', 10, p1Y);
-                    p1Y += 20;
-                }
-                if (player1.jumpDisabled) {
-                    ctx.fillStyle = '#FF00FF';
-                    ctx.fillText('P1: NO JUMP', 10, p1Y);
-                }
-                
-                // Player 2 indicators
-                ctx.textAlign = 'right';
-                let p2Y = 50;
-                if (player2.autoFire) {
-                    ctx.fillStyle = '#FF0000';
-                    ctx.fillText('P2: AUTO-FIRE', canvas.width - 10, p2Y);
-                    p2Y += 20;
-                }
-                if (player2.autoJump) {
-                    ctx.fillStyle = '#00FF00';
-                    ctx.fillText('P2: AUTO-JUMP', canvas.width - 10, p2Y);
-                    p2Y += 20;
-                }
-                if (player2.jumpDisabled) {
-                    ctx.fillStyle = '#FF00FF';
-                    ctx.fillText('P2: NO JUMP', canvas.width - 10, p2Y);
-                }
+            // Draw auto mode indicators
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+
+            // Player 1 indicators
+            let p1Y = 50;
+            if (player1.autoFire) {
+                ctx.fillStyle = '#FF0000';
+                ctx.fillText('P1: AUTO-FIRE', 10, p1Y);
+                p1Y += 20;
+            }
+            if (player1.autoJump) {
+                ctx.fillStyle = '#00FF00';
+                ctx.fillText('P1: AUTO-JUMP', 10, p1Y);
+                p1Y += 20;
+            }
+            if (player1.jumpDisabled) {
+                ctx.fillStyle = '#FF00FF';
+                ctx.fillText('P1: NO JUMP', 10, p1Y);
+            }
+
+            // Player 2 indicators
+            ctx.textAlign = 'right';
+            let p2Y = 50;
+            if (player2.autoFire) {
+                ctx.fillStyle = '#FF0000';
+                ctx.fillText('P2: AUTO-FIRE', canvas.width - 10, p2Y);
+                p2Y += 20;
+            }
+            if (player2.autoJump) {
+                ctx.fillStyle = '#00FF00';
+                ctx.fillText('P2: AUTO-JUMP', canvas.width - 10, p2Y);
+                p2Y += 20;
+            }
+            if (player2.jumpDisabled) {
+                ctx.fillStyle = '#FF00FF';
+                ctx.fillText('P2: NO JUMP', canvas.width - 10, p2Y);
             }
         } else if (gameState === 'roundOver') {
             drawBackground();
@@ -1588,7 +2220,15 @@ function gameLoop(currentTime) {
             player2.draw();
             drawGameOver();
         }
-        
+
+        // Draw FPS indicator (always visible during gameplay)
+        if (gameState !== 'menu') {
+            drawFPSIndicator();
+        }
+
+        // Draw hidden test panel on top of everything
+        drawTestPanel();
+
         lastTime = currentTime - (deltaTime % frameDelay);
     }
     

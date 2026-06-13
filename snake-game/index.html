@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a2e;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+            padding: 12px 20px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 10;
+        }
+        #ui-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+        #score {
+            font-family: 'Fredoka One', cursive;
+            font-size: 28px;
+            color: #eaeaea;
+            text-shadow: 2px 2px 0 #e94560;
+        }
+        #length {
+            font-family: 'Fredoka One', cursive;
+            font-size: 20px;
+            color: #4ecca3;
+            text-align: center;
+        }
+        #effects {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            max-width: 300px;
+        }
+        .effect-badge {
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 14px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(4px);
+        }
+        .effect-badge.positive { border: 2px solid #4ecca3; }
+        .effect-badge.negative { border: 2px solid #ff6b6b; }
+        #start-screen, #game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26,26,46,0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-top: 80px;
+            z-index: 100;
+        }
+        #game-over { display: none; }
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 72px;
+            color: #e94560;
+            text-shadow: 4px 4px 0 #4ecca3;
+            margin-bottom: 20px;
+        }
+        .subtitle {
+            font-size: 22px;
+            color: #eaeaea;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+        .btn {
+            font-family: 'Fredoka One', cursive;
+            font-size: 28px;
+            padding: 16px 48px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 6px 0 #b8304a;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 9px 0 #b8304a;
+        }
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #b8304a;
+        }
+        .btn-apple {
+            background: #4ecca3;
+            box-shadow: 0 6px 0 #3aad88;
+            font-size: 36px;
+            padding: 16px 32px;
+        }
+        .btn-apple:hover {
+            box-shadow: 0 9px 0 #3aad88;
+        }
+        .btn-apple:active {
+            box-shadow: 0 3px 0 #3aad88;
+        }
+        .btn-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        #final-score {
+            font-family: 'Fredoka One', cursive;
+            font-size: 48px;
+            color: #4ecca3;
+            margin: 20px 0;
+        }
+        .controls-hint {
+            margin-top: 30px;
+            color: #888;
+            font-size: 16px;
+        }
+        .fruit-list {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 30px;
+            color: #eaeaea;
+            font-size: 16px;
+        }
+        .fruit-section {
+            text-align: left;
+        }
+        .fruit-section h3 {
+            font-family: 'Fredoka One', cursive;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        .fruit-section div {
+            margin: 6px 0;
+        }
+        #dpad {
+            position: fixed;
+            bottom: max(20px, env(safe-area-inset-bottom, 20px));
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        #dpad .dpad-row {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+        #dpad button {
+            width: clamp(56px, 12vmin, 72px);
+            height: clamp(56px, 12vmin, 72px);
+            border: none;
+            border-radius: 16px;
+            background: rgba(233,69,96,0.35);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            touch-action: none;
+            backdrop-filter: blur(4px);
+            border: 2px solid rgba(233,69,96,0.5);
+            transition: background 0.05s;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        #dpad button:active {
+            background: rgba(233,69,96,0.7);
+            transform: scale(0.92);
+        }
+        #dpad .dpad-spacer {
+            width: clamp(56px, 12vmin, 72px);
+        }
+        #dpad.dpad-hidden {
+            display: none;
+        }
+        #dpad.dpad-left {
+            left: max(10px, env(safe-area-inset-left, 10px));
+        }
+        #dpad.dpad-right {
+            right: max(10px, env(safe-area-inset-right, 10px));
+        }
+        #dpad-toggle {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            z-index: 110;
+            pointer-events: auto;
+            font-family: 'Nunito', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border: 2px solid rgba(233,69,96,0.5);
+            border-radius: 20px;
+            background: rgba(233,69,96,0.25);
+            color: #fff;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: none;
+            transition: background 0.15s;
+        }
+        #dpad-toggle:hover {
+            background: rgba(233,69,96,0.45);
+        }
+        #dpad-toggle:active {
+            background: rgba(233,69,96,0.7);
+        }
+        #size-selector {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 110;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: rgba(0,0,0,0.35);
+            border-radius: 20px;
+            padding: 4px;
+            backdrop-filter: blur(4px);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .size-opt {
+            font-family: 'Nunito', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.5);
+            transition: background 0.1s, color 0.1s;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .size-opt.active {
+            background: rgba(233,69,96,0.6);
+            color: #fff;
+        }
+        #custom-size-wrap {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-left: 4px;
+            padding-left: 6px;
+            border-left: 1px solid rgba(255,255,255,0.15);
+        }
+        #custom-size-wrap.show {
+            display: flex;
+        }
+        #custom-size-wrap span {
+            font-family: 'Nunito', sans-serif;
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            white-space: nowrap;
+        }
+        #custom-size {
+            width: 52px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border: 2px solid rgba(233,69,96,0.4);
+            border-radius: 10px;
+            background: rgba(233,69,96,0.15);
+            color: #fff;
+            outline: none;
+            text-align: center;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        #custom-size:focus {
+            border-color: #e94560;
+        }
+        #flash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 5;
+            transition: opacity 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+    <div id="flash"></div>
+    <div id="size-selector">
+        <div class="size-opt" data-size="8">S</div>
+        <div class="size-opt" data-size="12">M</div>
+        <div class="size-opt" data-size="15">L</div>
+        <div class="size-opt" data-size="20">XL</div>
+        <div class="size-opt active" data-size="30">XXL</div>
+        <div class="size-opt" data-size="custom">Custom</div>
+        <div id="custom-size-wrap">
+            <span>NxN</span>
+            <input id="custom-size" type="number" min="5" max="50" value="10" placeholder="10">
+        </div>
+    </div>
+    <div id="ui" style="display:none;">
+        <div id="ui-top">
+            <div id="score">Score: 0</div>
+            <div id="length">Length: 3</div>
+            <div id="effects"></div>
+        </div>
+    </div>
+    <div id="start-screen">
+        <h1>Fruit Frenzy</h1>
+        <p class="subtitle">Gobble fruits, gain powers, dodge curses! Use Arrow Keys or WASD to move.</p>
+        <div class="fruit-list">
+            <div class="fruit-section">
+                <h3>Warm 🍎</h3>
+                <div>🍎 Apple: +1 length</div>
+                <div>🍊 Orange: Slow down</div>
+                <div>🍑 Peach: Ghost (pass through self)</div>
+                <div>🍌 Banana: +2 length</div>
+                <div>🍍 Pineapple: Shield (pass through self)</div>
+                <div>🍓 Strawberry: Magnet (pulls fruits)</div>
+            </div>
+            <div class="fruit-section">
+                <h3>Cold 🫐</h3>
+                <div>🫐 Blueberry: Speed up</div>
+                <div>🥒 Cucumber: Reverses controls</div>
+                <div>🍉 Watermelon: -2 length</div>
+                <div>🍇 Grape: -1 length</div>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn" onclick="startGame()">PLAY</button>
+            <button class="btn btn-apple" onclick="startGame()">🍎</button>
+        </div>
+        <p class="controls-hint">Arrow Keys / WASD to move</p>
+    </div>
+    <div id="game-over">
+        <h1>Game Over</h1>
+        <div id="final-score">0</div>
+        <button class="btn" onclick="startGame()">PLAY AGAIN</button>
+    </div>
+
+    <div id="dpad" class="dpad-hidden">
+        <div class="dpad-row">
+            <div class="dpad-spacer"></div>
+            <button data-dir="up">↑</button>
+            <div class="dpad-spacer"></div>
+        </div>
+        <div class="dpad-row">
+            <button data-dir="left">←</button>
+            <div class="dpad-spacer"></div>
+            <button data-dir="right">→</button>
+        </div>
+        <div class="dpad-row">
+            <div class="dpad-spacer"></div>
+            <button data-dir="down">↓</button>
+            <div class="dpad-spacer"></div>
+        </div>
+    </div>
+    <button id="dpad-toggle">🕹️ D-pad: None</button>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W, H, cellSize, GRID = 30;
+
+const FRUITS = [
+    { emoji: '🍎', name: 'Apple', positive: true, effect: () => { grow(1); addScore(10); }, color: '#ff6b6b' },
+    { emoji: '🫐', name: 'Blueberry', positive: false, effect: () => applyEffect('fire', 4, 1.8), color: '#3498db' },
+    { emoji: '🍍', name: 'Pineapple', positive: true, effect: () => applyEffect('shield', 5, 1), color: '#f39c12' },
+    { emoji: '🍌', name: 'Banana', positive: true, effect: () => grow(2), color: '#f1c40f' },
+    { emoji: '🍑', name: 'Peach', positive: true, effect: () => applyEffect('ghost', 7.5, 1), color: '#ff9ff3' },
+    { emoji: '🍓', name: 'Strawberry', positive: true, effect: () => applyEffect('magnet', 6, 1), color: '#e74c3c' },
+    { emoji: '🥒', name: 'Cucumber', positive: false, effect: () => {
+        activeEffects.reversenext = { remaining: 3, total: 3, duration: 10, maxDuration: 10 };
+        updateEffectsUI();
+    }, color: '#27ae60' },
+    { emoji: '🍊', name: 'Orange', positive: true, effect: () => applyEffect('slow', 5, 0.6), color: '#ffa502' },
+    { emoji: '🍉', name: 'Watermelon', positive: false, effect: () => grow(-2), color: '#2ecc71' },
+    { emoji: '🍇', name: 'Grape', positive: false, effect: () => shrinkSnake(), color: '#9b59b6' },
+];
+
+let snake, dir, nextDir, fruits, score, activeEffects, running, lastTime, accumulator, shakeTimer, comboTimer, comboCount, countdown;
+
+function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    cellSize = Math.floor(Math.min(W, H) / GRID);
+}
+window.addEventListener('resize', resize);
+resize();
+
+function init() {
+    snake = [];
+    fruits = [];
+    const cx = Math.floor(GRID / 2);
+    const cy = Math.floor(GRID / 2);
+    snake.push({ x: cx, y: cy });
+    dir = { x: 1, y: 0 };
+    nextDir = { ...dir };
+    fruits = [];
+    score = 0;
+    activeEffects = {};
+    accumulator = 0;
+    shakeTimer = 0;
+    comboTimer = 0;
+    comboCount = 0;
+    countdown = 3;
+    spawnFruits(Math.max(1, Math.floor(GRID / 3)));
+}
+
+function spawnFruits(count) {
+    for (let i = 0; i < count; i++) spawnFruit();
+}
+
+function spawnFruit() {
+    let pos, tries = 0;
+    do {
+        pos = {
+            x: Math.floor(Math.random() * GRID),
+            y: Math.floor(Math.random() * GRID)
+        };
+        tries++;
+    } while (tries < 100 && (
+        snake.some(s => Math.abs(s.x - pos.x) <= 2 && Math.abs(s.y - pos.y) <= 2) ||
+        fruits.some(f => f.x === pos.x && f.y === pos.y)
+    ));
+    const fruit = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+    fruits.push({ ...pos, ...fruit, pulse: Math.random() * Math.PI * 2 });
+}
+
+function grow(amount) {
+    if (amount > 0) {
+        const tail = snake[snake.length - 1];
+        for (let i = 0; i < amount; i++) {
+            snake.push({ ...tail });
+        }
+    } else if (amount < 0) {
+        for (let i = 0; i < Math.abs(amount); i++) {
+            if (snake.length > 1) {
+                snake.pop();
+            }
+        }
+    }
+}
+
+function applyEffect(name, duration, speedMod) {
+    activeEffects[name] = { duration, maxDuration: duration, speedMod };
+    updateEffectsUI();
+}
+
+function addScore(pts) {
+    let multiplier = 1;
+    if (activeEffects.double) multiplier = 2;
+    if (comboTimer > 0) {
+        comboCount++;
+        multiplier += comboCount * 0.5;
+    }
+    score += Math.floor(pts * multiplier);
+    comboTimer = 2;
+}
+
+function getSpeed() {
+    let base = 8;
+    if (activeEffects.fire) base *= activeEffects.fire.speedMod;
+    if (activeEffects.slow) base *= activeEffects.slow.speedMod;
+    return base;
+}
+
+function shrinkSnake() {
+    if (snake.length > 1) {
+        snake.pop();
+    }
+}
+
+function applyMagnetEffect() {
+    if (!activeEffects.magnet || !fruits.length || !snake.length) return;
+    const head = snake[0];
+    const magnetRange = 2;
+
+    for (let i = fruits.length - 1; i >= 0; i--) {
+        const f = fruits[i];
+        const dx = Math.abs(f.x - head.x);
+        const dy = Math.abs(f.y - head.y);
+
+        if (dx <= magnetRange && dy <= magnetRange && (dx > 0 || dy > 0)) {
+            let newX = f.x + (head.x - f.x) * 0.2;
+            let newY = f.y + (head.y - f.y) * 0.2;
+            f.x = Math.round(newX);
+            f.y = Math.round(newY);
+
+            if (f.x === head.x && f.y === head.y) {
+                f.effect();
+                flash(f.positive ? '#4ecca3' : '#ff6b6b', 0.2);
+                if (!f.positive) screenShake();
+                fruits.splice(i, 1);
+                spawnFruit();
+            }
+        }
+    }
+}
+
+function updateEffectsUI() {
+    const el = document.getElementById('effects');
+    el.innerHTML = '';
+    for (const key in activeEffects) {
+        const e = activeEffects[key];
+        const isPos = ['shield', 'ghost', 'magnet', 'slow'].includes(key);
+        const names = { fire: '🫐 Blueberry', shield: '🍍 Pineapple', ghost: '🍑 Peach', magnet: '🍓 Strawberry', slow: '🍊 Orange', reversenext: '🥒 Cucumber' };
+        let label;
+        if (e.remaining !== undefined && e.duration <= 5) {
+            label = `${names[key] || key} ${e.remaining}/${e.total}`;
+        } else {
+            const pct = Math.ceil((e.duration / e.maxDuration) * 100);
+            label = `${names[key] || key} ${pct}%`;
+        }
+        el.innerHTML += `<div class="effect-badge ${isPos ? 'positive' : 'negative'}">${label}</div>`;
+    }
+}
+
+function flash(color, intensity = 0.3) {
+    const el = document.getElementById('flash');
+    el.style.background = color;
+    el.style.opacity = intensity;
+    setTimeout(() => el.style.opacity = 0, 150);
+}
+
+function screenShake() {
+    shakeTimer = 0.3;
+}
+
+function updateEffects(dt) {
+    if (comboTimer > 0) comboTimer -= dt;
+    else comboCount = 0;
+
+    for (const key in activeEffects) {
+        activeEffects[key].duration -= dt;
+        if (activeEffects[key].duration <= 0) {
+            delete activeEffects[key];
+        }
+    }
+    updateEffectsUI();
+}
+
+function update(dt) {
+    if (!running) return;
+
+    if (countdown > 0) {
+        countdown -= dt;
+        if (countdown <= 0 && snake.length === 1) {
+            grow(2);
+        }
+        return;
+    }
+
+    updateEffects(dt);
+    applyMagnetEffect();
+
+    accumulator += dt * getSpeed();
+    while (accumulator >= 1) {
+        accumulator -= 1;
+        moveSnake();
+    }
+
+    if (shakeTimer > 0) shakeTimer -= dt;
+}
+
+function moveSnake() {
+    let dx = nextDir.x;
+    let dy = nextDir.y;
+
+    dir = { x: dx, y: dy };
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+    head.x = ((head.x % GRID) + GRID) % GRID;
+    head.y = ((head.y % GRID) + GRID) % GRID;
+
+    snake.unshift(head);
+
+    if (!activeEffects.ghost) {
+        for (let i = 1; i < snake.length; i++) {
+            if (head.x === snake[i].x && head.y === snake[i].y) {
+                snake.shift();
+                if (snake.length > 0) {
+                    snake.pop();
+                }
+                screenShake();
+                flash('#ff6b6b', 0.4);
+                return;
+            }
+        }
+        snake.pop();
+    } else {
+        snake.pop();
+    }
+
+    for (let i = 0; i < fruits.length; i++) {
+        const f = fruits[i];
+        if (snake[0].x === f.x && snake[0].y === f.y) {
+            f.effect();
+            flash(f.positive ? '#4ecca3' : '#ff6b6b', 0.2);
+            if (!f.positive) screenShake();
+            fruits.splice(i, 1);
+            spawnFruit();
+            break;
+        }
+    }
+
+    document.getElementById('score').textContent = `Score: ${score}`;
+    document.getElementById('length').textContent = `Length: ${snake.length}`;
+}
+
+function draw(t) {
+    if (!running || !snake || !fruits) return;
+    canvas.style.filter = activeEffects.reversenext ? 'invert(1) hue-rotate(180deg)' : '';
+    ctx.fillStyle = (activeEffects && activeEffects.dark) ? '#0a0a1a' : '#16213e';
+    ctx.fillRect(0, 0, W, H);
+
+    let ox = 0, oy = 0;
+    if (shakeTimer > 0) {
+        ox = (Math.random() - 0.5) * 8;
+        oy = (Math.random() - 0.5) * 8;
+    }
+
+    ctx.save();
+    ctx.translate(ox + (W - cellSize * GRID) / 2, oy + (H - cellSize * GRID) / 2);
+
+    if (countdown > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, cellSize * GRID, cellSize * GRID);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${cellSize * 2}px 'Fredoka One', cursive`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.ceil(countdown), cellSize * GRID / 2, cellSize * GRID / 2);
+        ctx.restore();
+        return;
+    }
+
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#e94560';
+    ctx.shadowBlur = 20;
+    ctx.strokeRect(0, 0, cellSize * GRID, cellSize * GRID);
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = '#ff6b8a';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 4, cellSize * GRID - 8, cellSize * GRID - 8);
+
+    ctx.fillStyle = '#e9456040';
+    ctx.fillRect(0, 0, cellSize * GRID, cellSize * GRID);
+
+    ctx.strokeStyle = '#2a3a5e';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= GRID; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * cellSize, 0);
+        ctx.lineTo(i * cellSize, cellSize * GRID);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * cellSize);
+        ctx.lineTo(cellSize * GRID, i * cellSize);
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < fruits.length; i++) {
+        const f = fruits[i];
+        const px = f.x * cellSize + cellSize / 2;
+        const py = f.y * cellSize + cellSize / 2;
+        const pulse = 1 + Math.sin(t * 3 + f.pulse) * 0.1;
+        const size = cellSize * 0.7 * pulse;
+
+        ctx.beginPath();
+        ctx.arc(px, py, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = f.color + '40';
+        ctx.fill();
+        ctx.strokeStyle = f.color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.font = `${size * 0.8}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(f.emoji, px, py);
+    }
+
+    const head = snake[0];
+    const hx = head.x * cellSize + cellSize / 2;
+    const hy = head.y * cellSize + cellSize / 2;
+
+    if (activeEffects.shield) {
+        ctx.beginPath();
+        ctx.arc(hx, hy, cellSize * 0.8, 0, Math.PI * 2);
+        ctx.strokeStyle = '#4ecca3';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([8, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    ctx.beginPath();
+    ctx.arc(hx, hy, cellSize * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#4ecca3';
+    ctx.fill();
+    ctx.strokeStyle = '#2ecc71';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.font = `${cellSize * 0.7}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('😋', hx, hy);
+
+    for (let i = 1; i < snake.length; i++) {
+        const s = snake[i];
+        const sx = s.x * cellSize + cellSize / 2;
+        const sy = s.y * cellSize + cellSize / 2;
+        const ratio = 1 - i / snake.length;
+        const size = cellSize * 0.5 * (0.5 + ratio * 0.5);
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${140 + i * 5}, 70%, ${50 + ratio * 20}%)`;
+        ctx.fill();
+        ctx.strokeStyle = `hsl(${140 + i * 5}, 70%, 40%)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+    lastTime = timestamp;
+
+    update(dt);
+    draw(timestamp / 1000);
+
+    requestAnimationFrame(gameLoop);
+}
+
+function handleDirection(newDir) {
+    if (!running) return false;
+    if (activeEffects.reversenext) {
+        newDir.x *= -1;
+        newDir.y *= -1;
+        if (activeEffects.reversenext.duration <= 5) {
+            activeEffects.reversenext.remaining--;
+            if (activeEffects.reversenext.remaining <= 0) {
+                delete activeEffects.reversenext;
+            }
+        }
+        updateEffectsUI();
+    }
+    if (snake.length > 1 && newDir.x === -dir.x && newDir.y === -dir.y) return false;
+    nextDir = newDir;
+    return true;
+}
+
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('ui').style.display = 'flex';
+    init();
+    running = true;
+}
+
+document.addEventListener('keydown', e => {
+    if (!running) return;
+    const k = e.key.toLowerCase();
+    if (['arrowup', 'w'].includes(k)) handleDirection({ x: 0, y: -1 });
+    else if (['arrowdown', 's'].includes(k)) handleDirection({ x: 0, y: 1 });
+    else if (['arrowleft', 'a'].includes(k)) handleDirection({ x: -1, y: 0 });
+    else if (['arrowright', 'd'].includes(k)) handleDirection({ x: 1, y: 0 });
+});
+
+document.querySelectorAll('#dpad button[data-dir]').forEach(btn => {
+    const dirs = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+    const cb = e => {
+        e.preventDefault();
+        handleDirection(dirs[btn.dataset.dir]);
+    };
+    btn.addEventListener('touchstart', cb, { passive: false });
+    btn.addEventListener('mousedown', cb);
+});
+
+let dpadMode = 'none';
+const dpadEl = document.getElementById('dpad');
+const dpadToggle = document.getElementById('dpad-toggle');
+dpadToggle.addEventListener('click', () => {
+    const modes = ['none', 'left', 'right'];
+    const labels = ['None', 'Left', 'Right'];
+    const idx = (modes.indexOf(dpadMode) + 1) % modes.length;
+    dpadMode = modes[idx];
+    dpadToggle.textContent = '🕹️ D-pad: ' + labels[idx];
+    dpadEl.className = dpadMode === 'none' ? 'dpad-hidden' : 'dpad-' + dpadMode;
+});
+
+function setGridSize(n) {
+    GRID = n;
+    resize();
+    if (running) {
+        init();
+        document.getElementById('score').textContent = 'Score: 0';
+        document.getElementById('length').textContent = 'Length: ' + snake.length;
+    }
+}
+
+document.querySelectorAll('.size-opt').forEach(el => {
+    const updateSize = e => {
+        document.querySelectorAll('.size-opt').forEach(o => o.classList.remove('active'));
+        el.classList.add('active');
+        if (el.dataset.size === 'custom') {
+            document.getElementById('custom-size-wrap').classList.add('show');
+            document.getElementById('custom-size').focus();
+        } else {
+            document.getElementById('custom-size-wrap').classList.remove('show');
+            setGridSize(parseInt(el.dataset.size));
+        }
+    };
+    el.addEventListener('click', updateSize);
+    el.addEventListener('touchstart', e => { e.preventDefault(); updateSize(e); }, { passive: false });
+});
+
+document.getElementById('custom-size').addEventListener('change', e => {
+    let val = parseInt(e.target.value);
+    if (isNaN(val)) val = 10;
+    val = Math.max(5, Math.min(50, val));
+    e.target.value = val;
+    document.querySelectorAll('.size-opt').forEach(o => o.classList.remove('active'));
+    setGridSize(val);
+});
+
+let touchStart = null;
+canvas.addEventListener('touchstart', e => {
+    if (!running) return;
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, { passive: true });
+
+canvas.addEventListener('touchend', e => {
+    if (!running || !touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+        handleDirection(dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 });
+    } else {
+        handleDirection(dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 });
+    }
+}, { passive: true });
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
