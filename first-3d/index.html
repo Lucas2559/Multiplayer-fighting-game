@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cube Chess</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000;
+      font-family: system-ui, sans-serif; color: #eee; }
+    #hud {
+      position: fixed; top: 12px; left: 12px; z-index: 10;
+      background: rgba(255,255,255,.08); padding: 10px 14px; border-radius: 8px;
+    }
+    #turn { font-weight: 700; font-size: 16px; }
+    #status { color: #ffcf6b; min-height: 1.2em; font-size: 14px; }
+    #hud button {
+      margin-top: 8px; background: #2a2a38; color: #eee; border: 1px solid #555;
+      padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    #hud button:hover { background: #38384a; }
+    #hint {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      color: #aaa; font: 13px/1.4 system-ui, sans-serif; pointer-events: none;
+      background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div id="turn">White to move</div>
+    <div id="status"></div>
+    <button id="reset">New game</button>
+  </div>
+  <div id="hint">drag to orbit · scroll to zoom · edge pieces can move onto the adjacent face</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const SIZE = 8, TILE = 1, cubeSize = TILE;
+    const offset = (SIZE - 1) / 2;
+
+    // --- Scene / camera / renderer ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(1, 13, 11);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 0, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const kl = new THREE.DirectionalLight(0xffffff, 1.0); kl.position.set(8, 12, 9); scene.add(kl);
+    const fl = new THREE.DirectionalLight(0x88aaff, 0.4); fl.position.set(-9, -6, -8); scene.add(fl);
+
+    // --- The 8x8x8 checkerboard cube ---
+    const lightMat = new THREE.MeshStandardMaterial({ color: 0xf0d9b5, roughness: 0.7 });
+    const darkMat  = new THREE.MeshStandardMaterial({ color: 0xb58863, roughness: 0.7 });
+    const geo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+    const cubeGroup = new THREE.Group();
+    for (let x = 0; x < SIZE; x++)
+      for (let y = 0; y < SIZE; y++)
+        for (let z = 0; z < SIZE; z++) {
+          const m = new THREE.Mesh(geo, (x + y + z) % 2 === 0 ? darkMat : lightMat);
+          m.position.set((x - offset) * TILE, (y - offset) * TILE, (z - offset) * TILE);
+          cubeGroup.add(m);
+        }
+    scene.add(cubeGroup);
+
+    // --- Lichess "cburnett" piece set (free/open source); black pieces get a white outline ---
+    const PIECE_BASE = 'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/';
+    const pieceMats = {};
+    async function loadPieceTexture(code) {
+      let svg = await (await fetch(PIECE_BASE + code + '.svg')).text();
+      if (!/<svg[^>]*\bwidth=/.test(svg)) svg = svg.replace('<svg', '<svg width="256" height="256"');
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      const img = await new Promise((res, rej) => {
+        const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url;
+      });
+      const S = 256;
+      const c = document.createElement('canvas'); c.width = c.height = S;
+      const ctx = c.getContext('2d');
+      if (code[0] === 'b') {                            // white outline for black pieces
+        const sil = document.createElement('canvas'); sil.width = sil.height = S;
+        const sctx = sil.getContext('2d');
+        sctx.drawImage(img, 0, 0, S, S);
+        sctx.globalCompositeOperation = 'source-in';
+        sctx.fillStyle = '#ffffff'; sctx.fillRect(0, 0, S, S);
+        const r = 4;
+        for (let a = 0; a < 360; a += 20)
+          ctx.drawImage(sil, Math.cos(a * Math.PI / 180) * r, Math.sin(a * Math.PI / 180) * r);
+      }
+      ctx.drawImage(img, 0, 0, S, S);
+      URL.revokeObjectURL(url);
+      const tex = new THREE.CanvasTexture(c); tex.anisotropy = 8; return tex;
+    }
+    function pieceMaterial(type, color) {              // type "K".."P", color "w"/"b"
+      const code = color + type;
+      if (!pieceMats[code]) {
+        const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
+        loadPieceTexture(code).then((t) => { mat.map = t; mat.needsUpdate = true; })
+          .catch((e) => console.warn('piece load failed', code, e));
+        pieceMats[code] = mat;
+      }
+      return pieceMats[code];
+    }
+
+    const topY = (SIZE - 1 - offset) * TILE + cubeSize / 2;
+    const PIECE_H = TILE * 1.25;
+
+    /* ============================================================
+       CUBE-SURFACE CHESS ENGINE
+       A square is an outer cube [x,y,z] (each 0..7). Each of the 6 faces
+       is a normal 8x8 board; squares on a shared edge belong to 2 faces
+       (corners to 3). A piece generates moves on EVERY face it sits on,
+       so only edge/corner pieces can change planes. Each move stays
+       within one face (no edge-bending mid-move).
+       ============================================================ */
+    const key = (c) => c[0] + ',' + c[1] + ',' + c[2];
+    const parse = (k) => k.split(',').map(Number);
+    const sameCube = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+
+    const NORMALS = { TOP:[0,1,0], BOTTOM:[0,-1,0], LEFT:[-1,0,0], RIGHT:[1,0,0], FRONT:[0,0,1], BACK:[0,0,-1] };
+    const FACE = {                                     // (u,v) = (file,rank) on that face
+      TOP:    { uv: (c) => [c[0], c[2]], cube: (u, v) => [u, 7, v] },
+      BOTTOM: { uv: (c) => [c[0], c[2]], cube: (u, v) => [u, 0, v] },
+      LEFT:   { uv: (c) => [c[2], c[1]], cube: (u, v) => [0, v, u] },
+      RIGHT:  { uv: (c) => [c[2], c[1]], cube: (u, v) => [7, v, u] },
+      FRONT:  { uv: (c) => [c[0], c[1]], cube: (u, v) => [u, v, 7] },
+      BACK:   { uv: (c) => [c[0], c[1]], cube: (u, v) => [u, v, 0] },
+    };
+    function facesOf(c) {
+      const f = [];
+      if (c[1] === 7) f.push('TOP');   if (c[1] === 0) f.push('BOTTOM');
+      if (c[0] === 0) f.push('LEFT');  if (c[0] === 7) f.push('RIGHT');
+      if (c[2] === 7) f.push('FRONT'); if (c[2] === 0) f.push('BACK');
+      return f;
+    }
+    // Pawn "forward" per face = the in-face step that increases z (white advances toward +z).
+    // `side` is the perpendicular in-face axis used for the two diagonal captures.
+    // FRONT/BACK have z fixed, so pawns can't advance there (they'd have promoted on arrival).
+    const PAWN_FWD = {
+      TOP:    { fwd: [0, 1], side: [1, 0] },
+      BOTTOM: { fwd: [0, 1], side: [1, 0] },
+      LEFT:   { fwd: [1, 0], side: [0, 1] },
+      RIGHT:  { fwd: [1, 0], side: [0, 1] },
+    };
+
+    const KN = [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]];
+    const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
+    const DIAG  = [[1,1],[1,-1],[-1,1],[-1,-1]];
+    const ALL8  = [...ORTHO, ...DIAG];
+
+    function startState() {
+      const b = {};
+      const back = ['r','n','b','k','q','b','n','r'];
+      for (let x = 0; x < 8; x++) {
+        b[key([x,7,0])] = { t: back[x], c: 'w' };  b[key([x,7,1])] = { t: 'p', c: 'w' };
+        b[key([x,7,7])] = { t: back[x], c: 'b' };  b[key([x,7,6])] = { t: 'p', c: 'b' };
+      }
+      return { board: b, turn: 'w', castle: { wK:1, wQ:1, bK:1, bQ:1 }, ep: null };
+    }
+
+    // Pseudo-legal moves for the piece at `cube`, restricted to one `face`.
+    function faceMoves(s, cube, face, attackOnly) {
+      const p = s.board[key(cube)]; if (!p) return [];
+      const F = FACE[face], [u, v] = F.uv(cube);
+      const me = p.c, opp = me === 'w' ? 'b' : 'w', out = [];
+      const onb = (uu, vv) => uu >= 0 && uu < 8 && vv >= 0 && vv < 8;
+      const at  = (uu, vv) => onb(uu, vv) ? s.board[key(F.cube(uu, vv))] : undefined;
+      const dest = (uu, vv, x = {}) => out.push({ from: cube, to: F.cube(uu, vv), face, ...x });
+      const slide = (dirs) => { for (const [du, dv] of dirs) { let uu=u+du, vv=v+dv;
+        while (onb(uu, vv)) { const q = at(uu, vv);
+          if (!q) dest(uu, vv); else { if (q.c === opp) dest(uu, vv, { capture: true }); break; }
+          uu += du; vv += dv; } } };
+      const step = (dirs) => { for (const [du, dv] of dirs) { const uu=u+du, vv=v+dv;
+        if (!onb(uu, vv)) continue; const q = at(uu, vv);
+        if (!q) dest(uu, vv); else if (q.c === opp) dest(uu, vv, { capture: true }); } };
+
+      if (p.t === 'p') {
+        const FW = PAWN_FWD[face];                       // forward (toward the foe) on this face
+        if (!FW) return out;                             // FRONT/BACK: no advance direction
+        const sg = me === 'w' ? 1 : -1, promoZ = me === 'w' ? 7 : 0;
+        const fu = FW.fwd[0] * sg, fv = FW.fwd[1] * sg;  // forward step in (u,v)
+        const su = FW.side[0], sv = FW.side[1];          // sideways axis (for captures)
+        const promo = (tc) => (tc[2] === promoZ ? { promo: 'q' } : {});
+        if (!attackOnly) {
+          const au = u + fu, av = v + fv;
+          if (onb(au, av) && !at(au, av)) {
+            const tc = F.cube(au, av);
+            out.push({ from: cube, to: tc, face, ...promo(tc) });
+            const home = face === 'TOP' && ((me === 'w' && v === 1) || (me === 'b' && v === 6));
+            const bu = u + 2 * fu, bv = v + 2 * fv;
+            if (home && onb(bu, bv) && !at(bu, bv)) out.push({ from: cube, to: F.cube(bu, bv), face, double: true });
+          }
+        }
+        for (const sd of [1, -1]) {                      // the two forward diagonals
+          const cu = u + fu + su * sd, cv = v + fv + sv * sd;
+          if (!onb(cu, cv)) continue;
+          const tc = F.cube(cu, cv);
+          if (attackOnly) { out.push({ from: cube, to: tc, face }); continue; }
+          const q = s.board[key(tc)];
+          if (q && q.c === opp) out.push({ from: cube, to: tc, face, capture: true, ...promo(tc) });
+          if (face === 'TOP' && s.ep && sameCube(tc, s.ep)) out.push({ from: cube, to: tc, face, capture: true, ep: true });
+        }
+      } else if (p.t === 'n') step(KN);
+      else if (p.t === 'b') slide(DIAG);
+      else if (p.t === 'r') slide(ORTHO);
+      else if (p.t === 'q') slide(ALL8);
+      else if (p.t === 'k') {
+        step(ALL8);
+        if (!attackOnly && face === 'TOP') {            // castling only on the home face
+          if (me === 'w' && u === 4 && v === 0) {
+            if (s.castle.wK && !at(5,0) && !at(6,0)) dest(6, 0, { castle: 'K' });
+            if (s.castle.wQ && !at(3,0) && !at(2,0) && !at(1,0)) dest(2, 0, { castle: 'Q' });
+          }
+          if (me === 'b' && u === 4 && v === 7) {
+            if (s.castle.bK && !at(5,7) && !at(6,7)) dest(6, 7, { castle: 'K' });
+            if (s.castle.bQ && !at(3,7) && !at(2,7) && !at(1,7)) dest(2, 7, { castle: 'Q' });
+          }
+        }
+      }
+      return out;
+    }
+
+    function pseudoMoves(s, cube) {
+      const seen = new Set(), res = [];
+      for (const face of facesOf(cube))
+        for (const mv of faceMoves(s, cube, face, false)) {
+          const id = key(mv.to) + (mv.castle || '') + (mv.promo || '');
+          if (!seen.has(id)) { seen.add(id); res.push(mv); }
+        }
+      return res;
+    }
+    function attacksOf(s, cube) {
+      const set = new Set();
+      for (const face of facesOf(cube))
+        for (const mv of faceMoves(s, cube, face, true)) set.add(key(mv.to));
+      return set;
+    }
+    function isAttacked(s, target, by) {
+      const tk = key(target);
+      for (const k in s.board) if (s.board[k].c === by && attacksOf(s, parse(k)).has(tk)) return true;
+      return false;
+    }
+    function findKing(s, c) {
+      for (const k in s.board) { const p = s.board[k]; if (p.t === 'k' && p.c === c) return parse(k); }
+      return null;
+    }
+    const inCheck = (s, c) => { const k = findKing(s, c); return k ? isAttacked(s, k, c === 'w' ? 'b' : 'w') : false; };
+
+    function makeMove(s, mv) {
+      const nb = Object.assign({}, s.board);
+      const p = nb[key(mv.from)]; delete nb[key(mv.from)];
+      const T = FACE.TOP;
+      if (mv.ep) { const F = FACE[mv.face]; const [tu] = F.uv(mv.to), [, fv] = F.uv(mv.from);
+        delete nb[key(F.cube(tu, fv))]; }
+      nb[key(mv.to)] = mv.promo ? { t: mv.promo, c: p.c } : p;
+      if (mv.castle) { const v = T.uv(mv.from)[1];
+        if (mv.castle === 'K') { nb[key(T.cube(5, v))] = nb[key(T.cube(7, v))]; delete nb[key(T.cube(7, v))]; }
+        else { nb[key(T.cube(3, v))] = nb[key(T.cube(0, v))]; delete nb[key(T.cube(0, v))]; } }
+      const ns = { board: nb, turn: s.turn === 'w' ? 'b' : 'w', castle: { ...s.castle }, ep: null };
+      if (p.t === 'k') { if (p.c === 'w') { ns.castle.wK = ns.castle.wQ = 0; } else { ns.castle.bK = ns.castle.bQ = 0; } }
+      const clr = (k) => {
+        if (k === key(T.cube(7,0))) ns.castle.wK = 0; if (k === key(T.cube(0,0))) ns.castle.wQ = 0;
+        if (k === key(T.cube(7,7))) ns.castle.bK = 0; if (k === key(T.cube(0,7))) ns.castle.bQ = 0; };
+      clr(key(mv.from)); clr(key(mv.to));
+      if (mv.double) { const [u, vf] = T.uv(mv.from), [, vt] = T.uv(mv.to); ns.ep = T.cube(u, (vf + vt) / 2); }
+      return ns;
+    }
+
+    function legalMoves(s, cube) {
+      const p = s.board[key(cube)]; if (!p || p.c !== s.turn) return [];
+      const opp = p.c === 'w' ? 'b' : 'w', T = FACE.TOP;
+      return pseudoMoves(s, cube).filter((mv) => {
+        if (mv.castle) {
+          const v = T.uv(mv.from)[1];
+          if (isAttacked(s, T.cube(4, v), opp)) return false;
+          for (const uu of (mv.castle === 'K' ? [5, 6] : [3, 2]))
+            if (isAttacked(s, T.cube(uu, v), opp)) return false;
+        }
+        const ns = makeMove(s, mv), k = findKing(ns, p.c);
+        return k && !isAttacked(ns, k, opp);
+      });
+    }
+    function anyLegal(s, c) {
+      for (const k in s.board) if (s.board[k].c === c && legalMoves(s, parse(k)).length) return true;
+      return false;
+    }
+
+    /* ============================================================
+       3D RENDERING + INTERACTION
+       ============================================================ */
+    const pieceLayer = new THREE.Group();  scene.add(pieceLayer);
+    const markerLayer = new THREE.Group(); scene.add(markerLayer);
+    const pieceSprites = [];
+    const cubeCenter = (c) => new THREE.Vector3((c[0]-offset)*TILE, (c[1]-offset)*TILE, (c[2]-offset)*TILE);
+    const nrm = (face) => new THREE.Vector3(...NORMALS[face]);
+    const faceQuat = {};
+    for (const f in NORMALS) faceQuat[f] = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), nrm(f));
+    const piecePos = (c, f) => cubeCenter(c).addScaledVector(nrm(f), cubeSize / 2 + PIECE_H / 2);
+    const markerPos = (c, f) => cubeCenter(c).addScaledVector(nrm(f), cubeSize / 2 + 0.02);
+
+    let state, selected, legal, gameOver;
+
+    function syncPieces() {
+      [...pieceLayer.children].forEach((c) => pieceLayer.remove(c));
+      pieceSprites.length = 0;
+      for (const k in state.board) {
+        const cube = parse(k), p = state.board[k];
+        for (const face of facesOf(cube)) {           // one sprite per face -> edge icons duplicated
+          const sp = new THREE.Sprite(pieceMaterial(p.t.toUpperCase(), p.c));
+          sp.scale.set(PIECE_H, PIECE_H, 1);
+          sp.position.copy(piecePos(cube, face));
+          sp.userData.cube = cube;
+          pieceLayer.add(sp); pieceSprites.push(sp);
+        }
+      }
+    }
+
+    const markGeo = new THREE.PlaneGeometry(TILE * 0.92, TILE * 0.92);
+    function clearMarkers() { [...markerLayer.children].forEach((c) => markerLayer.remove(c)); }
+    function addMarker(cube, face, color, opacity, move) {
+      const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
+      m.position.copy(markerPos(cube, face));
+      m.quaternion.copy(faceQuat[face]);
+      if (move) m.userData.move = move;
+      markerLayer.add(m);
+    }
+    function drawMarkers() {
+      clearMarkers();
+      if (!selected) return;
+      for (const face of facesOf(selected)) addMarker(selected, face, 0xffe066, 0.45, null);
+      for (const mv of legal)
+        for (const face of facesOf(mv.to))          // show on both planes for edge squares
+          addMarker(mv.to, face, mv.capture ? 0xff5a5a : 0x46e046, mv.capture ? 0.45 : 0.34, mv);
+    }
+
+    function setHUD(msg) {
+      document.getElementById('turn').textContent =
+        gameOver ? 'Game over' : (state.turn === 'w' ? 'White' : 'Black') + ' to move';
+      document.getElementById('status').textContent = msg;
+    }
+    function select(cube) { selected = cube; legal = legalMoves(state, cube); drawMarkers(); }
+    function deselect() { selected = null; legal = []; clearMarkers(); }
+    function applyMove(mv) {
+      state = makeMove(state, mv); deselect(); syncPieces();
+      const checked = inCheck(state, state.turn);
+      if (!anyLegal(state, state.turn)) {
+        gameOver = true;
+        setHUD(checked ? 'Checkmate — ' + (state.turn === 'w' ? 'Black' : 'White') + ' wins!' : 'Stalemate — draw.');
+      } else setHUD(checked ? 'Check!' : '');
+    }
+    function newGame() { state = startState(); gameOver = false; deselect(); syncPieces(); setHUD(''); }
+
+    const raycaster = new THREE.Raycaster();
+    const ptr = new THREE.Vector2();
+    let downXY = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => { downXY = [e.clientX, e.clientY]; });
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      if (!downXY) return;
+      const moved = Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]); downXY = null;
+      if (moved > 5 || gameOver) return;
+      ptr.x = (e.clientX / innerWidth) * 2 - 1;
+      ptr.y = -(e.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(ptr, camera);
+      const hits = raycaster.intersectObjects([...markerLayer.children, ...pieceSprites], false);
+      if (!hits.length) { deselect(); return; }
+      const o = hits[0].object;
+      let move = o.userData.move || null;
+      const cube = o.userData.cube || null;
+      if (!move && cube && selected) move = legal.find((m) => sameCube(m.to, cube));
+      if (move) { applyMove(move); return; }
+      if (cube) {
+        const p = state.board[key(cube)];
+        if (p && p.c === state.turn) select(cube); else deselect();
+        return;
+      }
+      deselect();
+    });
+    document.getElementById('reset').addEventListener('click', newGame);
+
+    // --- Resize + render loop ---
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+    function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+
+    newGame();
+    animate();
+  </script>
+</body>
+</html>
