@@ -18,6 +18,10 @@
       padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
     }
     #hud button:hover { background: #38384a; }
+    #hud button:disabled { opacity: 0.3; cursor: default; }
+    #hud button:disabled:hover { background: #2a2a38; }
+    #undoRedo { display: flex; gap: 4px; margin-top: 8px; }
+    #undoRedo button { margin-top: 0; font-size: 16px; padding: 2px 10px; }
     #hint {
       position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
       color: #aaa; font: 13px/1.4 system-ui, sans-serif; pointer-events: none;
@@ -29,6 +33,10 @@
   <div id="hud">
     <div id="turn">White to move</div>
     <div id="status"></div>
+    <div id="undoRedo">
+      <button id="undoBtn">&#9664;</button>
+      <button id="redoBtn">&#9654;</button>
+    </div>
     <button id="reset">New game</button>
   </div>
   <div id="hint">drag to orbit · scroll to zoom · edge pieces can move onto the adjacent face</div>
@@ -72,57 +80,132 @@
     // --- The 8x8x8 checkerboard cube ---
     const lightMat = new THREE.MeshStandardMaterial({ color: 0xf0d9b5, roughness: 0.7 });
     const darkMat  = new THREE.MeshStandardMaterial({ color: 0xb58863, roughness: 0.7 });
+    const transLightMat = new THREE.MeshStandardMaterial({ color: 0xf0d9b5, roughness: 0.7, transparent: true, opacity: 0.5 });
+    const transDarkMat  = new THREE.MeshStandardMaterial({ color: 0xb58863, roughness: 0.7, transparent: true, opacity: 0.5 });
     const geo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
     const cubeGroup = new THREE.Group();
+    const cubeMeshes = [];
     for (let x = 0; x < SIZE; x++)
       for (let y = 0; y < SIZE; y++)
         for (let z = 0; z < SIZE; z++) {
           const m = new THREE.Mesh(geo, (x + y + z) % 2 === 0 ? darkMat : lightMat);
           m.position.set((x - offset) * TILE, (y - offset) * TILE, (z - offset) * TILE);
+          m.userData.grid = [x, y, z];
           cubeGroup.add(m);
+          cubeMeshes.push(m);
         }
     scene.add(cubeGroup);
 
-    // --- Lichess "cburnett" piece set (free/open source); black pieces get a white outline ---
-    const PIECE_BASE = 'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/';
-    const pieceMats = {};
-    async function loadPieceTexture(code) {
-      let svg = await (await fetch(PIECE_BASE + code + '.svg')).text();
-      if (!/<svg[^>]*\bwidth=/.test(svg)) svg = svg.replace('<svg', '<svg width="256" height="256"');
-      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-      const img = await new Promise((res, rej) => {
-        const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url;
-      });
-      const S = 256;
-      const c = document.createElement('canvas'); c.width = c.height = S;
-      const ctx = c.getContext('2d');
-      if (code[0] === 'b') {                            // white outline for black pieces
-        const sil = document.createElement('canvas'); sil.width = sil.height = S;
-        const sctx = sil.getContext('2d');
-        sctx.drawImage(img, 0, 0, S, S);
-        sctx.globalCompositeOperation = 'source-in';
-        sctx.fillStyle = '#ffffff'; sctx.fillRect(0, 0, S, S);
-        const r = 4;
-        for (let a = 0; a < 360; a += 20)
-          ctx.drawImage(sil, Math.cos(a * Math.PI / 180) * r, Math.sin(a * Math.PI / 180) * r);
-      }
-      ctx.drawImage(img, 0, 0, S, S);
-      URL.revokeObjectURL(url);
-      const tex = new THREE.CanvasTexture(c); tex.anisotropy = 8; return tex;
+    // --- Sphere-based chess pieces ---
+    const PIECE_R = 0.38;
+    const RING_TUBE = 0.02;
+    const SEGS = 24;
+    const TUBE_SEG = 6;
+
+    const pieceSphereGeo = new THREE.SphereGeometry(PIECE_R, SEGS, SEGS);
+    const pieceTorusGeo = new THREE.TorusGeometry(PIECE_R, RING_TUBE, TUBE_SEG, SEGS);
+    const pieceDotGeo = new THREE.SphereGeometry(0.06, 10, 10);
+
+    const pieceBodyMatCache = {};
+    function bodyMat(color) {
+      if (!pieceBodyMatCache[color])
+        pieceBodyMatCache[color] = new THREE.MeshStandardMaterial({
+          color: color === 'w' ? 0xf0f0f0 : 0x333333, roughness: 0.5, metalness: 0.05,
+        });
+      return pieceBodyMatCache[color];
     }
-    function pieceMaterial(type, color) {              // type "K".."P", color "w"/"b"
-      const code = color + type;
-      if (!pieceMats[code]) {
-        const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
-        loadPieceTexture(code).then((t) => { mat.map = t; mat.needsUpdate = true; })
-          .catch((e) => console.warn('piece load failed', code, e));
-        pieceMats[code] = mat;
-      }
-      return pieceMats[code];
+    const pieceRingMatCache = {};
+    function ringMat(color) {
+      if (!pieceRingMatCache[color])
+        pieceRingMatCache[color] = new THREE.MeshStandardMaterial({
+          color: color === 'w' ? 0xaaaaaa : 0x555555, roughness: 0.5,
+        });
+      return pieceRingMatCache[color];
+    }
+    const pieceDotMatCache = {};
+    function dotMat(color) {
+      if (!pieceDotMatCache[color])
+        pieceDotMatCache[color] = new THREE.MeshStandardMaterial({
+          color: color === 'w' ? 0x888888 : 0x777777, roughness: 0.5,
+        });
+      return pieceDotMatCache[color];
     }
 
-    const topY = (SIZE - 1 - offset) * TILE + cubeSize / 2;
-    const PIECE_H = TILE * 1.25;
+    function createPieceGroup(type, color) {
+      const group = new THREE.Group();
+      const meshes = [];
+      const R = PIECE_R;
+
+      const sphere = new THREE.Mesh(pieceSphereGeo, bodyMat(color));
+      group.add(sphere);
+      meshes.push(sphere);
+
+      if (type === 'k') {
+        // King: plain sphere
+
+      } else if (type === 'q') {
+        // Queen: one dot on each side
+        const queenDotGeo = new THREE.SphereGeometry(0.1, 10, 10);
+        for (const s of [-1, 1]) {
+          const dot = new THREE.Mesh(queenDotGeo, dotMat(color));
+          dot.position.set(0, 0, s * R * 0.85);
+          group.add(dot);
+          meshes.push(dot);
+        }
+
+      } else if (type === 'r') {
+        // Rook: 3 horizontal rings
+        for (let i = 0; i < 3; i++) {
+          const y = -R * 0.6 + (2 * R * 0.6 * i) / 2;
+          const r = Math.sqrt(R * R - y * y);
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(r, RING_TUBE, TUBE_SEG, SEGS),
+            ringMat(color)
+          );
+          ring.position.y = y;
+          ring.rotation.x = Math.PI / 2;
+          group.add(ring);
+          meshes.push(ring);
+        }
+
+      } else if (type === 'b') {
+        // Bishop: 4 diagonal rings → 16 sections
+        for (let i = 0; i < 4; i++) {
+          const ring = new THREE.Mesh(pieceTorusGeo, ringMat(color));
+          const q = new THREE.Quaternion().setFromUnitVectors(
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(
+              Math.sin(Math.PI / 4) * Math.sin((i * Math.PI) / 4),
+              Math.cos(Math.PI / 4),
+              Math.sin(Math.PI / 4) * Math.cos((i * Math.PI) / 4),
+            ).normalize()
+          );
+          ring.quaternion.copy(q);
+          group.add(ring);
+          meshes.push(ring);
+        }
+
+      } else if (type === 'n') {
+        // Knight: 4 dots on each side
+        for (const s of [-1, 1]) {
+          for (let i = 0; i < 4; i++) {
+            const a = (i * Math.PI) / 2 + Math.PI / 4;
+            const dot = new THREE.Mesh(pieceDotGeo, dotMat(color));
+            dot.position.set(Math.cos(a) * R * 0.78, Math.sin(a) * R * 0.78, s * R * 0.65);
+            group.add(dot);
+            meshes.push(dot);
+          }
+        }
+
+      } else if (type === 'p') {
+        // Pawn: one vertical ring
+        const ring = new THREE.Mesh(pieceTorusGeo, ringMat(color));
+        group.add(ring);
+        meshes.push(ring);
+      }
+
+      return { group, meshes };
+    }
 
     /* ============================================================
        CUBE-SURFACE CHESS ENGINE
@@ -217,7 +300,7 @@
           if (attackOnly) { out.push({ from: cube, to: tc, face }); continue; }
           const q = s.board[key(tc)];
           if (q && q.c === opp) out.push({ from: cube, to: tc, face, capture: true, ...promo(tc) });
-          if (face === 'TOP' && s.ep && sameCube(tc, s.ep)) out.push({ from: cube, to: tc, face, capture: true, ep: true });
+          if (s.ep && sameCube(tc, s.ep)) out.push({ from: cube, to: tc, face, capture: true, ep: true });
         }
       } else if (p.t === 'n') step(KN);
       else if (p.t === 'b') slide(DIAG);
@@ -226,13 +309,13 @@
       else if (p.t === 'k') {
         step(ALL8);
         if (!attackOnly && face === 'TOP') {            // castling only on the home face
-          if (me === 'w' && u === 4 && v === 0) {
-            if (s.castle.wK && !at(5,0) && !at(6,0)) dest(6, 0, { castle: 'K' });
-            if (s.castle.wQ && !at(3,0) && !at(2,0) && !at(1,0)) dest(2, 0, { castle: 'Q' });
+          if (me === 'w' && u === 3 && v === 0) {
+            if (s.castle.wK && !at(4,0) && !at(5,0) && !at(6,0)) dest(5, 0, { castle: 'K' });
+            if (s.castle.wQ && !at(2,0) && !at(1,0)) dest(1, 0, { castle: 'Q' });
           }
-          if (me === 'b' && u === 4 && v === 7) {
-            if (s.castle.bK && !at(5,7) && !at(6,7)) dest(6, 7, { castle: 'K' });
-            if (s.castle.bQ && !at(3,7) && !at(2,7) && !at(1,7)) dest(2, 7, { castle: 'Q' });
+          if (me === 'b' && u === 3 && v === 7) {
+            if (s.castle.bK && !at(4,7) && !at(5,7) && !at(6,7)) dest(5, 7, { castle: 'K' });
+            if (s.castle.bQ && !at(2,7) && !at(1,7)) dest(1, 7, { castle: 'Q' });
           }
         }
       }
@@ -273,26 +356,29 @@
         delete nb[key(F.cube(tu, fv))]; }
       nb[key(mv.to)] = mv.promo ? { t: mv.promo, c: p.c } : p;
       if (mv.castle) { const v = T.uv(mv.from)[1];
-        if (mv.castle === 'K') { nb[key(T.cube(5, v))] = nb[key(T.cube(7, v))]; delete nb[key(T.cube(7, v))]; }
-        else { nb[key(T.cube(3, v))] = nb[key(T.cube(0, v))]; delete nb[key(T.cube(0, v))]; } }
+        if (mv.castle === 'K') { nb[key(T.cube(4, v))] = nb[key(T.cube(7, v))]; delete nb[key(T.cube(7, v))]; }
+        else { nb[key(T.cube(2, v))] = nb[key(T.cube(0, v))]; delete nb[key(T.cube(0, v))]; } }
       const ns = { board: nb, turn: s.turn === 'w' ? 'b' : 'w', castle: { ...s.castle }, ep: null };
       if (p.t === 'k') { if (p.c === 'w') { ns.castle.wK = ns.castle.wQ = 0; } else { ns.castle.bK = ns.castle.bQ = 0; } }
       const clr = (k) => {
         if (k === key(T.cube(7,0))) ns.castle.wK = 0; if (k === key(T.cube(0,0))) ns.castle.wQ = 0;
         if (k === key(T.cube(7,7))) ns.castle.bK = 0; if (k === key(T.cube(0,7))) ns.castle.bQ = 0; };
       clr(key(mv.from)); clr(key(mv.to));
-      if (mv.double) { const [u, vf] = T.uv(mv.from), [, vt] = T.uv(mv.to); ns.ep = T.cube(u, (vf + vt) / 2); }
+      if (mv.double) { ns.ep = [(mv.from[0]+mv.to[0])/2, (mv.from[1]+mv.to[1])/2, (mv.from[2]+mv.to[2])/2]; }
       return ns;
     }
 
     function legalMoves(s, cube) {
       const p = s.board[key(cube)]; if (!p || p.c !== s.turn) return [];
       const opp = p.c === 'w' ? 'b' : 'w', T = FACE.TOP;
+      const planeLocked = inCheck(s, s.turn);
+      const nFaces = facesOf(cube).length;
       return pseudoMoves(s, cube).filter((mv) => {
+        if (planeLocked && facesOf(mv.to).length < nFaces) return false;
         if (mv.castle) {
           const v = T.uv(mv.from)[1];
-          if (isAttacked(s, T.cube(4, v), opp)) return false;
-          for (const uu of (mv.castle === 'K' ? [5, 6] : [3, 2]))
+          if (isAttacked(s, T.cube(3, v), opp)) return false;
+          for (const uu of (mv.castle === 'K' ? [4, 5] : [2, 1]))
             if (isAttacked(s, T.cube(uu, v), opp)) return false;
         }
         const ns = makeMove(s, mv), k = findKing(ns, p.c);
@@ -309,48 +395,77 @@
        ============================================================ */
     const pieceLayer = new THREE.Group();  scene.add(pieceLayer);
     const markerLayer = new THREE.Group(); scene.add(markerLayer);
-    const pieceSprites = [];
+    const pieceMeshes = [];
     const cubeCenter = (c) => new THREE.Vector3((c[0]-offset)*TILE, (c[1]-offset)*TILE, (c[2]-offset)*TILE);
-    const nrm = (face) => new THREE.Vector3(...NORMALS[face]);
-    const faceQuat = {};
-    for (const f in NORMALS) faceQuat[f] = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), nrm(f));
-    const piecePos = (c, f) => cubeCenter(c).addScaledVector(nrm(f), cubeSize / 2 + PIECE_H / 2);
-    const markerPos = (c, f) => cubeCenter(c).addScaledVector(nrm(f), cubeSize / 2 + 0.02);
 
     let state, selected, legal, gameOver;
+    const history = [];
+    let redoStack = [];
 
     function syncPieces() {
+      cubeMeshes.forEach(m => {
+        const [x, y, z] = m.userData.grid;
+        m.material = (x + y + z) % 2 === 0 ? darkMat : lightMat;
+      });
       [...pieceLayer.children].forEach((c) => pieceLayer.remove(c));
-      pieceSprites.length = 0;
+      pieceMeshes.length = 0;
       for (const k in state.board) {
         const cube = parse(k), p = state.board[k];
-        for (const face of facesOf(cube)) {           // one sprite per face -> edge icons duplicated
-          const sp = new THREE.Sprite(pieceMaterial(p.t.toUpperCase(), p.c));
-          sp.scale.set(PIECE_H, PIECE_H, 1);
-          sp.position.copy(piecePos(cube, face));
-          sp.userData.cube = cube;
-          pieceLayer.add(sp); pieceSprites.push(sp);
+        const mesh = cubeMeshes.find(m => {
+          const [gx, gy, gz] = m.userData.grid;
+          return gx === cube[0] && gy === cube[1] && gz === cube[2];
+        });
+        if (mesh) {
+          const [x, y, z] = mesh.userData.grid;
+          mesh.material = (x + y + z) % 2 === 0 ? transDarkMat : transLightMat;
         }
+        const { group: pg, meshes } = createPieceGroup(p.t, p.c);
+        pg.position.copy(cubeCenter(cube));
+        meshes.forEach(m => { m.userData.cube = cube; pieceMeshes.push(m); });
+        pieceLayer.add(pg);
       }
     }
 
-    const markGeo = new THREE.PlaneGeometry(TILE * 0.92, TILE * 0.92);
-    function clearMarkers() { [...markerLayer.children].forEach((c) => markerLayer.remove(c)); }
-    function addMarker(cube, face, color, opacity, move) {
-      const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
-      m.position.copy(markerPos(cube, face));
-      m.quaternion.copy(faceQuat[face]);
-      if (move) m.userData.move = move;
-      markerLayer.add(m);
+    const markerCubeGeo = new THREE.BoxGeometry(cubeSize * 1.03, cubeSize * 1.03, cubeSize * 1.03);
+    const markerMatSelected = new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.35, depthWrite: false });
+    const markerMatMove = new THREE.MeshBasicMaterial({ color: 0x46e046, transparent: true, opacity: 0.25, depthWrite: false });
+    const markerMatCapture = new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, opacity: 0.35, depthWrite: false });
+    const markerAffected = [];
+    function cubeMeshAt(c) {
+      return cubeMeshes.find(m => {
+        const [gx, gy, gz] = m.userData.grid;
+        return gx === c[0] && gy === c[1] && gz === c[2];
+      });
+    }
+    function clearMarkers() {
+      markerAffected.forEach(c => {
+        const mesh = cubeMeshAt(c);
+        if (!mesh) return;
+        const [x, y, z] = mesh.userData.grid;
+        if (state.board[key(c)])
+          mesh.material = (x + y + z) % 2 === 0 ? transDarkMat : transLightMat;
+        else
+          mesh.material = (x + y + z) % 2 === 0 ? darkMat : lightMat;
+      });
+      markerAffected.length = 0;
+      [...markerLayer.children].forEach((c) => markerLayer.remove(c));
     }
     function drawMarkers() {
       clearMarkers();
       if (!selected) return;
-      for (const face of facesOf(selected)) addMarker(selected, face, 0xffe066, 0.45, null);
-      for (const mv of legal)
-        for (const face of facesOf(mv.to))          // show on both planes for edge squares
-          addMarker(mv.to, face, mv.capture ? 0xff5a5a : 0x46e046, mv.capture ? 0.45 : 0.34, mv);
+      const selCube = cubeMeshAt(selected);
+      if (selCube) { const [x,y,z] = selCube.userData.grid; selCube.material = (x+y+z)%2===0 ? transDarkMat : transLightMat; markerAffected.push(selected); }
+      const sel = new THREE.Mesh(markerCubeGeo, markerMatSelected);
+      sel.position.copy(cubeCenter(selected));
+      markerLayer.add(sel);
+      for (const mv of legal) {
+        const tc = cubeMeshAt(mv.to);
+        if (tc) { const [x,y,z] = tc.userData.grid; tc.material = (x+y+z)%2===0 ? transDarkMat : transLightMat; markerAffected.push(mv.to); }
+        const m = new THREE.Mesh(markerCubeGeo, mv.capture ? markerMatCapture : markerMatMove);
+        m.position.copy(cubeCenter(mv.to));
+        m.userData.move = mv;
+        markerLayer.add(m);
+      }
     }
 
     function setHUD(msg) {
@@ -360,15 +475,52 @@
     }
     function select(cube) { selected = cube; legal = legalMoves(state, cube); drawMarkers(); }
     function deselect() { selected = null; legal = []; clearMarkers(); }
+    function pushHistory() {
+      history.push(JSON.parse(JSON.stringify({ state, gameOver })));
+      redoStack = [];
+      updateUndoRedoButtons();
+    }
     function applyMove(mv) {
+      pushHistory();
       state = makeMove(state, mv); deselect(); syncPieces();
       const checked = inCheck(state, state.turn);
       if (!anyLegal(state, state.turn)) {
         gameOver = true;
         setHUD(checked ? 'Checkmate — ' + (state.turn === 'w' ? 'Black' : 'White') + ' wins!' : 'Stalemate — draw.');
       } else setHUD(checked ? 'Check!' : '');
+      updateUndoRedoButtons();
     }
-    function newGame() { state = startState(); gameOver = false; deselect(); syncPieces(); setHUD(''); }
+    function refreshHUD() {
+      const checked = inCheck(state, state.turn);
+      if (gameOver) {
+        const winner = state.turn === 'w' ? 'Black' : 'White';
+        setHUD(checked ? 'Checkmate — ' + winner + ' wins!' : 'Stalemate — draw.');
+      } else {
+        setHUD(checked ? 'Check!' : '');
+      }
+    }
+    function undo() {
+      if (!history.length) return;
+      redoStack.push(JSON.parse(JSON.stringify({ state, gameOver })));
+      const prev = history.pop();
+      state = prev.state; gameOver = prev.gameOver;
+      deselect(); syncPieces(); refreshHUD(); updateUndoRedoButtons();
+    }
+    function redo() {
+      if (!redoStack.length) return;
+      history.push(JSON.parse(JSON.stringify({ state, gameOver })));
+      const next = redoStack.pop();
+      state = next.state; gameOver = next.gameOver;
+      deselect(); syncPieces(); refreshHUD(); updateUndoRedoButtons();
+    }
+    function updateUndoRedoButtons() {
+      document.getElementById('undoBtn').disabled = history.length === 0;
+      document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+    function newGame() {
+      state = startState(); gameOver = false; deselect(); syncPieces(); setHUD('');
+      history.length = 0; redoStack.length = 0; updateUndoRedoButtons();
+    }
 
     const raycaster = new THREE.Raycaster();
     const ptr = new THREE.Vector2();
@@ -381,7 +533,7 @@
       ptr.x = (e.clientX / innerWidth) * 2 - 1;
       ptr.y = -(e.clientY / innerHeight) * 2 + 1;
       raycaster.setFromCamera(ptr, camera);
-      const hits = raycaster.intersectObjects([...markerLayer.children, ...pieceSprites], false);
+      const hits = raycaster.intersectObjects([...markerLayer.children, ...pieceMeshes], false);
       if (!hits.length) { deselect(); return; }
       const o = hits[0].object;
       let move = o.userData.move || null;
@@ -396,6 +548,8 @@
       deselect();
     });
     document.getElementById('reset').addEventListener('click', newGame);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
 
     // --- Resize + render loop ---
     addEventListener('resize', () => {
