@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cylinder Chess</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000;
+      font-family: system-ui, sans-serif; color: #eee; }
+    #hud {
+      position: fixed; top: 12px; left: 12px; z-index: 10;
+      background: rgba(255,255,255,.08); padding: 10px 14px; border-radius: 8px;
+    }
+    #turn { font-weight: 700; font-size: 16px; }
+    #status { color: #ffcf6b; min-height: 1.2em; font-size: 14px; }
+    #hud button {
+      margin-top: 8px; background: #2a2a38; color: #eee; border: 1px solid #555;
+      padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    #hud button:hover { background: #38384a; }
+    #hud button:disabled { opacity: 0.3; cursor: default; }
+    #hud button:disabled:hover { background: #2a2a38; }
+    #undoRedo { display: flex; gap: 4px; margin-top: 8px; }
+    #undoRedo button { margin-top: 0; font-size: 16px; padding: 2px 10px; }
+    #hint {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      color: #aaa; font: 13px/1.4 system-ui, sans-serif; pointer-events: none;
+      background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div id="turn">Cylinder Chess</div>
+    <div id="status"></div>
+    <div id="undoRedo">
+      <button id="undoBtn">&#9664;</button>
+      <button id="redoBtn">&#9654;</button>
+    </div>
+    <button id="reset">New game</button>
+  </div>
+  <div id="hint">← → rotate cylinder · ↑ ↓ zoom · click to select/move</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ── Scene / camera ──
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 9);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(5, 12, 8); scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x8899cc, 0.3); fill.position.set(-5, -2, -6); scene.add(fill);
+
+    // ── Board constants ──
+    const FILES = 16;
+    const RANKS = 8;
+    const TILE = 1;
+    const RADIUS = (FILES * TILE) / (2 * Math.PI);
+    const thetaPerFile = (2 * Math.PI) / FILES;
+
+    // ── Materials ──
+    const lightMat = new THREE.MeshStandardMaterial({ color: 0xf0d9b5, roughness: 0.5 });
+    const darkMat  = new THREE.MeshStandardMaterial({ color: 0xb58863, roughness: 0.5 });
+    const selMat   = new THREE.MeshStandardMaterial({ color: 0xffe066, roughness: 0.5, emissive: 0xffe066, emissiveIntensity: 0.3 });
+    const capMat   = new THREE.MeshStandardMaterial({ color: 0x1a2a4a, roughness: 0.7, side: THREE.DoubleSide });
+
+    // ── Build vertical cylinder ──
+    const cylinderGroup = new THREE.Group();
+    const tiles = [];
+    const tileMap = {};
+
+    for (let f = 0; f < FILES; f++) {
+      for (let r = 0; r < RANKS; r++) {
+        const geo = new THREE.CylinderGeometry(RADIUS, RADIUS, TILE, 2, 1, true, f * thetaPerFile, thetaPerFile);
+        const mat = (f + r) % 2 === 0 ? darkMat : lightMat;
+        const tile = new THREE.Mesh(geo, mat);
+        tile.position.y = (r - (RANKS - 1) / 2) * TILE;
+        tile.userData = { file: f, rank: r, baseMat: mat };
+        tile.name = `tile-${f}-${r}`;
+        cylinderGroup.add(tile);
+        tiles.push(tile);
+        tileMap[`${f},${r}`] = tile;
+      }
+    }
+
+    const capGeo = new THREE.CircleGeometry(RADIUS, 32);
+    const topCap = new THREE.Mesh(capGeo, capMat);
+    topCap.rotation.x = -Math.PI / 2;
+    topCap.position.y = (RANKS / 2) * TILE;
+    const botCap = new THREE.Mesh(capGeo, capMat);
+    botCap.rotation.x = Math.PI / 2;
+    botCap.position.y = -(RANKS / 2) * TILE;
+    cylinderGroup.add(topCap);
+    cylinderGroup.add(botCap);
+    scene.add(cylinderGroup);
+
+    // ── Chess piece models (flat Lichess-style 2D pieces) ──
+    const pieceGroup = new THREE.Group();
+    cylinderGroup.add(pieceGroup);
+
+    function drawPawn(ctx) {
+      ctx.beginPath(); ctx.arc(22, 11, 5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(15,28); ctx.quadraticCurveTo(13,18,19,13); ctx.quadraticCurveTo(25,13,27,18); ctx.quadraticCurveTo(31,17,30,28); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,12,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(22,8,2,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+    function drawRook(ctx) {
+      ctx.beginPath(); ctx.moveTo(14,29); ctx.lineTo(12,22); ctx.lineTo(15,22); ctx.lineTo(15,18); ctx.lineTo(12,18); ctx.lineTo(12,14); ctx.lineTo(15,14); ctx.lineTo(18,10); ctx.lineTo(26,10); ctx.lineTo(29,14); ctx.lineTo(32,14); ctx.lineTo(32,18); ctx.lineTo(29,18); ctx.lineTo(29,22); ctx.lineTo(32,22); ctx.lineTo(30,29); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,11,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+    function drawKnight(ctx) {
+      ctx.beginPath(); ctx.moveTo(27,10); ctx.quadraticCurveTo(32,8,33,14); ctx.quadraticCurveTo(34,18,30,20); ctx.quadraticCurveTo(28,20,28,23); ctx.lineTo(20,28); ctx.lineTo(12,28); ctx.quadraticCurveTo(14,28,16,26); ctx.quadraticCurveTo(18,22,16,18); ctx.quadraticCurveTo(14,12,20,10); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,11,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+    function drawBishop(ctx) {
+      ctx.beginPath(); ctx.moveTo(22,4); ctx.quadraticCurveTo(17,10,15,26); ctx.quadraticCurveTo(13,28,10,28); ctx.quadraticCurveTo(14,29,16,29); ctx.quadraticCurveTo(18,31,16,33); ctx.quadraticCurveTo(20,32,22,32); ctx.quadraticCurveTo(24,32,28,33); ctx.quadraticCurveTo(26,31,28,29); ctx.quadraticCurveTo(30,29,34,28); ctx.quadraticCurveTo(31,28,29,26); ctx.quadraticCurveTo(27,10,22,4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,11,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(22,5,1.5,0,Math.PI*2); ctx.fill();
+    }
+    function drawQueen(ctx) {
+      ctx.beginPath(); ctx.moveTo(21,4); ctx.lineTo(19,12); ctx.lineTo(14,7); ctx.lineTo(15,15); ctx.lineTo(10,11); ctx.lineTo(13,19); ctx.quadraticCurveTo(15,28,10,28); ctx.quadraticCurveTo(14,30,13,32); ctx.quadraticCurveTo(18,32,22,32); ctx.quadraticCurveTo(26,32,31,32); ctx.quadraticCurveTo(30,30,34,28); ctx.quadraticCurveTo(29,28,31,19); ctx.lineTo(34,11); ctx.lineTo(29,15); ctx.lineTo(28,12); ctx.lineTo(26,12); ctx.lineTo(23,4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,11,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(21,4,1.5,0,Math.PI*2); ctx.fill();
+    }
+    function drawKing(ctx) {
+      ctx.beginPath(); ctx.moveTo(22,4); ctx.lineTo(22,8); ctx.lineTo(18,8); ctx.lineTo(18,11); ctx.lineTo(22,11); ctx.lineTo(22,15); ctx.lineTo(25,15); ctx.lineTo(25,11); ctx.lineTo(29,11); ctx.lineTo(29,8); ctx.lineTo(25,8); ctx.lineTo(25,4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14,18); ctx.quadraticCurveTo(12,28,10,28); ctx.quadraticCurveTo(14,30,13,32); ctx.quadraticCurveTo(18,32,22,32); ctx.quadraticCurveTo(26,32,31,32); ctx.quadraticCurveTo(30,30,34,28); ctx.quadraticCurveTo(32,28,30,18); ctx.quadraticCurveTo(26,16,22,16); ctx.quadraticCurveTo(18,16,14,18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(22,30,11,3,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+    const pieceDraw = {p:drawPawn, r:drawRook, n:drawKnight, b:drawBishop, q:drawQueen, k:drawKing};
+
+    function pieceTex(type, color) {
+      const s = 64;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+      const cx = s/2, cy = s/2;
+      // disc background
+      ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI*2);
+      ctx.fillStyle = color === 'w' ? '#f0d9b5' : '#2a2a2a';
+      ctx.fill();
+      ctx.strokeStyle = color === 'w' ? '#ccc' : '#555';
+      ctx.lineWidth = 1.5; ctx.stroke();
+      // piece silhouette
+      ctx.save();
+      ctx.translate(cx - 22, 17);
+      ctx.scale(1.3, 1.3);
+      ctx.fillStyle = color === 'w' ? '#1a1a1a' : '#ffffff';
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1.2;
+      pieceDraw[type](ctx);
+      ctx.restore();
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function makePiece(type, color) {
+      const tex = pieceTex(type, color);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+      const geo = new THREE.PlaneGeometry(0.6, 0.7);
+      return new THREE.Mesh(geo, mat);
+    }
+
+    function piecePos(file, rank) {
+      const theta = ((file + 0.5) / FILES) * 2 * Math.PI;
+      const r = RADIUS + 0.02;
+      const y = (rank - (RANKS - 1) / 2) * TILE;
+      return new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta));
+    }
+
+    function orientPiece(mesh, file) {
+      mesh.rotation.y = Math.PI;
+    }
+
+    // ── Chess engine ──
+    const key = (f, r) => `${f},${r}`;
+    const wrapF = (f) => ((f % FILES) + FILES) % FILES;
+
+    function startBoard() {
+      const b = {};
+      const layout = [
+        [0, 'w', ['p','p','p','p','p','p','p','p']],
+        [1, 'w', ['r','n','b','q','k','b','n','r']],
+        [2, 'w', ['p','p','p','p','p','p','p','p']],
+        [9, 'b', ['p','p','p','p','p','p','p','p']],
+        [10,'b', ['r','n','b','q','k','b','n','r']],
+        [11,'b', ['p','p','p','p','p','p','p','p']],
+      ];
+      for (const [file, color, pieces] of layout) {
+        for (let rank = 0; rank < 8; rank++) {
+          b[key(file, rank)] = { t: pieces[rank], c: color };
+        }
+      }
+      return b;
+    }
+
+    const ORTHO = [[1,0],[-1,0],[0,1],[0,-1]];
+    const DIAG  = [[1,1],[1,-1],[-1,1],[-1,-1]];
+    const ALL8  = [...ORTHO, ...DIAG];
+    const KN    = [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]];
+
+    function pseudoMoves(board, f, r, turn, ep) {
+      const p = board[key(f, r)];
+      if (!p || p.c !== turn) return [];
+      const me = p.c, opp = me === 'w' ? 'b' : 'w';
+      const moves = [];
+      const onb = (ff, rr) => rr >= 0 && rr < RANKS;
+      const at  = (ff, rr) => board[key(wrapF(ff), rr)];
+
+      const slide = (dirs) => {
+        for (const [df, dr] of dirs) {
+          let ff = f + df, rr = r + dr;
+          let steps = 0;
+          while (onb(ff, rr) && steps < FILES) {
+            const wf = wrapF(ff);
+            if (wf === f && rr === r) break;
+            const q = board[key(wf, rr)];
+            if (!q) {
+              moves.push({ from: [f,r], to: [wf, rr] });
+            } else {
+              if (q.c === opp) moves.push({ from: [f,r], to: [wf, rr], capture: true });
+              break;
+            }
+            ff += df; rr += dr; steps++;
+          }
+        }
+      };
+
+      const step = (dirs) => {
+        for (const [df, dr] of dirs) {
+          let ff = f + df, rr = r + dr;
+          if (!onb(ff, rr)) continue;
+          const wf = wrapF(ff);
+          if (wf === f && rr === r) continue;
+          const q = board[key(wf, rr)];
+          if (!q) moves.push({ from: [f,r], to: [wf, rr] });
+          else if (q.c === opp) moves.push({ from: [f,r], to: [wf, rr], capture: true });
+        }
+      };
+
+      if (p.t === 'p') {
+        const dir = me === 'w' ? 1 : -1;
+        const promoR = me === 'w' ? 7 : 0;
+        const homeR = me === 'w' ? 1 : 6;
+        const promo = (rr) => rr === promoR ? { promo: 'q' } : {};
+        const fwdR = r + dir;
+        if (onb(f, fwdR) && !board[key(wrapF(f), fwdR)])
+          moves.push({ from: [f,r], to: [wrapF(f), fwdR], ...promo(fwdR) });
+        if (r === homeR && !board[key(wrapF(f), fwdR)]) {
+          const dblR = r + 2 * dir;
+          if (!board[key(wrapF(f), dblR)])
+            moves.push({ from: [f,r], to: [wrapF(f), dblR], double: true });
+        }
+        for (const df of [-1, 1]) {
+          const cf = wrapF(f + df), cr = r + dir;
+          if (!onb(cf, cr)) continue;
+          const q = board[key(cf, cr)];
+          if (q && q.c === opp) moves.push({ from: [f,r], to: [cf, cr], capture: true, ...promo(cr) });
+          if (ep && ep[0] === cf && ep[1] === cr) moves.push({ from: [f,r], to: [cf, cr], capture: true, ep: true });
+        }
+      } else if (p.t === 'n') step(KN);
+      else if (p.t === 'b') slide(DIAG);
+      else if (p.t === 'r') slide(ORTHO);
+      else if (p.t === 'q') slide(ALL8);
+      else if (p.t === 'k') step(ALL8);
+      return moves;
+    }
+
+    function isAttacked(board, f, r, by) {
+      for (const k in board) {
+        if (board[k].c !== by) continue;
+        const [ff, rr] = k.split(',').map(Number);
+        for (const mv of pseudoMoves(board, ff, rr, by, null))
+          if (mv.to[0] === f && mv.to[1] === r) return true;
+      }
+      return false;
+    }
+
+    function findKing(board, color) {
+      for (const k in board) {
+        if (board[k].t === 'k' && board[k].c === color) return k.split(',').map(Number);
+      }
+      return null;
+    }
+
+    function makeMove(board, mv, turn) {
+      const nb = { ...board };
+      const p = nb[key(...mv.from)];
+      delete nb[key(...mv.from)];
+      if (mv.ep) { const dir = turn === 'w' ? -1 : 1; delete nb[key(mv.to[0], mv.to[1] - dir)]; }
+      nb[key(...mv.to)] = mv.promo ? { t: mv.promo, c: p.c } : p;
+      return nb;
+    }
+
+    function legalMoves(board, f, r, turn, ep) {
+      const p = board[key(f, r)];
+      if (!p || p.c !== turn) return [];
+      return pseudoMoves(board, f, r, turn, ep).filter(mv => {
+        const nb = makeMove(board, mv, turn);
+        const k = findKing(nb, turn);
+        return k && !isAttacked(nb, k[0], k[1], turn === 'w' ? 'b' : 'w');
+      });
+    }
+
+    function anyLegal(board, turn, ep) {
+      for (const k in board) {
+        if (board[k].c !== turn) continue;
+        const [f, r] = k.split(',').map(Number);
+        if (legalMoves(board, f, r, turn, ep).length) return true;
+      }
+      return false;
+    }
+
+    // ── State ──
+    let board = startBoard();
+    let turn = 'w';
+    let epTarget = null;
+    let selected = null;
+    let legal = [];
+    let gameOver = false;
+    const history = [];
+    let redoStack = [];
+
+    function syncPieces() {
+      while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
+      tiles.forEach(t => t.material = t.userData.baseMat);
+      for (const k in board) {
+        const [f, r] = k.split(',').map(Number);
+        const p = board[k];
+        const mesh = makePiece(p.t, p.c);
+        mesh.position.copy(piecePos(f, r));
+        orientPiece(mesh, f);
+        mesh.userData = { file: f, rank: r };
+        pieceGroup.add(mesh);
+      }
+    }
+
+    // ── Selection / markers ──
+    const markerLayer = new THREE.Group();
+    cylinderGroup.add(markerLayer);
+
+    function clearMarkers() {
+      while (markerLayer.children.length) markerLayer.remove(markerLayer.children[0]);
+    }
+
+    const mkMoveMat = new THREE.MeshStandardMaterial({ color: 0x44cc44, roughness: 0.5, emissive: 0x44cc44, emissiveIntensity: 0.5, transparent: true, opacity: 0.55 });
+    const mkCapMat  = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.5, emissive: 0xcc3333, emissiveIntensity: 0.5, transparent: true, opacity: 0.55 });
+
+    function drawMarkers() {
+      clearMarkers();
+      if (!selected) return;
+      const st = tileMap[key(...selected)];
+      if (st) st.material = selMat;
+      for (const mv of legal) {
+        const [tf, tr] = mv.to;
+        const tile = tileMap[key(tf, tr)];
+        if (tile && mv.capture) tile.material = mkCapMat;
+        const mkGeo = new THREE.CylinderGeometry(RADIUS + 0.015, RADIUS + 0.015, TILE * 0.85, 2, 1, true, tf * thetaPerFile, thetaPerFile);
+        const mk = new THREE.Mesh(mkGeo, mv.capture ? mkCapMat : mkMoveMat);
+        mk.position.y = (tr - (RANKS - 1) / 2) * TILE;
+        mk.userData = { move: mv };
+        markerLayer.add(mk);
+      }
+    }
+
+    function select(f, r) {
+      selected = [f, r];
+      legal = legalMoves(board, f, r, turn, epTarget);
+      drawMarkers();
+    }
+
+    function deselect() {
+      selected = null; legal = [];
+      clearMarkers();
+      tiles.forEach(t => t.material = t.userData.baseMat);
+    }
+
+    // ── HUD ──
+    function updateHUD() {
+      if (gameOver) { document.getElementById('turn').textContent = 'Game over'; return; }
+      document.getElementById('turn').textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+      const king = findKing(board, turn);
+      const checked = king && isAttacked(board, king[0], king[1], turn === 'w' ? 'b' : 'w');
+      document.getElementById('status').textContent = checked ? 'Check!' : '';
+    }
+
+    function pushHistory() {
+      history.push({ board: { ...board }, turn, epTarget, gameOver });
+      redoStack = [];
+      updateUndoRedo();
+    }
+
+    function applyMove(mv) {
+      pushHistory();
+      board = makeMove(board, mv, turn);
+      const prevTurn = turn;
+      turn = turn === 'w' ? 'b' : 'w';
+      epTarget = mv.double ? [mv.to[0], mv.from[1] + (prevTurn === 'w' ? 1 : -1)] : null;
+      deselect(); syncPieces();
+      if (!anyLegal(board, turn, epTarget)) {
+        gameOver = true;
+        const king = findKing(board, turn);
+        const checked = king && isAttacked(board, king[0], king[1], turn === 'w' ? 'b' : 'w');
+        document.getElementById('status').textContent = checked ? 'Checkmate — ' + (turn === 'w' ? 'Black' : 'White') + ' wins!' : 'Stalemate — draw.';
+      }
+      updateHUD();
+    }
+
+    function undo() {
+      if (!history.length) return;
+      redoStack.push({ board: { ...board }, turn, epTarget, gameOver });
+      const prev = history.pop();
+      board = prev.board; turn = prev.turn; epTarget = prev.epTarget; gameOver = prev.gameOver;
+      deselect(); syncPieces(); updateHUD(); updateUndoRedo();
+    }
+
+    function redo() {
+      if (!redoStack.length) return;
+      history.push({ board: { ...board }, turn, epTarget, gameOver });
+      const next = redoStack.pop();
+      board = next.board; turn = next.turn; epTarget = next.epTarget; gameOver = next.gameOver;
+      deselect(); syncPieces(); updateHUD(); updateUndoRedo();
+    }
+
+    function updateUndoRedo() {
+      document.getElementById('undoBtn').disabled = history.length === 0;
+      document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+
+    function newGame() {
+      board = startBoard(); turn = 'w'; epTarget = null; gameOver = false;
+      selected = null; legal = []; history.length = 0; redoStack.length = 0;
+      deselect(); syncPieces(); updateHUD(); updateUndoRedo();
+      document.getElementById('status').textContent = '';
+    }
+
+    document.getElementById('reset').addEventListener('click', newGame);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+
+    // ── Click interaction ──
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener('click', (e) => {
+      if (gameOver) return;
+      pointer.x = (e.clientX / innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+
+      const mkHits = raycaster.intersectObjects(markerLayer.children);
+      if (mkHits.length) { const mv = mkHits[0].object.userData.move; if (mv) { applyMove(mv); return; } }
+
+      const tHits = raycaster.intersectObjects(tiles);
+      if (tHits.length) {
+        const { file, rank } = tHits[0].object.userData;
+        if (selected) {
+          const mv = legal.find(m => m.to[0] === file && m.to[1] === rank);
+          if (mv) { applyMove(mv); return; }
+        }
+        const p = board[key(file, rank)];
+        if (p && p.c === turn) { select(file, rank); return; }
+        deselect(); return;
+      }
+      deselect();
+    });
+
+    // ── Keys ──
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
+    addEventListener('keyup', e => { keys[e.key] = false; });
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    syncPieces();
+    updateHUD();
+    updateUndoRedo();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.1, 1 / 60);
+      if (keys['ArrowLeft'])  cylinderGroup.rotation.y += 2.5 * dt;
+      if (keys['ArrowRight']) cylinderGroup.rotation.y -= 2.5 * dt;
+      if (keys['ArrowUp'])    camera.position.z -= 3 * dt;
+      if (keys['ArrowDown'])  camera.position.z += 3 * dt;
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

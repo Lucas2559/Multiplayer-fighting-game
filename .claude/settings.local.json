@@ -4,7 +4,10 @@
       "Bash(open index.html)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Read(//Users/lucas/.config/opencode/**)",
+      "Read(//Users/lucas/.local/share/opencode/**)",
+      "Bash(env)"
     ],
     "deny": [],
     "ask": []
