@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duel — 2 Player Fighting Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #0b0d17;
+    color: #e8eaf0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+    color: #8ab4ff;
+    text-transform: uppercase;
+  }
+  #wrap { position: relative; }
+  canvas {
+    background: linear-gradient(#1a1030 0%, #2a1840 60%, #3a2450 100%);
+    border: 2px solid #3a3f5a;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(80,60,160,0.4);
+    display: block;
+  }
+  #hud {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .bar-group { width: 42%; }
+  .bar-group.right { text-align: right; }
+  .name { font-size: 13px; font-weight: bold; margin-bottom: 4px; letter-spacing: 2px; }
+  .p1name { color: #4fc3ff; }
+  .p2name { color: #ff6b8b; }
+  .bar-bg {
+    height: 18px;
+    background: #1a1c28;
+    border: 2px solid #444a63;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; transition: width 0.15s ease; }
+  .p1fill { background: linear-gradient(90deg,#1e88ff,#4fc3ff); }
+  .p2fill {
+    background: linear-gradient(90deg,#ff4f7b,#ff8ba3);
+    margin-left: auto;
+    float: right;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,7,15,0.82);
+    border-radius: 8px;
+    text-align: center;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h2 { font-size: 40px; margin-bottom: 8px; color: #ffd166; }
+  #overlay p { font-size: 15px; color: #b8bccd; margin: 3px 0; line-height: 1.5; }
+  .keys { color: #8ab4ff; font-weight: bold; }
+  #hint {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #6a708a;
+    letter-spacing: 1px;
+  }
+  #startBtn {
+    margin-top: 18px;
+    padding: 10px 26px;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    background: #4fc3ff;
+    color: #0b0d17;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #startBtn:hover { background: #7fd4ff; }
+</style>
+</head>
+<body>
+  <h1>⚔ Duel ⚔</h1>
+  <div id="wrap">
+    <canvas id="game" width="900" height="480"></canvas>
+    <div id="hud">
+      <div class="bar-group">
+        <div class="name p1name">PLAYER 1</div>
+        <div class="bar-bg"><div class="bar-fill p1fill" id="p1bar" style="width:100%"></div></div>
+      </div>
+      <div class="bar-group right">
+        <div class="name p2name">PLAYER 2</div>
+        <div class="bar-bg"><div class="bar-fill p2fill" id="p2bar" style="width:100%"></div></div>
+      </div>
+    </div>
+    <div id="overlay">
+      <h2>⚔ DUEL ⚔</h2>
+      <p><span class="keys">Player 1:</span> W jump · A/D move · S/G crouch · T parry · <span class="keys">F</span> attack</p>
+      <p><span class="keys">Player 2:</span> ↑ jump · ←/→ move · ↓/R-Shift crouch · \ parry · <span class="keys">Enter</span> attack</p>
+      <p style="margin-top:10px;color:#8ab4ff;">First to drain the other's health wins. Best of 3 rounds.</p>
+      <button id="startBtn">START FIGHT</button>
+    </div>
+  </div>
+  <div id="hint">Crouch to duck high swings · Tap Block (T / \) to parry — a well-timed 0.25s guard negates ALL damage · Jump attacks hit harder</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND = H - 60;
+const GRAVITY = 0.9;
+
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+const p1bar = document.getElementById('p1bar');
+const p2bar = document.getElementById('p2bar');
+
+// ---- Sound (Web Audio, all synthesized — no files) ----
+let actx = null;
+function initAudio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+}
+function noiseBurst(dur, vol, hp) {
+  if (!actx) return;
+  const n = Math.floor(actx.sampleRate * dur);
+  const buf = actx.createBuffer(1, n, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n); // decaying noise
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
+  const g = actx.createGain(); g.gain.value = vol;
+  src.connect(f).connect(g).connect(actx.destination);
+  src.start();
+}
+function playHit(power) {
+  if (!actx) return;
+  const t = actx.currentTime;
+  // low thump that drops in pitch
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(200 * power, t);
+  o.frequency.exponentialRampToValueAtTime(55, t + 0.15);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.4, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  o.connect(g).connect(actx.destination);
+  o.start(t); o.stop(t + 0.2);
+  // impact crack
+  noiseBurst(0.08, 0.28 * power, 700);
+}
+function playParry() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(900, t);
+  o.frequency.exponentialRampToValueAtTime(1600, t + 0.06);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+  o.connect(g).connect(actx.destination);
+  o.start(t); o.stop(t + 0.15);
+  noiseBurst(0.05, 0.15, 2500); // metallic shimmer
+}
+
+// ---- Input ----
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  // prevent page scroll on arrows / space
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ---- Fighter ----
+class Fighter {
+  constructor(opts) {
+    this.name = opts.name;
+    this.color = opts.color;
+    this.darkColor = opts.darkColor;
+    this.startX = opts.x;
+    this.controls = opts.controls;
+    this.facing = opts.facing; // 1 = right, -1 = left
+    this.reset();
+  }
+  reset() {
+    this.x = this.startX;
+    this.y = GROUND;
+    this.vx = 0;
+    this.vy = 0;
+    this.w = 46;
+    this.h = 96;
+    this.onGround = true;
+    this.crouching = false;
+    this.blocking = false;
+    this.blockTimer = 0;
+    this.blockCooldown = 0;
+    this.blockKeyWasDown = false;
+    this.hp = 100;
+    this.attacking = false;
+    this.attackTimer = 0;
+    this.attackCooldown = 0;
+    this.hitThisAttack = false;
+    this.hurtTimer = 0;
+    this.blinkTimer = 0;
+  }
+  get cx() { return this.x + this.w / 2; }
+
+  update(opponent) {
+    const c = this.controls;
+
+    // crouch (works on the ground AND mid-air) — down key OR the dedicated crouch key
+    this.crouching = !!(keys[c.down] || keys[c.crouch]);
+
+    // block is a timed parry: tapping guards for ~0.25s and negates ALL damage
+    // during that window. It can't be held open, and has a short recovery after.
+    const blockDown = !!keys[c.block];
+    if (this.blockCooldown > 0) this.blockCooldown--;
+    if (blockDown && !this.blockKeyWasDown && this.blockTimer <= 0 && this.blockCooldown === 0) {
+      this.blockTimer = 15; // 0.25s at 60fps
+    }
+    this.blockKeyWasDown = blockDown;
+    if (this.blockTimer > 0) {
+      this.blockTimer--;
+      if (this.blockTimer === 0) this.blockCooldown = 18; // recovery once the guard drops
+    }
+    this.blocking = this.blockTimer > 0;
+
+    // crouch-walk is slower; blocking roots you for its brief window
+    const speed = this.blocking ? 0 : (this.crouching ? 2.4 : 5);
+
+    // horizontal movement
+    if (keys[c.left])  this.vx = -speed;
+    else if (keys[c.right]) this.vx = speed;
+    else this.vx = 0;
+
+    // jump (can't jump while guarding)
+    if (keys[c.up] && this.onGround && !this.blocking) {
+      this.vy = -16;
+      this.onGround = false;
+    }
+
+    // gravity
+    this.vy += GRAVITY;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // ground collision
+    if (this.y >= GROUND) {
+      this.y = GROUND;
+      this.vy = 0;
+      this.onGround = true;
+    }
+
+    // walls
+    this.x = Math.max(0, Math.min(W - this.w, this.x));
+
+    // face opponent automatically
+    this.facing = (opponent.cx >= this.cx) ? 1 : -1;
+
+    // attack
+    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (keys[c.attack] && !this.attacking && this.attackCooldown === 0 && !this.blocking) {
+      this.attacking = true;
+      this.attackTimer = 18;
+      this.attackCooldown = 30;
+      this.hitThisAttack = false;
+    }
+    if (this.attacking) {
+      this.attackTimer--;
+      if (this.attackTimer <= 0) this.attacking = false;
+    }
+
+    if (this.hurtTimer > 0) this.hurtTimer--;
+    if (this.blinkTimer > 0) this.blinkTimer--;
+  }
+
+  // the hitbox at the tip of the attack (active only mid-swing)
+  getHitbox() {
+    if (!this.attacking || this.attackTimer < 6 || this.attackTimer > 15) return null;
+    const reach = 58;
+    const hx = this.facing === 1 ? this.x + this.w : this.x - reach;
+    const feetY = this.y + this.h;
+    // A crouching swing is a LOW attack (aimed at the legs); a standing swing
+    // is aimed high — which is exactly what a croucher ducks under.
+    if (this.crouching) return { x: hx, y: feetY - 38, w: reach, h: 26 };
+    return { x: hx, y: this.y + 18, w: reach, h: 28 };
+  }
+
+  takeHit(dmg, blocked) {
+    this.hp = Math.max(0, this.hp - dmg);
+    if (blocked) {
+      // guarded: minor chip, light shove, no stagger flash
+      this.blinkTimer = 6;
+      this.vx = -this.facing * 3;
+      this.x += -this.facing * 2;
+    } else {
+      this.hurtTimer = 12;
+      this.blinkTimer = 18;
+      // knockback
+      this.vx = -this.facing * 8;
+      this.x += -this.facing * 6;
+    }
+  }
+
+  draw() {
+    const blink = this.blinkTimer > 0 && Math.floor(this.blinkTimer / 3) % 2 === 0;
+    const bodyColor = this.hurtTimer > 0 ? '#ffffff' : (blink ? this.darkColor : this.color);
+
+    // squash the body down when crouching so it visibly ducks
+    const feetY = this.y + this.h;
+    const bodyH = this.crouching ? 58 : this.h;
+    const bodyTop = feetY - bodyH;
+    const bodyW = this.crouching ? this.w + 14 : this.w;
+    const bodyX = this.cx - bodyW / 2;
+    const headR = this.crouching ? 15 : 18;
+    const headY = bodyTop - (this.crouching ? 3 : 6);
+
+    ctx.save();
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(this.cx, GROUND + this.h, 30, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // body
+    ctx.fillStyle = bodyColor;
+    roundRect(bodyX, bodyTop, bodyW, bodyH, 8);
+    ctx.fill();
+
+    // head
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.arc(this.cx, headY, headR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // eye (facing direction)
+    ctx.fillStyle = '#0b0d17';
+    ctx.beginPath();
+    ctx.arc(this.cx + this.facing * 7, headY - 2, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // arm / attack
+    ctx.strokeStyle = bodyColor;
+    ctx.lineWidth = 12;
+    ctx.lineCap = 'round';
+    const shoulderX = this.cx;
+    const shoulderY = bodyTop + (this.crouching ? 22 : 26);
+    if (this.attacking) {
+      const punch = this.facing * (this.attackTimer > 9 ? 62 : 40);
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.lineTo(shoulderX + punch, shoulderY - 4);
+      ctx.stroke();
+      // fist glow
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(shoulderX + punch, shoulderY - 4, 9, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.lineTo(shoulderX + this.facing * 16, shoulderY + 18);
+      ctx.stroke();
+    }
+
+    // guard shield in front of the fighter while blocking
+    if (this.blocking) {
+      const sx = this.facing === 1 ? bodyX + bodyW - 3 : bodyX - 15;
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#cfe4ff';
+      roundRect(sx, bodyTop - 6, 18, bodyH + 8, 6);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+const p1 = new Fighter({
+  name: 'P1', color: '#4fc3ff', darkColor: '#1e6fa8',
+  x: 160, facing: 1,
+  controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', crouch: 'KeyG', block: 'KeyT', attack: 'KeyF' }
+});
+const p2 = new Fighter({
+  name: 'P2', color: '#ff6b8b', darkColor: '#a83c56',
+  x: W - 200, facing: -1,
+  controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', crouch: 'ShiftRight', block: 'Backslash', attack: 'Enter' }
+});
+
+// ---- Game state ----
+let state = 'menu'; // menu, fighting, roundover, matchover
+let p1Wins = 0, p2Wins = 0;
+let roundOverTimer = 0;
+let banner = '';
+let bannerColor = '#ffd166';
+let particles = [];
+let shake = 0;
+
+function overlaps(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function fighterBox(f) {
+  if (f.crouching) {
+    // ducking tucks the head/torso away — only the lower body can be struck,
+    // so a standing (high) attack sails harmlessly overhead.
+    const feetY = f.y + f.h;
+    const ch = 44;
+    return { x: f.x + 4, y: feetY - ch, w: f.w - 8, h: ch };
+  }
+  return { x: f.x, y: f.y, w: f.w, h: f.h };
+}
+
+function spawnHitParticles(x, y, color) {
+  for (let i = 0; i < 14; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const sp = 2 + Math.random() * 5;
+    particles.push({
+      x, y,
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp - 2,
+      life: 24 + Math.random() * 12,
+      color
+    });
+  }
+}
+
+function spawnBlockSpark(defender, attacker) {
+  // sparks fly off the guard, on the side the attacker is standing
+  const fx = attacker.cx < defender.cx ? defender.x : defender.x + defender.w;
+  for (let i = 0; i < 10; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const sp = 1 + Math.random() * 4;
+    particles.push({
+      x: fx, y: defender.y + 34,
+      vx: Math.cos(ang) * sp,
+      vy: Math.sin(ang) * sp - 1,
+      life: 14 + Math.random() * 10,
+      color: Math.random() < 0.5 ? '#ffffff' : '#cfe4ff'
+    });
+  }
+}
+
+function startRound() {
+  p1.reset();
+  p2.reset();
+  particles = [];
+  banner = '';
+  state = 'fighting';
+}
+
+function startMatch() {
+  p1Wins = 0; p2Wins = 0;
+  initAudio(); // unlock the audio context on this user gesture
+  startBtn.blur(); // release focus so Enter (P2 attack) doesn't re-click Start
+  overlay.classList.add('hidden');
+  startRound();
+}
+
+startBtn.addEventListener('click', startMatch);
+
+function handleCombat() {
+  // p1 hits p2
+  const h1 = p1.getHitbox();
+  if (h1 && !p1.hitThisAttack && overlaps(h1, fighterBox(p2))) {
+    const blocked = p2.blocking;
+    const dmg = blocked ? 0 : (p1.onGround ? 9 : 14); // successful parry negates all damage
+    p2.takeHit(dmg, blocked);
+    p1.hitThisAttack = true;
+    if (blocked) { spawnBlockSpark(p2, p1); shake = 3; playParry(); }
+    else { spawnHitParticles(p2.cx, p2.y + 30, '#ff6b8b'); shake = 8; playHit(p1.onGround ? 1 : 1.4); }
+  }
+  // p2 hits p1
+  const h2 = p2.getHitbox();
+  if (h2 && !p2.hitThisAttack && overlaps(h2, fighterBox(p1))) {
+    const blocked = p1.blocking;
+    const dmg = blocked ? 0 : (p2.onGround ? 9 : 14); // successful parry negates all damage
+    p1.takeHit(dmg, blocked);
+    p2.hitThisAttack = true;
+    if (blocked) { spawnBlockSpark(p1, p2); shake = 3; playParry(); }
+    else { spawnHitParticles(p1.cx, p1.y + 30, '#4fc3ff'); shake = 8; playHit(p2.onGround ? 1 : 1.4); }
+  }
+
+  // prevent fighters overlapping (soft push)
+  const b1 = fighterBox(p1), b2 = fighterBox(p2);
+  if (overlaps(b1, b2)) {
+    const push = 2;
+    if (p1.cx < p2.cx) { p1.x -= push; p2.x += push; }
+    else { p1.x += push; p2.x -= push; }
+    p1.x = Math.max(0, Math.min(W - p1.w, p1.x));
+    p2.x = Math.max(0, Math.min(W - p2.w, p2.x));
+  }
+}
+
+function checkKO() {
+  if (p1.hp <= 0 || p2.hp <= 0) {
+    if (p1.hp <= 0 && p2.hp <= 0) {
+      banner = 'DOUBLE KO!';
+      bannerColor = '#ffd166';
+    } else if (p2.hp <= 0) {
+      p1Wins++;
+      banner = 'PLAYER 1 WINS ROUND';
+      bannerColor = '#4fc3ff';
+    } else {
+      p2Wins++;
+      banner = 'PLAYER 2 WINS ROUND';
+      bannerColor = '#ff6b8b';
+    }
+    state = 'roundover';
+    roundOverTimer = 120;
+  }
+}
+
+function updateParticles() {
+  for (const p of particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.3;
+    p.life--;
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 30);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawScene() {
+  // floor
+  ctx.fillStyle = '#241638';
+  ctx.fillRect(0, GROUND + 96, W, H);
+  ctx.fillStyle = '#3a2456';
+  ctx.fillRect(0, GROUND + 96, W, 6);
+
+  // round pips
+  ctx.font = 'bold 16px system-ui';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 2; i++) {
+    ctx.fillStyle = i < p1Wins ? '#4fc3ff' : '#333850';
+    ctx.beginPath(); ctx.arc(40 + i * 26, 64, 8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = i < p2Wins ? '#ff6b8b' : '#333850';
+    ctx.beginPath(); ctx.arc(W - 40 - i * 26, 64, 8, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawBanner() {
+  if (!banner) return;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 44px system-ui';
+  ctx.fillStyle = bannerColor;
+  ctx.fillText(banner, W / 2, H / 2 - 10);
+  if (state === 'roundover' && !(p1Wins >= 2 || p2Wins >= 2)) {
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = '#b8bccd';
+    ctx.fillText('Next round starting...', W / 2, H / 2 + 26);
+  }
+  ctx.restore();
+}
+
+function showMatchOver() {
+  const winner = p1Wins >= 2 ? 'PLAYER 1' : 'PLAYER 2';
+  const wc = p1Wins >= 2 ? '#4fc3ff' : '#ff6b8b';
+  overlay.classList.remove('hidden');
+  overlay.querySelector('h2').textContent = '🏆 ' + winner + ' WINS!';
+  overlay.querySelector('h2').style.color = wc;
+  const ps = overlay.querySelectorAll('p');
+  ps[0].innerHTML = `Final score — <span class="keys">P1 ${p1Wins}</span> : <span class="keys">${p2Wins} P2</span>`;
+  ps[1].style.display = 'none';
+  ps[2].textContent = 'Press START to play again';
+  startBtn.textContent = 'REMATCH';
+}
+
+// ---- Main loop ----
+function loop() {
+  requestAnimationFrame(loop);
+
+  // update
+  if (state === 'fighting') {
+    p1.update(p2);
+    p2.update(p1);
+    handleCombat();
+    updateParticles();
+    checkKO();
+  } else if (state === 'roundover') {
+    updateParticles();
+    roundOverTimer--;
+    if (roundOverTimer <= 0) {
+      if (p1Wins >= 2 || p2Wins >= 2) {
+        state = 'matchover';
+        showMatchOver();
+      } else {
+        startRound();
+      }
+    }
+  }
+
+  // update HUD bars
+  p1bar.style.width = p1.hp + '%';
+  p2bar.style.width = p2.hp + '%';
+
+  // render
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  if (shake > 0) {
+    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    shake *= 0.85;
+    if (shake < 0.5) shake = 0;
+  }
+  drawScene();
+  if (state !== 'menu') {
+    // draw back fighter first (the one further back visually — just draw both)
+    p1.draw();
+    p2.draw();
+    drawParticles();
+  }
+  drawBanner();
+  ctx.restore();
+}
+loop();
+</script>
+</body>
+</html>
