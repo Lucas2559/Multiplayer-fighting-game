@@ -185,7 +185,7 @@ const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   // prevent page scroll on arrows / space
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','Slash','Quote'].includes(e.code)) e.preventDefault();
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','Slash'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -199,9 +199,6 @@ class Fighter {
     this.controls = opts.controls;
     this.facing = opts.facing; // 1 = right, -1 = left
     this.reset();
-    // hidden test toggles — persist across rounds, not shown to players
-    this.autoJump = false;  this.autoJumpWasDown = false;
-    this.autoSwing = false; this.autoSwingWasDown = false;
   }
   reset() {
     this.x = this.startX;
@@ -256,14 +253,6 @@ class Fighter {
     if (clDown && !this.crouchLockWasDown) this.crouchLock = !this.crouchLock;
     this.crouchLockWasDown = clDown;
 
-    // hidden test toggles: tap to make this fighter jump / swing on its own
-    const ajDown = !!keys[c.autoJump];
-    if (ajDown && !this.autoJumpWasDown) this.autoJump = !this.autoJump;
-    this.autoJumpWasDown = ajDown;
-    const asDown = !!keys[c.autoSwing];
-    if (asDown && !this.autoSwingWasDown) this.autoSwing = !this.autoSwing;
-    this.autoSwingWasDown = asDown;
-
     // crouch (works on the ground AND mid-air) — down key OR crouch key OR the lock
     this.crouching = !!(keys[c.down] || keys[c.crouch] || this.crouchLock);
 
@@ -292,7 +281,7 @@ class Fighter {
     else this.vx = 0;
 
     // jump (can't jump while guarding)
-    if ((keys[c.up] || this.autoJump) && this.onGround && !this.blocking) {
+    if (keys[c.up] && this.onGround && !this.blocking) {
       this.vy = -16;
       this.onGround = false;
     }
@@ -314,7 +303,7 @@ class Fighter {
 
     // attack
     if (this.attackCooldown > 0) this.attackCooldown--;
-    if ((keys[c.attack] || this.autoSwing) && !this.attacking && this.attackCooldown === 0 && !this.blocking) {
+    if (keys[c.attack] && !this.attacking && this.attackCooldown === 0 && !this.blocking) {
       this.attacking = true;
       this.attackTimer = 18;
       this.attackCooldown = 30;
@@ -463,12 +452,12 @@ function roundRect(x, y, w, h, r) {
 const p1 = new Fighter({
   name: 'P1', color: '#4fc3ff', darkColor: '#1e6fa8',
   x: 160, facing: 1,
-  controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', crouch: 'KeyG', crouchLock: 'KeyQ', block: 'KeyT', attack: 'KeyF', autoJump: 'KeyE', autoSwing: 'KeyZ' }
+  controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', crouch: 'KeyG', crouchLock: 'KeyQ', block: 'KeyT', attack: 'KeyF' }
 });
 const p2 = new Fighter({
   name: 'P2', color: '#ff6b8b', darkColor: '#a83c56',
   x: W - 200, facing: -1,
-  controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', crouch: 'ShiftRight', crouchLock: 'Slash', block: 'Backslash', attack: 'Enter', autoJump: 'Quote', autoSwing: 'Period' }
+  controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', crouch: 'ShiftRight', crouchLock: 'Slash', block: 'Backslash', attack: 'Enter' }
 });
 
 // ---- Game state ----
