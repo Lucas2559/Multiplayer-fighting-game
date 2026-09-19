@@ -144,7 +144,7 @@
     </div>
     <div id="overlay">
       <h2>⚔ DUEL ⚔</h2>
-      <p><span class="keys">Player 1:</span> W jump · A/D move · S/G crouch · Q crouch-lock · T parry · <span class="keys">F</span> attack</p>
+      <p><span class="keys">Player 1:</span> W jump · A/D move · S/G crouch · Q crouch-lock · H parry · <span class="keys">F</span> attack</p>
       <p><span class="keys">Player 2:</span> ↑ jump · ←/→ move · ↓/R-Shift crouch · / crouch-lock · \ parry · <span class="keys">Enter</span> attack</p>
       <p style="margin-top:10px;color:#8ab4ff;">First to drain the other's health wins. Best of 3 rounds.</p>
       <p style="color:#6a708a;font-size:13px;">Same keyboard? Press START. Playing online? Host or Join with a code — each player uses WASD <em>or</em> the arrow keys.</p>
@@ -162,7 +162,7 @@
     </div>
     <div id="netinfo" hidden></div>
   </div>
-  <div id="hint">Crouch to duck high swings · Tap Parry (T / \) — a 0.33s guard negates ALL damage and swings a counter (can't be parried) · Jump during the counter for jump damage, crouch for a low normal hit · Jump attacks hit harder, but crouch attacks always hit normal</div>
+  <div id="hint">Crouch to duck high swings · Tap Parry (H / \) — a 0.33s guard negates ALL damage and swings a counter (can't be parried) · Jump during the counter for jump damage, crouch for a low normal hit · Jump attacks hit harder, but crouch attacks always hit normal</div>
 
 <script src="supabase.js"></script>
 <script src="config.js"></script>
@@ -249,11 +249,11 @@ const MERGED = {
   left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'],
   crouch: ['KeyG', 'ShiftRight', 'ShiftLeft'], crouchLock: ['KeyQ', 'Slash'],
-  block: ['KeyT', 'Backslash'], attack: ['KeyF', 'Enter', 'Space'],
+  block: ['KeyH', 'Backslash'], attack: ['KeyF', 'Enter', 'Space'],
 };
 // Local hot-seat keeps the split: P1 = WASD, P2 = arrows.
 const P1_KEYS = { left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'],
-  crouch: ['KeyG'], crouchLock: ['KeyQ'], block: ['KeyT'], attack: ['KeyF'] };
+  crouch: ['KeyG'], crouchLock: ['KeyQ'], block: ['KeyH'], attack: ['KeyF'] };
 const P2_KEYS = { left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
   crouch: ['ShiftRight'], crouchLock: ['Slash'], block: ['Backslash'], attack: ['Enter'] };
 const INPUT_FIELDS = ['left', 'right', 'up', 'down', 'crouch', 'crouchLock', 'block', 'attack'];
