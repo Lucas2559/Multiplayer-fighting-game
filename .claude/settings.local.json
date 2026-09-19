@@ -12,7 +12,9 @@
       "Bash(awk '/^<script>$/{f=1;next} /^<\\\\/script>$/{f=0} f' index.html)",
       "Read(//tmp/**)",
       "Bash(node --check /tmp/fg2.js)",
-      "Bash(node --check chat-room/public/app.js)"
+      "Bash(node --check chat-room/public/app.js)",
+      "Bash(node --check /tmp/fg2b.js)",
+      "Bash(node --check /tmp/fg2c.js)"
     ],
     "deny": [],
     "ask": []

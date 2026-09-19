@@ -147,14 +147,16 @@
       <p><span class="keys">Player 1:</span> W jump · A/D move · S/G crouch · Q crouch-lock · T parry · <span class="keys">F</span> attack</p>
       <p><span class="keys">Player 2:</span> ↑ jump · ←/→ move · ↓/R-Shift crouch · / crouch-lock · \ parry · <span class="keys">Enter</span> attack</p>
       <p style="margin-top:10px;color:#8ab4ff;">First to drain the other's health wins. Best of 3 rounds.</p>
+      <p style="color:#6a708a;font-size:13px;">Same keyboard? Press START. Playing online? Host or Join with a code — each player uses WASD <em>or</em> the arrow keys.</p>
       <button id="startBtn">START FIGHT</button>
       <div class="online-row">
         <button id="hostBtn" class="net-btn" type="button">HOST ONLINE ▸</button>
+        <button id="joinBtn" class="net-btn" type="button">JOIN ONLINE ▸</button>
         <button id="spectateBtn" class="net-btn" type="button">SPECTATE ▸</button>
       </div>
       <form id="spectate-form" hidden autocomplete="off">
         <input id="code-input" maxlength="4" placeholder="CODE" spellcheck="false" />
-        <button type="submit">WATCH ▷</button>
+        <button type="submit">CONNECT ▷</button>
       </form>
       <div id="netmsg" class="netmsg" hidden></div>
     </div>
@@ -240,6 +242,34 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
+// ---- Control maps ----
+// Online play: each player is alone at their own keyboard, so their one fighter
+// answers to BOTH WASD and the arrow cluster — either set works.
+const MERGED = {
+  left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
+  up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'],
+  crouch: ['KeyG', 'ShiftRight', 'ShiftLeft'], crouchLock: ['KeyQ', 'Slash'],
+  block: ['KeyT', 'Backslash'], attack: ['KeyF', 'Enter', 'Space'],
+};
+// Local hot-seat keeps the split: P1 = WASD, P2 = arrows.
+const P1_KEYS = { left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'],
+  crouch: ['KeyG'], crouchLock: ['KeyQ'], block: ['KeyT'], attack: ['KeyF'] };
+const P2_KEYS = { left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
+  crouch: ['ShiftRight'], crouchLock: ['Slash'], block: ['Backslash'], attack: ['Enter'] };
+const INPUT_FIELDS = ['left', 'right', 'up', 'down', 'crouch', 'crouchLock', 'block', 'attack'];
+
+// Collapse a control map into a snapshot of pressed/not-pressed booleans.
+function readMap(map) {
+  const o = {};
+  for (const f of INPUT_FIELDS) o[f] = map[f].some(code => !!keys[code]);
+  return o;
+}
+function blankInput() {
+  const o = {};
+  for (const f of INPUT_FIELDS) o[f] = false;
+  return o;
+}
+
 // ---- Fighter ----
 class Fighter {
   constructor(opts) {
@@ -247,7 +277,6 @@ class Fighter {
     this.color = opts.color;
     this.darkColor = opts.darkColor;
     this.startX = opts.x;
-    this.controls = opts.controls;
     this.facing = opts.facing; // 1 = right, -1 = left
     this.reset();
   }
@@ -278,11 +307,12 @@ class Fighter {
     this.blinkTimer = 0;
     this.counterSwing = false; // this attack was launched by a parry (can't be parried back)
     this.stunTimer = 0;        // frames left frozen after being parried
+    this.input = blankInput(); // per-fighter input for this frame (local keys or remote)
   }
   get cx() { return this.x + this.w / 2; }
 
   update(opponent) {
-    const c = this.controls;
+    const i = this.input;
 
     // stunned by a parry: frozen for 0.5s — no move/jump/attack/block, but still
     // subject to gravity so you drop out of the air.
@@ -303,17 +333,17 @@ class Fighter {
     }
 
     // crouch-lock: tap to toggle a hands-free crouch stance on/off
-    const clDown = !!keys[c.crouchLock];
+    const clDown = i.crouchLock;
     if (clDown && !this.crouchLockWasDown) this.crouchLock = !this.crouchLock;
     this.crouchLockWasDown = clDown;
 
     // crouch (works on the ground AND mid-air) — down key OR crouch key OR the lock
-    this.crouching = !!(keys[c.down] || keys[c.crouch] || this.crouchLock);
+    this.crouching = !!(i.down || i.crouch || this.crouchLock);
 
     // block is a timed parry: tapping guards for ~1/3s and negates ALL damage
     // during that window — and a well-timed parry snaps into a counterattack.
     // It can't be held open, and has a short recovery after.
-    const blockDown = !!keys[c.block];
+    const blockDown = i.block;
     if (this.blockCooldown > 0) this.blockCooldown -= SLOW;
     if (blockDown && !this.blockKeyWasDown && this.blockTimer <= 0 && this.blockCooldown <= 0) {
       this.blockTimer = 20; // ~1/3s at 60fps (original parry duration)
@@ -330,14 +360,14 @@ class Fighter {
 
     // horizontal movement — you face the way you move (not auto-locked onto the
     // opponent), but a parry roots you AND freezes your facing.
-    if (keys[c.left])  { this.vx = -speed; if (!this.blocking) this.facing = -1; }
-    else if (keys[c.right]) { this.vx = speed; if (!this.blocking) this.facing = 1; }
+    if (i.left)  { this.vx = -speed; if (!this.blocking) this.facing = -1; }
+    else if (i.right) { this.vx = speed; if (!this.blocking) this.facing = 1; }
     else this.vx = 0;
 
     // variable-height jump (Hollow Knight style): a fresh press gives a light hop,
     // and HOLDING jump on the way up floats you higher (lighter gravity) for a full
     // jump. Not holding still gives a usable base jump.
-    const upDown = !!keys[c.up];
+    const upDown = i.up;
     // buffer a fresh press so pressing up to 7 frames before landing still jumps
     if (upDown && !this.jumpKeyWasDown) this.jumpBuffer = 7;
     if (this.jumpBuffer > 0 && this.onGround && !this.blocking) {
@@ -372,7 +402,7 @@ class Fighter {
     // airborne attacks have no cooldown — you can swing again the instant the
     // animation ends. On the ground you still have to wait out the recovery.
     const attackReady = this.onGround ? this.attackCooldown <= 0 : true;
-    if (keys[c.attack] && !this.attacking && attackReady && !this.blocking) {
+    if (i.attack && !this.attacking && attackReady && !this.blocking) {
       this.attacking = true;
       this.attackTimer = 18;
       this.attackCooldown = 30;
@@ -521,12 +551,10 @@ function roundRect(x, y, w, h, r) {
 const p1 = new Fighter({
   name: 'P1', color: '#4fc3ff', darkColor: '#1e6fa8',
   x: 160, facing: 1,
-  controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', crouch: 'KeyG', crouchLock: 'KeyQ', block: 'KeyT', attack: 'KeyF' }
 });
 const p2 = new Fighter({
   name: 'P2', color: '#ff6b8b', darkColor: '#a83c56',
   x: W - 200, facing: -1,
-  controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', crouch: 'ShiftRight', crouchLock: 'Slash', block: 'Backslash', attack: 'Enter' }
 });
 
 // ---- Game state ----
@@ -538,26 +566,35 @@ let bannerColor = '#ffd166';
 let particles = [];
 let shake = 0;
 
-// ---- Online spectating ----
-// One machine HOSTS: it runs the real match locally and broadcasts ~30 lightweight
-// state snapshots/sec over a Supabase Realtime channel keyed by a short share code.
-// SPECTATORS join with the code and just render the snapshots — no input, no sim.
-let role = 'local';        // 'local' | 'host' | 'spectator'
+// ---- Online play (host-authoritative) ----
+// One machine HOSTS: it runs the authoritative match and drives P1 from its own
+// keyboard. A GUEST joins with the share code, controls P2, and sends only its
+// key state to the host; the host applies it, simulates, and broadcasts ~30
+// snapshots/sec back over a Supabase Realtime channel. GUESTS and SPECTATORS
+// both just render those snapshots — the guest additionally sends input.
+let role = 'local';        // 'local' | 'host' | 'guest' | 'spectator'
 let channel = null;
 let roomCode = '';
 let watchers = 0;
-let remoteSnap = null;     // latest snapshot received while spectating
-let lastPacket = 0;        // timestamp of the last snapshot (spectator connection health)
+let hasGuest = false;      // host: is a Player 2 currently connected?
+let remoteInput = blankInput(); // host: latest input received from the guest (drives P2)
+let remoteSnap = null;     // guest/spectator: latest state snapshot received
+let lastPacket = 0;        // timestamp of the last snapshot (connection health)
+let lastSentInput = '';    // guest: signature of the last input we broadcast (dedupe)
 let netFrame = 0;          // host broadcast throttle counter
-let netframeTick = 0;      // spectator: throttles the netinfo label refresh
+let netframeTick = 0;      // guest/spectator: throttles the netinfo label refresh
+let pendingMode = 'spectator'; // which mode the code form will connect as
 let sbClient = null;
 
 const netmsgEl = document.getElementById('netmsg');
 const netinfoEl = document.getElementById('netinfo');
 const hostBtn = document.getElementById('hostBtn');
+const joinBtn = document.getElementById('joinBtn');
 const spectateBtn = document.getElementById('spectateBtn');
 const spectateForm = document.getElementById('spectate-form');
 const codeInput = document.getElementById('code-input');
+
+const isViewer = () => role === 'guest' || role === 'spectator';
 
 function netmsg(html) {
   if (!html) { netmsgEl.hidden = true; return; }
@@ -566,12 +603,16 @@ function netmsg(html) {
 }
 
 function updateNetInfo() {
+  const codeTag = `code <b style="letter-spacing:2px">${roomCode}</b>`;
   if (role === 'host') {
-    netinfoEl.innerHTML = `<span class="live">● HOSTING</span> · code <b style="letter-spacing:2px">${roomCode}</b> · <span class="watch">${watchers}</span> watching`;
+    const p2 = hasGuest ? '<span class="live">P2 connected</span>' : '<span style="color:#ffd166">waiting for P2…</span>';
+    netinfoEl.innerHTML = `<span class="live">● HOSTING</span> · ${codeTag} · ${p2} · <span class="watch">${watchers}</span> watching`;
     netinfoEl.hidden = false;
-  } else if (role === 'spectator') {
+  } else if (isViewer()) {
+    const label = role === 'guest' ? '<span class="live">◉ PLAYING · P2</span>' : '<span class="watch">◉ SPECTATING</span>';
     const stale = performance.now() - lastPacket > 3000;
-    netinfoEl.innerHTML = `<span class="watch">◉ SPECTATING</span> · code <b style="letter-spacing:2px">${roomCode}</b>${lastPacket ? (stale ? ' · <span style="color:#ff6b8b">signal lost…</span>' : ' · live') : ' · connecting…'}`;
+    const health = lastPacket ? (stale ? ' · <span style="color:#ff6b8b">signal lost…</span>' : ' · live') : ' · connecting…';
+    netinfoEl.innerHTML = `${label} · ${codeTag}${health}`;
     netinfoEl.hidden = false;
   } else {
     netinfoEl.hidden = true;
@@ -631,10 +672,21 @@ function broadcastState() {
   channel.send({ type: 'broadcast', event: 'state', payload: buildSnapshot() });
 }
 
+// Guest → host: send our merged key state, but only when it actually changes
+// (so a tap always lands, without flooding the channel every frame).
+function sendInput() {
+  if (!channel) return;
+  const i = readMap(MERGED);
+  const sig = INPUT_FIELDS.map(f => (i[f] ? '1' : '0')).join('');
+  if (sig === lastSentInput) return;
+  lastSentInput = sig;
+  channel.send({ type: 'broadcast', event: 'input', payload: i });
+}
+
 async function startHosting() {
   const client = getClient();
   if (!client) return;
-  hostBtn.disabled = spectateBtn.disabled = true;
+  hostBtn.disabled = joinBtn.disabled = spectateBtn.disabled = true;
   roomCode = makeCode();
   role = 'host';
   channel = client.channel('duel-' + roomCode, {
@@ -642,59 +694,77 @@ async function startHosting() {
   });
   channel.on('presence', { event: 'sync' }, () => {
     const st = channel.presenceState();
-    let n = 0;
-    for (const k in st) for (const p of st[k]) if (p.r === 'spectator') n++;
+    let n = 0, guest = false;
+    for (const k in st) for (const p of st[k]) {
+      if (p.r === 'spectator') n++;
+      if (p.r === 'guest') guest = true;
+    }
     watchers = n;
+    if (guest && !hasGuest) netmsg(`Player 2 joined! Press <span class="keys">START FIGHT</span> to duel.`);
+    if (!guest && hasGuest) remoteInput = blankInput(); // P2 left — freeze their fighter
+    hasGuest = guest;
     updateNetInfo();
   });
+  // The guest streams its key state to us; drive P2 from the latest we've seen.
+  channel.on('broadcast', { event: 'input' }, ({ payload }) => { remoteInput = payload; });
   channel.subscribe(async (status) => {
     if (status === 'SUBSCRIBED') await channel.track({ r: 'host' });
   });
-  netmsg(`Share this code so others can watch: <b>${roomCode}</b><br>Then press <span class="keys">START FIGHT</span> — the match is broadcast live.`);
+  netmsg(`Share this code: <b>${roomCode}</b><br>A friend picks <span class="keys">JOIN ONLINE</span> to play as P2 (or <span class="keys">SPECTATE</span> to watch). Use WASD or arrow keys.`);
   updateNetInfo();
 }
 
-async function startSpectating(code) {
+// Join a room as either a player (guest → controls P2) or a spectator.
+async function startJoin(code, mode) {
   const client = getClient();
   if (!client) return;
   roomCode = code;
-  role = 'spectator';
+  role = mode; // 'guest' | 'spectator'
   remoteSnap = null;
   lastPacket = 0;
+  lastSentInput = '';
   channel = client.channel('duel-' + code, {
-    config: { presence: { key: 'spec-' + makeCode() + makeCode() } },
+    config: { presence: { key: mode + '-' + makeCode() + makeCode() } },
   });
   channel.on('broadcast', { event: 'state' }, ({ payload }) => {
     remoteSnap = payload;
     lastPacket = performance.now();
   });
   channel.subscribe(async (status) => {
-    if (status === 'SUBSCRIBED') await channel.track({ r: 'spectator' });
+    if (status === 'SUBSCRIBED') await channel.track({ r: mode });
   });
   overlay.classList.add('hidden');
+  codeInput.blur(); // release focus so gameplay keys aren't swallowed by the input
   updateNetInfo();
   // If nothing arrives, the code is probably wrong or the host hasn't started.
   setTimeout(() => {
-    if (role === 'spectator' && !lastPacket) {
+    if (isViewer() && !lastPacket) {
       overlay.classList.remove('hidden');
       role = 'local';
       if (channel) { sbClient.removeChannel(channel); channel = null; }
       updateNetInfo();
-      netmsg(`No live match found for <b>${code}</b>. Check the code, or wait for the host to start.`);
+      netmsg(`No live match found for <b>${code}</b>. Check the code, or wait for the host.`);
     }
   }, 8000);
 }
 
+function showCodeForm(mode) {
+  pendingMode = mode;
+  spectateForm.hidden = false;
+  codeInput.focus();
+  netmsg(mode === 'guest'
+    ? 'Enter the host\'s code to join as <span class="keys">Player 2</span> — you\'ll use WASD or arrow keys.'
+    : 'Enter the host\'s code to watch the match.');
+}
+
 hostBtn.addEventListener('click', startHosting);
-spectateBtn.addEventListener('click', () => {
-  spectateForm.hidden = !spectateForm.hidden;
-  if (!spectateForm.hidden) codeInput.focus();
-});
+joinBtn.addEventListener('click', () => showCodeForm('guest'));
+spectateBtn.addEventListener('click', () => showCodeForm('spectator'));
 spectateForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const code = codeInput.value.trim().toUpperCase();
   if (code.length < 4) { netmsg('Enter the 4-character code the host shared.'); return; }
-  startSpectating(code);
+  startJoin(code, pendingMode);
 });
 
 function overlaps(a, b) {
@@ -892,13 +962,17 @@ function showMatchOver() {
 function loop() {
   requestAnimationFrame(loop);
 
-  if (role === 'spectator') {
-    // pure mirror: adopt the host's broadcast state, run no simulation
+  if (isViewer()) {
+    // guest/spectator: adopt the host's broadcast state, run no simulation
     applyRemote();
+    if (role === 'guest') sendInput(); // stream our key state to the host
     if (netframeTick++ % 15 === 0) updateNetInfo(); // refresh "live / signal lost" label
   } else {
-    // update
+    // host/local drive the fighters: host uses merged keys for P1 and the guest's
+    // stream for P2; local hot-seat keeps the split WASD/arrow controls.
     if (state === 'fighting') {
+      if (role === 'host') { p1.input = readMap(MERGED); p2.input = remoteInput; }
+      else { p1.input = readMap(P1_KEYS); p2.input = readMap(P2_KEYS); }
       p1.update(p2);
       p2.update(p1);
       handleCombat();
@@ -939,12 +1013,15 @@ function loop() {
     drawParticles();
   }
   drawBanner();
-  if (role === 'spectator' && (!remoteSnap || state === 'menu')) {
+  if (isViewer() && (!remoteSnap || state === 'menu')) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.font = '20px system-ui';
     ctx.fillStyle = '#8ab4ff';
-    ctx.fillText(remoteSnap ? 'Waiting for the host to start the match…' : 'Connecting to the match…', W / 2, H / 2);
+    const waiting = role === 'guest'
+      ? 'You\'re in as Player 2 — waiting for the host to start…'
+      : 'Waiting for the host to start the match…';
+    ctx.fillText(remoteSnap ? waiting : 'Connecting to the match…', W / 2, H / 2);
     ctx.restore();
   }
   ctx.restore();
