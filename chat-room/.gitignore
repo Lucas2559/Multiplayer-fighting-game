@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+*.log
+
+# Local editor/agent settings
+.claude/settings.local.json
+
+# Scratch/diagnostic scripts
+_*.mjs

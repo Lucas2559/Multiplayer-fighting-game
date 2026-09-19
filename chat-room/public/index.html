@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus Canvas — Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ============ Name picker ============ -->
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <div class="brand">
+        <div class="brand-mark">✦</div>
+        <div>
+          <div class="brand-name">Nexus Canvas</div>
+          <div class="brand-sub">Chat</div>
+        </div>
+      </div>
+      <h1>Pick a name</h1>
+      <p class="gate-hint">
+        Choose the name you'll chat under. It's only yours while you're here —
+        no two people online can use the same name.
+      </p>
+      <form id="gate-form" autocomplete="off">
+        <div class="field">
+          <span class="at">@</span>
+          <input id="name-input" type="text" maxlength="24" placeholder="your-name"
+                 spellcheck="false" autofocus />
+        </div>
+        <div id="gate-error" class="gate-error" hidden></div>
+        <button id="gate-submit" type="submit">Join chat →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ Chat ============ -->
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="brand-mark sm">✦</span> Nexus Canvas
+      </div>
+      <div class="topbar-right">
+        <span id="online-count" class="online"><span class="dot"></span>0 online</span>
+      </div>
+    </header>
+
+    <div id="messages" class="messages"></div>
+
+    <footer class="composer">
+      <form id="composer-form">
+        <input id="composer-input" type="text" placeholder="Message…"
+               maxlength="2000" autocomplete="off" />
+        <button type="submit" id="send-btn">Send ▷</button>
+      </form>
+      <div class="composer-foot">
+        Chatting as <span id="composer-handle" class="handle">@you</span>
+        <span class="e2e">⏎ to send</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="vendor/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

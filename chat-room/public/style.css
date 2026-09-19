@@ -1,0 +1,174 @@
+:root {
+  --bg: #0c0e14;
+  --bg-2: #12141d;
+  --panel: #161925;
+  --panel-2: #1b1f2e;
+  --line: #242838;
+  --text: #e6e8f0;
+  --muted: #8b90a6;
+  --faint: #5b6076;
+  --accent: #7c6cf0;
+  --accent-2: #3fb98a;
+  --danger: #e6685a;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+/* The `hidden` attribute must win over .gate/.app `display` rules below,
+   otherwise a hidden panel stays painted and intercepts clicks. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- Name gate ---------------- */
+.gate {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(1000px 600px at 70% -10%, rgba(124, 108, 240, 0.18), transparent 60%),
+    radial-gradient(800px 500px at 10% 110%, rgba(63, 185, 138, 0.12), transparent 55%),
+    var(--bg);
+  padding: 24px;
+}
+
+.gate-card {
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 32px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.brand-mark {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent), #5a4bd0);
+  font-size: 18px; color: #fff;
+}
+.brand-name { font-weight: 700; letter-spacing: -0.2px; }
+.brand-sub { color: var(--faint); font-size: 12px; }
+
+.gate-card h1 { font-size: 24px; margin: 0 0 8px; letter-spacing: -0.4px; }
+.gate-hint { color: var(--muted); line-height: 1.5; margin: 0 0 22px; font-size: 14px; }
+.gate-hint strong { color: var(--accent-2); }
+
+.field {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 14px;
+  transition: border-color 0.15s;
+}
+.field:focus-within { border-color: var(--accent); }
+.field .at { color: var(--faint); font-weight: 600; }
+.field input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-size: 16px; padding: 14px 0;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.gate-error {
+  margin-top: 12px; color: var(--danger); font-size: 13px;
+  background: rgba(230, 104, 90, 0.1);
+  border: 1px solid rgba(230, 104, 90, 0.3);
+  padding: 10px 12px; border-radius: 8px;
+}
+
+#gate-submit {
+  margin-top: 18px; width: 100%;
+  background: linear-gradient(135deg, var(--accent), #6a58e0);
+  color: #fff; border: none; border-radius: var(--radius);
+  padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.08s, filter 0.15s;
+}
+#gate-submit:hover { filter: brightness(1.08); }
+#gate-submit:active { transform: translateY(1px); }
+#gate-submit:disabled { opacity: 0.55; cursor: wait; }
+
+.gate-foot { margin-top: 20px; color: var(--faint); font-size: 12px; }
+
+/* ---------------- App shell ---------------- */
+.app { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+
+.avatar {
+  width: 30px; height: 30px; border-radius: 8px; flex: none;
+  display: grid; place-items: center; color: #fff; font-weight: 600;
+  font-size: 12px; text-transform: uppercase;
+}
+
+.brand-mark.sm { width: 26px; height: 26px; border-radius: 7px; font-size: 14px; }
+
+.topbar {
+  height: 56px; flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.topbar-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 2px; }
+.topbar-title .hash { color: var(--faint); }
+.online { color: var(--accent-2); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.online .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
+
+.messages {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.msg { display: flex; gap: 12px; padding: 8px 8px; border-radius: 10px; }
+.msg:hover { background: var(--bg-2); }
+.msg.grouped { padding-top: 1px; padding-bottom: 1px; }
+.msg.grouped .avatar { visibility: hidden; height: 0; }
+.msg.grouped .msg-head { display: none; }
+.msg-body { min-width: 0; flex: 1; }
+.msg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.msg-name { font-weight: 600; font-size: 14px; }
+.msg-time { color: var(--faint); font-size: 11px; }
+.msg-text { color: var(--text); line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
+
+.msg-system {
+  text-align: center; color: var(--faint); font-size: 12px;
+  padding: 6px 0; font-style: italic;
+}
+
+.composer { flex: none; padding: 14px 20px 18px; border-top: 1px solid var(--line); background: var(--bg-2); }
+.composer form { display: flex; gap: 10px; }
+.composer input {
+  flex: 1; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 13px 16px; color: var(--text);
+  outline: none; font-size: 15px; font-family: inherit;
+}
+.composer input:focus { border-color: var(--accent); }
+#send-btn {
+  background: linear-gradient(135deg, var(--accent), #6a58e0);
+  color: #fff; border: none; border-radius: var(--radius);
+  padding: 0 20px; font-weight: 600; cursor: pointer; font-size: 14px;
+}
+#send-btn:hover { filter: brightness(1.08); }
+.composer-foot {
+  margin-top: 8px; color: var(--faint); font-size: 12px;
+  display: flex; justify-content: space-between;
+}
+.handle { color: var(--accent); font-family: "JetBrains Mono", monospace; }
+.topbar-title .brand-mark { display: inline-grid; }
+
+.banner {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--danger); color: #fff; padding: 10px 18px;
+  border-radius: 10px; font-size: 13px; z-index: 50; max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}

@@ -123,8 +123,13 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
-const GROUND = H - 60;
+// top-of-fighter rest line: a fighter is 60 tall, so its feet (GROUND + 60) sit
+// on the visible floor at H-60 instead of hanging below the canvas.
+const GROUND = H - 60 - 60;
 const GRAVITY = 0.9;
+// global time-scale: the whole sim advances by this many sim-units of time each
+// frame. 1 = the game's original speed (physics untouched); raise it to speed up.
+const SLOW = 1;
 
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('startBtn');
@@ -206,8 +211,11 @@ class Fighter {
     this.vx = 0;
     this.vy = 0;
     this.w = 46;
-    this.h = 96;
+    this.h = 60;
     this.onGround = true;
+    this.jumpHeld = false;         // holding jump on the way up (variable-height jump)
+    this.jumpKeyWasDown = false;
+    this.jumpBuffer = 0;           // remembers a jump press for a few frames before landing
     this.crouching = false;
     this.crouchLock = false;       // toggled crouch — stays ducked hands-free
     this.crouchLockWasDown = false;
@@ -233,18 +241,18 @@ class Fighter {
     // stunned by a parry: frozen for 0.5s — no move/jump/attack/block, but still
     // subject to gravity so you drop out of the air.
     if (this.stunTimer > 0) {
-      this.stunTimer--;
+      this.stunTimer -= SLOW;
       this.crouching = false;
       this.blocking = false;
       this.attacking = false;
       this.vx *= 0.8;
-      this.vy += GRAVITY;
-      this.x += this.vx;
-      this.y += this.vy;
+      this.vy += GRAVITY * SLOW;
+      this.x += this.vx * SLOW;
+      this.y += this.vy * SLOW;
       if (this.y >= GROUND) { this.y = GROUND; this.vy = 0; this.onGround = true; }
       this.x = Math.max(0, Math.min(W - this.w, this.x));
-      if (this.hurtTimer > 0) this.hurtTimer--;
-      if (this.blinkTimer > 0) this.blinkTimer--;
+      if (this.hurtTimer > 0) this.hurtTimer -= SLOW;
+      if (this.blinkTimer > 0) this.blinkTimer -= SLOW;
       return;
     }
 
@@ -260,14 +268,14 @@ class Fighter {
     // during that window — and a well-timed parry snaps into a counterattack.
     // It can't be held open, and has a short recovery after.
     const blockDown = !!keys[c.block];
-    if (this.blockCooldown > 0) this.blockCooldown--;
-    if (blockDown && !this.blockKeyWasDown && this.blockTimer <= 0 && this.blockCooldown === 0) {
-      this.blockTimer = 20; // 1/3s at 60fps
+    if (this.blockCooldown > 0) this.blockCooldown -= SLOW;
+    if (blockDown && !this.blockKeyWasDown && this.blockTimer <= 0 && this.blockCooldown <= 0) {
+      this.blockTimer = 20; // ~1/3s at 60fps (original parry duration)
     }
     this.blockKeyWasDown = blockDown;
     if (this.blockTimer > 0) {
-      this.blockTimer--;
-      if (this.blockTimer === 0) this.blockCooldown = 18; // recovery once the guard drops
+      this.blockTimer -= SLOW;
+      if (this.blockTimer <= 0) { this.blockTimer = 0; this.blockCooldown = 18; } // recovery once the guard drops
     }
     this.blocking = this.blockTimer > 0;
 
@@ -280,16 +288,28 @@ class Fighter {
     else if (keys[c.right]) { this.vx = speed; if (!this.blocking) this.facing = 1; }
     else this.vx = 0;
 
-    // jump (can't jump while guarding)
-    if (keys[c.up] && this.onGround && !this.blocking) {
-      this.vy = -16;
+    // variable-height jump (Hollow Knight style): a fresh press gives a light hop,
+    // and HOLDING jump on the way up floats you higher (lighter gravity) for a full
+    // jump. Not holding still gives a usable base jump.
+    const upDown = !!keys[c.up];
+    // buffer a fresh press so pressing up to 7 frames before landing still jumps
+    if (upDown && !this.jumpKeyWasDown) this.jumpBuffer = 7;
+    if (this.jumpBuffer > 0 && this.onGround && !this.blocking) {
+      this.vy = -10;
       this.onGround = false;
+      this.jumpHeld = true;
+      this.jumpBuffer = 0;
     }
+    if (this.jumpBuffer > 0) this.jumpBuffer -= SLOW;
+    // the hold-boost lasts only while the button is down and you're still rising
+    if (!upDown || this.vy >= 0) this.jumpHeld = false;
+    this.jumpKeyWasDown = upDown;
 
-    // gravity
-    this.vy += GRAVITY;
-    this.x += this.vx;
-    this.y += this.vy;
+    // gravity — lighter while you hold jump on the way up (hold = higher jump)
+    const g = (this.jumpHeld && this.vy < 0) ? GRAVITY * 0.35 : GRAVITY;
+    this.vy += g * SLOW;
+    this.x += this.vx * SLOW;
+    this.y += this.vy * SLOW;
 
     // ground collision
     if (this.y >= GROUND) {
@@ -302,8 +322,11 @@ class Fighter {
     this.x = Math.max(0, Math.min(W - this.w, this.x));
 
     // attack
-    if (this.attackCooldown > 0) this.attackCooldown--;
-    if (keys[c.attack] && !this.attacking && this.attackCooldown === 0 && !this.blocking) {
+    if (this.attackCooldown > 0) this.attackCooldown -= SLOW;
+    // airborne attacks have no cooldown — you can swing again the instant the
+    // animation ends. On the ground you still have to wait out the recovery.
+    const attackReady = this.onGround ? this.attackCooldown <= 0 : true;
+    if (keys[c.attack] && !this.attacking && attackReady && !this.blocking) {
       this.attacking = true;
       this.attackTimer = 18;
       this.attackCooldown = 30;
@@ -311,12 +334,12 @@ class Fighter {
       this.counterSwing = false;
     }
     if (this.attacking) {
-      this.attackTimer--;
+      this.attackTimer -= SLOW;
       if (this.attackTimer <= 0) { this.attacking = false; this.counterSwing = false; }
     }
 
-    if (this.hurtTimer > 0) this.hurtTimer--;
-    if (this.blinkTimer > 0) this.blinkTimer--;
+    if (this.hurtTimer > 0) this.hurtTimer -= SLOW;
+    if (this.blinkTimer > 0) this.blinkTimer -= SLOW;
   }
 
   // the hitbox at the tip of the attack (active only mid-swing)
@@ -327,8 +350,8 @@ class Fighter {
     const feetY = this.y + this.h;
     // A crouching swing is a LOW attack (aimed at the legs); a standing swing
     // is aimed high — which is exactly what a croucher ducks under.
-    if (this.crouching) return { x: hx, y: feetY - 38, w: reach, h: 26 };
-    return { x: hx, y: this.y + 18, w: reach, h: 28 };
+    if (this.crouching) return { x: hx, y: feetY - 24, w: reach, h: 16 };
+    return { x: hx, y: this.y + 11, w: reach, h: 18 };
   }
 
   // a well-timed parry snaps straight into a counter SWING. It doesn't deal
@@ -367,7 +390,7 @@ class Fighter {
 
     // squash the body down when crouching so it visibly ducks
     const feetY = this.y + this.h;
-    const bodyH = this.crouching ? 58 : this.h;
+    const bodyH = this.crouching ? 36 : this.h;
     const bodyTop = feetY - bodyH;
     const bodyW = this.crouching ? this.w + 14 : this.w;
     const bodyX = this.cx - bodyW / 2;
@@ -479,7 +502,7 @@ function fighterBox(f) {
     // ducking tucks the head/torso away — only the lower body can be struck,
     // so a standing (high) attack sails harmlessly overhead.
     const feetY = f.y + f.h;
-    const ch = 44;
+    const ch = 28;
     return { x: f.x + 4, y: feetY - ch, w: f.w - 8, h: ch };
   }
   return { x: f.x, y: f.y, w: f.w, h: f.h };
@@ -591,16 +614,16 @@ function checkKO() {
       bannerColor = '#ff6b8b';
     }
     state = 'roundover';
-    roundOverTimer = 120;
+    roundOverTimer = 60;
   }
 }
 
 function updateParticles() {
   for (const p of particles) {
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.3;
-    p.life--;
+    p.x += p.vx * SLOW;
+    p.y += p.vy * SLOW;
+    p.vy += 0.3 * SLOW;
+    p.life -= SLOW;
   }
   particles = particles.filter(p => p.life > 0);
 }
@@ -617,9 +640,9 @@ function drawParticles() {
 function drawScene() {
   // floor
   ctx.fillStyle = '#241638';
-  ctx.fillRect(0, GROUND + 96, W, H);
+  ctx.fillRect(0, GROUND + 60, W, H);
   ctx.fillStyle = '#3a2456';
-  ctx.fillRect(0, GROUND + 96, W, 6);
+  ctx.fillRect(0, GROUND + 60, W, 6);
 
   // round pips
   ctx.font = 'bold 16px system-ui';
@@ -673,7 +696,7 @@ function loop() {
     checkKO();
   } else if (state === 'roundover') {
     updateParticles();
-    roundOverTimer--;
+    roundOverTimer--; // the win screen always spawns at normal speed, ignoring slow-mo
     if (roundOverTimer <= 0) {
       if (p1Wins >= 2 || p2Wins >= 2) {
         state = 'matchover';

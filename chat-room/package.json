@@ -1,0 +1,16 @@
+{
+  "name": "020_chat_room",
+  "version": "1.0.0",
+  "description": "Nexus Canvas — a Supabase-backed chat room; pick a name, unique among online users",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0"
+  }
+}
