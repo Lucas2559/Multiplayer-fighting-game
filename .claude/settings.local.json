@@ -8,7 +8,11 @@
       "Read(//Users/lucas/.config/opencode/**)",
       "Read(//Users/lucas/.local/share/opencode/**)",
       "Bash(env)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(awk '/^<script>$/{f=1;next} /^<\\\\/script>$/{f=0} f' index.html)",
+      "Read(//tmp/**)",
+      "Bash(node --check /tmp/fg2.js)",
+      "Bash(node --check chat-room/public/app.js)"
     ],
     "deny": [],
     "ask": []

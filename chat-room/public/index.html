@@ -30,6 +30,23 @@
           <input id="name-input" type="text" maxlength="24" placeholder="your-name"
                  spellcheck="false" autofocus />
         </div>
+
+        <div class="profile-edit">
+          <div class="avatar-preview" id="gate-avatar">?</div>
+          <div class="profile-controls">
+            <div class="swatches" id="gate-swatches"></div>
+            <div class="profile-actions">
+              <label class="mini-btn color-pick">🎨 Colour
+                <input type="color" id="gate-color" class="color-native" />
+              </label>
+              <button type="button" class="mini-btn" id="gate-upload">🖼 Photo / GIF</button>
+              <button type="button" class="mini-btn ghost" id="gate-clear" hidden>Remove</button>
+            </div>
+            <input type="file" id="gate-file" accept="image/*" hidden />
+          </div>
+        </div>
+        <p class="profile-hint">Pick a colour or upload a photo — GIFs animate (up to ~500&nbsp;KB).</p>
+
         <div id="gate-error" class="gate-error" hidden></div>
         <button id="gate-submit" type="submit">Join chat →</button>
       </form>
@@ -43,6 +60,9 @@
         <span class="brand-mark sm">✦</span> Nexus Canvas
       </div>
       <div class="topbar-right">
+        <button id="profile-btn" class="profile-btn" title="Edit your profile">
+          <span class="avatar" id="me-avatar">?</span>
+        </button>
         <span id="online-count" class="online"><span class="dot"></span>0 online</span>
       </div>
     </header>
@@ -60,6 +80,32 @@
         <span class="e2e">⏎ to send</span>
       </div>
     </footer>
+  </div>
+
+  <!-- ============ Profile editor ============ -->
+  <div id="profile-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2>Your profile</h2>
+      <div class="profile-edit">
+        <div class="avatar-preview" id="pm-avatar">?</div>
+        <div class="profile-controls">
+          <div class="swatches" id="pm-swatches"></div>
+          <div class="profile-actions">
+            <label class="mini-btn color-pick">🎨 Colour
+              <input type="color" id="pm-color" class="color-native" />
+            </label>
+            <button type="button" class="mini-btn" id="pm-upload">🖼 Photo / GIF</button>
+            <button type="button" class="mini-btn ghost" id="pm-clear" hidden>Remove</button>
+          </div>
+          <input type="file" id="pm-file" accept="image/*" hidden />
+        </div>
+      </div>
+      <p class="profile-hint">GIFs animate. Uploads are capped at ~500&nbsp;KB.</p>
+      <div class="modal-actions">
+        <button id="profile-cancel" type="button">Cancel</button>
+        <button id="profile-save" type="button">Save</button>
+      </div>
+    </div>
   </div>
 
   <script src="vendor/supabase.js"></script>
