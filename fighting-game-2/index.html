@@ -126,6 +126,22 @@
   #netinfo[hidden] { display: none; }
   #netinfo .live { color: #4fe08a; }
   #netinfo .watch { color: #ffd166; }
+
+  /* Highlight whichever button you're on — obvious on hover AND keyboard focus */
+  #startBtn, .net-btn, #spectate-form button {
+    transition: transform .08s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+  }
+  #startBtn:hover, #spectate-form button:hover {
+    background: #7fd4ff; transform: translateY(-2px); box-shadow: 0 0 20px rgba(79,195,255,0.75);
+  }
+  .net-btn:hover {
+    background: #16203c; border-color: #6f8fe6; color: #eaf1ff;
+    transform: translateY(-2px); box-shadow: 0 0 18px rgba(111,143,230,0.7);
+  }
+  #startBtn:focus-visible, .net-btn:focus-visible, #spectate-form button:focus-visible {
+    outline: 3px solid #ffd166; outline-offset: 3px; box-shadow: 0 0 22px rgba(255,209,102,0.8);
+  }
+  #startBtn:active, .net-btn:active, #spectate-form button:active { transform: translateY(1px); }
 </style>
 </head>
 <body>
