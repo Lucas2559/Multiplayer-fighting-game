@@ -93,6 +93,39 @@
     cursor: pointer;
   }
   #startBtn:hover { background: #7fd4ff; }
+
+  /* online / spectate controls */
+  .online-row { margin-top: 14px; display: flex; gap: 10px; }
+  .net-btn {
+    padding: 9px 20px; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    background: transparent; color: #8ab4ff; border: 2px solid #3a4a7a;
+    border-radius: 6px; cursor: pointer;
+  }
+  .net-btn:hover { background: #16203c; border-color: #5a7ad0; color: #cfe0ff; }
+  #spectate-form { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+  #spectate-form[hidden] { display: none; }
+  #code-input {
+    width: 130px; padding: 9px 12px; font-size: 16px; font-weight: bold;
+    letter-spacing: 4px; text-align: center; text-transform: uppercase;
+    background: #10131f; color: #e8eaf0; border: 2px solid #444a63; border-radius: 6px;
+    font-family: "JetBrains Mono", monospace; outline: none;
+  }
+  #code-input:focus { border-color: #4fc3ff; }
+  #spectate-form button {
+    padding: 9px 18px; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    background: #4fc3ff; color: #0b0d17; border: none; border-radius: 6px; cursor: pointer;
+  }
+  .netmsg { margin-top: 14px; font-size: 13px; color: #b8bccd; line-height: 1.5; max-width: 520px; }
+  .netmsg b { color: #ffd166; font-family: "JetBrains Mono", monospace; letter-spacing: 3px; font-size: 16px; }
+  #netinfo {
+    position: absolute; top: 40px; left: 12px;
+    font-size: 12px; letter-spacing: 1px; color: #cfe0ff;
+    background: rgba(10,14,28,0.72); border: 1px solid #2a3a66;
+    border-radius: 6px; padding: 5px 10px; pointer-events: none;
+  }
+  #netinfo[hidden] { display: none; }
+  #netinfo .live { color: #4fe08a; }
+  #netinfo .watch { color: #ffd166; }
 </style>
 </head>
 <body>
@@ -115,10 +148,22 @@
       <p><span class="keys">Player 2:</span> ↑ jump · ←/→ move · ↓/R-Shift crouch · / crouch-lock · \ parry · <span class="keys">Enter</span> attack</p>
       <p style="margin-top:10px;color:#8ab4ff;">First to drain the other's health wins. Best of 3 rounds.</p>
       <button id="startBtn">START FIGHT</button>
+      <div class="online-row">
+        <button id="hostBtn" class="net-btn" type="button">HOST ONLINE ▸</button>
+        <button id="spectateBtn" class="net-btn" type="button">SPECTATE ▸</button>
+      </div>
+      <form id="spectate-form" hidden autocomplete="off">
+        <input id="code-input" maxlength="4" placeholder="CODE" spellcheck="false" />
+        <button type="submit">WATCH ▷</button>
+      </form>
+      <div id="netmsg" class="netmsg" hidden></div>
     </div>
+    <div id="netinfo" hidden></div>
   </div>
   <div id="hint">Crouch to duck high swings · Tap Parry (T / \) — a 0.33s guard negates ALL damage and swings a counter (can't be parried) · Jump during the counter for jump damage, crouch for a low normal hit · Jump attacks hit harder, but crouch attacks always hit normal</div>
 
+<script src="supabase.js"></script>
+<script src="config.js"></script>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -188,6 +233,7 @@ function playParry() {
 // ---- Input ----
 const keys = {};
 window.addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return; // don't hijack the code field
   keys[e.code] = true;
   // prevent page scroll on arrows / space
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','Slash'].includes(e.code)) e.preventDefault();
@@ -492,6 +538,165 @@ let bannerColor = '#ffd166';
 let particles = [];
 let shake = 0;
 
+// ---- Online spectating ----
+// One machine HOSTS: it runs the real match locally and broadcasts ~30 lightweight
+// state snapshots/sec over a Supabase Realtime channel keyed by a short share code.
+// SPECTATORS join with the code and just render the snapshots — no input, no sim.
+let role = 'local';        // 'local' | 'host' | 'spectator'
+let channel = null;
+let roomCode = '';
+let watchers = 0;
+let remoteSnap = null;     // latest snapshot received while spectating
+let lastPacket = 0;        // timestamp of the last snapshot (spectator connection health)
+let netFrame = 0;          // host broadcast throttle counter
+let netframeTick = 0;      // spectator: throttles the netinfo label refresh
+let sbClient = null;
+
+const netmsgEl = document.getElementById('netmsg');
+const netinfoEl = document.getElementById('netinfo');
+const hostBtn = document.getElementById('hostBtn');
+const spectateBtn = document.getElementById('spectateBtn');
+const spectateForm = document.getElementById('spectate-form');
+const codeInput = document.getElementById('code-input');
+
+function netmsg(html) {
+  if (!html) { netmsgEl.hidden = true; return; }
+  netmsgEl.innerHTML = html;
+  netmsgEl.hidden = false;
+}
+
+function updateNetInfo() {
+  if (role === 'host') {
+    netinfoEl.innerHTML = `<span class="live">● HOSTING</span> · code <b style="letter-spacing:2px">${roomCode}</b> · <span class="watch">${watchers}</span> watching`;
+    netinfoEl.hidden = false;
+  } else if (role === 'spectator') {
+    const stale = performance.now() - lastPacket > 3000;
+    netinfoEl.innerHTML = `<span class="watch">◉ SPECTATING</span> · code <b style="letter-spacing:2px">${roomCode}</b>${lastPacket ? (stale ? ' · <span style="color:#ff6b8b">signal lost…</span>' : ' · live') : ' · connecting…'}`;
+    netinfoEl.hidden = false;
+  } else {
+    netinfoEl.hidden = true;
+  }
+}
+
+function getClient() {
+  if (sbClient) return sbClient;
+  const cfg = window.SUPABASE_CONFIG || {};
+  if (!window.supabase || !window.supabase.createClient) {
+    netmsg('Online play needs the Supabase library — run this over http (not file://).');
+    return null;
+  }
+  if (!cfg.url || cfg.url.startsWith('YOUR_')) {
+    netmsg('Online play isn\'t configured — edit <b style="font-size:13px">config.js</b> with your Supabase URL and anon key.');
+    return null;
+  }
+  sbClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+    realtime: { params: { eventsPerSecond: 40 } },
+  });
+  return sbClient;
+}
+
+function makeCode() {
+  const alpha = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no I/O/0/1 — easy to read aloud
+  let s = '';
+  for (let i = 0; i < 4; i++) s += alpha[Math.floor(Math.random() * alpha.length)];
+  return s;
+}
+
+// ---- Snapshot (host → spectators) ----
+function snapFighter(f) {
+  return { x: f.x, y: f.y, w: f.w, h: f.h, facing: f.facing, crouching: f.crouching,
+    attacking: f.attacking, attackTimer: f.attackTimer, blocking: f.blocking,
+    blinkTimer: f.blinkTimer, hurtTimer: f.hurtTimer, hp: f.hp };
+}
+function buildSnapshot() {
+  return {
+    p1: snapFighter(p1), p2: snapFighter(p2),
+    st: state, b: banner, bc: bannerColor, w1: p1Wins, w2: p2Wins, sh: shake,
+    pt: particles.map(p => ({ x: p.x, y: p.y, color: p.color, life: p.life })),
+  };
+}
+function applyRemote() {
+  const s = remoteSnap;
+  if (!s) return;
+  Object.assign(p1, s.p1);
+  Object.assign(p2, s.p2);
+  state = s.st; banner = s.b; bannerColor = s.bc;
+  p1Wins = s.w1; p2Wins = s.w2; shake = s.sh;
+  particles = s.pt || [];
+}
+function broadcastState() {
+  if (!channel) return;
+  netFrame = (netFrame + 1) % 2; // ~30 Hz from a 60fps loop
+  if (netFrame !== 0) return;
+  channel.send({ type: 'broadcast', event: 'state', payload: buildSnapshot() });
+}
+
+async function startHosting() {
+  const client = getClient();
+  if (!client) return;
+  hostBtn.disabled = spectateBtn.disabled = true;
+  roomCode = makeCode();
+  role = 'host';
+  channel = client.channel('duel-' + roomCode, {
+    config: { presence: { key: 'host' }, broadcast: { self: false } },
+  });
+  channel.on('presence', { event: 'sync' }, () => {
+    const st = channel.presenceState();
+    let n = 0;
+    for (const k in st) for (const p of st[k]) if (p.r === 'spectator') n++;
+    watchers = n;
+    updateNetInfo();
+  });
+  channel.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') await channel.track({ r: 'host' });
+  });
+  netmsg(`Share this code so others can watch: <b>${roomCode}</b><br>Then press <span class="keys">START FIGHT</span> — the match is broadcast live.`);
+  updateNetInfo();
+}
+
+async function startSpectating(code) {
+  const client = getClient();
+  if (!client) return;
+  roomCode = code;
+  role = 'spectator';
+  remoteSnap = null;
+  lastPacket = 0;
+  channel = client.channel('duel-' + code, {
+    config: { presence: { key: 'spec-' + makeCode() + makeCode() } },
+  });
+  channel.on('broadcast', { event: 'state' }, ({ payload }) => {
+    remoteSnap = payload;
+    lastPacket = performance.now();
+  });
+  channel.subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') await channel.track({ r: 'spectator' });
+  });
+  overlay.classList.add('hidden');
+  updateNetInfo();
+  // If nothing arrives, the code is probably wrong or the host hasn't started.
+  setTimeout(() => {
+    if (role === 'spectator' && !lastPacket) {
+      overlay.classList.remove('hidden');
+      role = 'local';
+      if (channel) { sbClient.removeChannel(channel); channel = null; }
+      updateNetInfo();
+      netmsg(`No live match found for <b>${code}</b>. Check the code, or wait for the host to start.`);
+    }
+  }, 8000);
+}
+
+hostBtn.addEventListener('click', startHosting);
+spectateBtn.addEventListener('click', () => {
+  spectateForm.hidden = !spectateForm.hidden;
+  if (!spectateForm.hidden) codeInput.focus();
+});
+spectateForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const code = codeInput.value.trim().toUpperCase();
+  if (code.length < 4) { netmsg('Enter the 4-character code the host shared.'); return; }
+  startSpectating(code);
+});
+
 function overlaps(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x &&
          a.y < b.y + b.h && a.y + a.h > b.y;
@@ -687,24 +892,31 @@ function showMatchOver() {
 function loop() {
   requestAnimationFrame(loop);
 
-  // update
-  if (state === 'fighting') {
-    p1.update(p2);
-    p2.update(p1);
-    handleCombat();
-    updateParticles();
-    checkKO();
-  } else if (state === 'roundover') {
-    updateParticles();
-    roundOverTimer--; // the win screen always spawns at normal speed, ignoring slow-mo
-    if (roundOverTimer <= 0) {
-      if (p1Wins >= 2 || p2Wins >= 2) {
-        state = 'matchover';
-        showMatchOver();
-      } else {
-        startRound();
+  if (role === 'spectator') {
+    // pure mirror: adopt the host's broadcast state, run no simulation
+    applyRemote();
+    if (netframeTick++ % 15 === 0) updateNetInfo(); // refresh "live / signal lost" label
+  } else {
+    // update
+    if (state === 'fighting') {
+      p1.update(p2);
+      p2.update(p1);
+      handleCombat();
+      updateParticles();
+      checkKO();
+    } else if (state === 'roundover') {
+      updateParticles();
+      roundOverTimer--; // the win screen always spawns at normal speed, ignoring slow-mo
+      if (roundOverTimer <= 0) {
+        if (p1Wins >= 2 || p2Wins >= 2) {
+          state = 'matchover';
+          showMatchOver();
+        } else {
+          startRound();
+        }
       }
     }
+    if (role === 'host') broadcastState();
   }
 
   // update HUD bars
@@ -727,6 +939,14 @@ function loop() {
     drawParticles();
   }
   drawBanner();
+  if (role === 'spectator' && (!remoteSnap || state === 'menu')) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#8ab4ff';
+    ctx.fillText(remoteSnap ? 'Waiting for the host to start the match…' : 'Connecting to the match…', W / 2, H / 2);
+    ctx.restore();
+  }
   ctx.restore();
 }
 loop();
