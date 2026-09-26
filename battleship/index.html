@@ -66,6 +66,12 @@
   .board{
     display:grid;grid-template-columns:18px repeat(10,var(--cell));
     grid-auto-rows:var(--cell);gap:2px;
+    position:relative;z-index:1;
+  }
+  .board-overlay{
+    position:absolute;inset:0;pointer-events:none;z-index:0;
+    display:grid;grid-template-columns:18px repeat(10,var(--cell));
+    grid-auto-rows:var(--cell);gap:2px;
   }
   .board .lbl{
     display:flex;align-items:center;justify-content:center;
@@ -78,7 +84,13 @@
   }
   .cell.clickable{cursor:crosshair}
   .cell.clickable:hover{background:#1d3358}
-  .cell.ship{background:var(--ship);border-color:#4b628a}
+  .cell.clickable.ship:hover{background:rgba(255,255,255,.07)}
+  .cell.ship{background:transparent;border-color:rgba(255,255,255,.08)}
+  .ship-art-holder{position:relative;z-index:1;pointer-events:none}
+  .ship-art{display:block;width:100%;height:100%;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+  .ship-art-holder.wreck{opacity:.62;filter:grayscale(.55) brightness(.7)}
+  /* pegs and markers always sit on top of the hull, like the real board */
+  .cell.hit,.cell.miss,.cell.sunk,.cell.erase-target,.cell.preview{z-index:2}
   .cell.miss::after{
     content:"";position:absolute;inset:0;margin:auto;width:6px;height:6px;
     border-radius:50%;background:var(--miss);
@@ -90,10 +102,9 @@
   .cell.spent{cursor:not-allowed}
   .cell.spent:hover{background:#12203a}
   .cell.aim{outline:2px solid var(--warn);outline-offset:-2px;z-index:2}
-  .cell.erase-target{background:var(--hit);border-color:#ff8a8d}
-  .cell.erase-target::after{content:"";position:absolute;inset:3px;border-radius:2px;background:rgba(0,0,0,.25)}
+  .cell.erase-target{background:rgba(255,90,95,.8);border-color:#ff8a8d}
   .board.erasing .cell.clickable{cursor:pointer}
-  .cell.clickable.erase-target:hover{background:var(--hit);border-color:#ff8a8d}
+  .cell.clickable.erase-target:hover{background:rgba(255,90,95,.8);border-color:#ff8a8d}
   button.toggled{background:var(--hit);border-color:var(--hit);color:#fff}
   button.toggled:hover:not(:disabled){background:#ff7478;border-color:#ff7478}
   .cell.preview{background:#2b6e57;border-color:var(--accent)}
@@ -103,7 +114,7 @@
   .board-wrap.dead .board{opacity:.4;filter:saturate(.5)}
   .board-box{position:relative}
   .xout{
-    position:absolute;left:20px;right:0;top:20px;bottom:0;pointer-events:none;opacity:.8;
+    position:absolute;left:20px;right:0;top:20px;bottom:0;pointer-events:none;opacity:.8;z-index:3;
     background:
       linear-gradient(to bottom right,transparent calc(50% - 2px),var(--hit) 50%,transparent calc(50% + 2px)),
       linear-gradient(to bottom left, transparent calc(50% - 2px),var(--hit) 50%,transparent calc(50% + 2px));
@@ -118,8 +129,8 @@
   }
   .ship-row.active{border-color:var(--accent);background:#14322a}
   .ship-row.done{opacity:.55}
-  .ship-row .pips{display:flex;gap:2px;margin-left:auto}
-  .ship-row .pips i{width:9px;height:9px;border-radius:2px;background:var(--ship);display:block}
+  .ship-row .pips{margin-left:auto;height:17px}
+  .ship-row .pips svg{display:block;width:100%;height:100%}
 
   .roster{display:flex;flex-direction:column;gap:7px}
   .who{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--panel-2);border-radius:9px}
@@ -276,6 +287,83 @@ function randomFleet() {
   return out.length === FLEET.length ? out : randomFleet();
 }
 
+/* ------------------------------------------------------------- ship artwork */
+// Each hull is drawn horizontally in a 100-per-cell viewBox, bow to the right,
+// then rotated as one group for vertical placement.
+
+const SHIP_ART = {
+  Carrier:    { hull: '#5e7c9b', deck: '#8199b4', trim: '#36506e' },
+  Battleship: { hull: '#86758f', deck: '#a596ad', trim: '#544862' },
+  Cruiser:    { hull: '#4e8a86', deck: '#71a8a4', trim: '#2c5b58' },
+  Submarine:  { hull: '#7d7350', deck: '#9c9169', trim: '#4e4731' },
+  Destroyer:  { hull: '#8d6a6a', deck: '#ab8888', trim: '#5c4242' },
+};
+
+const hullPath = W =>
+  `M12,22 L${W - 48},22 C${W - 22},30 ${W - 9},43 ${W - 5},50 ` +
+  `C${W - 9},57 ${W - 22},70 ${W - 48},78 L12,78 C3,68 3,32 12,22 Z`;
+
+function shipArt(n, l) {
+  const W = l * 100;
+  const c = SHIP_ART[n] || SHIP_ART.Cruiser;
+  let hull = `<path d="${hullPath(W)}" fill="${c.hull}"/>`;
+  let sup = '';
+
+  if (n === 'Carrier') {
+    // flat flight deck running the whole length, island offset to one side
+    sup = `<rect x="20" y="28" width="${W - 78}" height="44" rx="6" fill="${c.deck}"/>
+      <rect x="34" y="47" width="${W - 108}" height="6" rx="3" fill="${c.trim}" opacity=".5"/>
+      <rect x="${W * 0.56}" y="12" width="36" height="24" rx="5" fill="${c.trim}"/>
+      <rect x="${W * 0.56 + 10}" y="0" width="6" height="14" rx="2" fill="${c.trim}"/>`;
+  } else if (n === 'Battleship') {
+    // two gun turrets with barrels, tall bridge and mast
+    sup = `<rect x="${W * 0.36}" y="22" width="56" height="56" rx="8" fill="${c.deck}"/>
+      <rect x="${W * 0.36 + 22}" y="3" width="8" height="21" rx="2" fill="${c.trim}"/>
+      <g fill="${c.trim}">
+        <rect x="${W * 0.13}" y="31" width="36" height="38" rx="9"/>
+        <rect x="${W * 0.13 + 32}" y="46" width="28" height="8" rx="4"/>
+        <rect x="${W * 0.64}" y="31" width="36" height="38" rx="9"/>
+        <rect x="${W * 0.64 + 32}" y="46" width="28" height="8" rx="4"/>
+      </g>`;
+  } else if (n === 'Cruiser') {
+    // single tall funnel amidships, one forward turret
+    sup = `<rect x="${W * 0.30}" y="24" width="44" height="52" rx="7" fill="${c.deck}"/>
+      <rect x="${W * 0.53}" y="11" width="21" height="37" rx="5" fill="${c.trim}"/>
+      <rect x="${W * 0.14}" y="34" width="28" height="32" rx="7" fill="${c.trim}"/>
+      <rect x="${W * 0.14 + 24}" y="46" width="22" height="7" rx="3.5" fill="${c.trim}"/>`;
+  } else if (n === 'Submarine') {
+    // rounded cigar hull, conning tower and periscope, waterline stripe
+    hull = `<rect x="7" y="26" width="${W - 14}" height="48" rx="24" fill="${c.hull}"/>`;
+    sup = `<rect x="${W * 0.36}" y="7" width="48" height="29" rx="9" fill="${c.deck}"/>
+      <rect x="${W * 0.36 + 21}" y="0" width="5" height="10" rx="2" fill="${c.trim}"/>
+      <rect x="16" y="47" width="${W - 32}" height="7" rx="3.5" fill="${c.trim}" opacity=".42"/>`;
+  } else {
+    // Destroyer: compact and sharp, one funnel, one turret
+    sup = `<rect x="${W * 0.33}" y="25" width="38" height="50" rx="6" fill="${c.deck}"/>
+      <rect x="${W * 0.33 + 44}" y="15" width="17" height="33" rx="4" fill="${c.trim}"/>
+      <rect x="${W * 0.11}" y="36" width="26" height="28" rx="6" fill="${c.trim}"/>`;
+  }
+  return hull + sup;
+}
+
+function shipSvg(n, l, d) {
+  const W = l * 100;
+  const art = shipArt(n, l);
+  const box = d === 'h' ? `0 0 ${W} 100` : `0 0 100 ${W}`;
+  const body = d === 'h' ? art : `<g transform="translate(100,0) rotate(90)">${art}</g>`;
+  return `<svg class="ship-art" viewBox="${box}" preserveAspectRatio="none">${body}</svg>`;
+}
+
+// Ships are laid over the grid as grid items, so they line up automatically
+// and run continuously across the gaps between cells.
+function addShipArt(board, ship, cls) {
+  const holder = el('div', 'ship-art-holder' + (cls ? ' ' + cls : ''));
+  holder.style.gridColumn = ship.d === 'h' ? `${ship.x + 2} / span ${ship.l}` : `${ship.x + 2}`;
+  holder.style.gridRow    = ship.d === 'h' ? `${ship.y + 2}` : `${ship.y + 2} / span ${ship.l}`;
+  holder.innerHTML = shipSvg(ship.n, ship.l, ship.d);
+  board.append(holder);
+}
+
 /* -------------------------------------------------------- derived helpers */
 
 // cell -> 'hit' | 'miss' | 'sunk', for the board belonging to `seat`
@@ -290,6 +378,25 @@ function marksFor(seat) {
   }
   return m;
 }
+// A sunk ship's cells come back in the shot result, so we can reveal its shape.
+function sunkShipsFor(seat) {
+  const seen = new Set(), out = [];
+  for (const shot of S.state.shots) {
+    for (const r of shot.results || []) {
+      if (r.seat !== seat || !r.sunk || !Array.isArray(r.cells) || seen.has(r.sunk)) continue;
+      seen.add(r.sunk);
+      const pts = r.cells.map(c => c.split(',').map(Number));
+      const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+      out.push({
+        n: r.sunk, l: r.cells.length,
+        x: Math.min(...xs), y: Math.min(...ys),
+        d: new Set(ys).size === 1 ? 'h' : 'v',
+      });
+    }
+  }
+  return out;
+}
+
 function myFiredCells() {
   const s = new Set();
   const seat = S.state.me?.seat;
@@ -369,6 +476,13 @@ function renderBoard(opts) {
     }
   }
   const box = el('div', 'board-box');
+  const fleet = opts.ships || [], wrecks = opts.wrecks || [];
+  if (fleet.length || wrecks.length) {
+    const layer = el('div', 'board-overlay');
+    for (const s of fleet)  addShipArt(layer, s);
+    for (const s of wrecks) addShipArt(layer, s, 'wreck');
+    box.append(layer);
+  }
   box.append(board);
   if (opts.dead) box.append(el('div', 'xout'));
   wrap.append(box);
@@ -587,7 +701,8 @@ function renderLobby(app) {
       row.append(el('span', null, s.n));
       if (placed) row.append(el('span', 'muted', `· ${label(placed.x, placed.y)} ${placed.d === 'h' ? '→' : '↓'}`));
       const pips = el('div', 'pips');
-      for (let k = 0; k < s.l; k++) pips.append(el('i'));
+      pips.style.width = (s.l * 17) + 'px';
+      pips.innerHTML = shipSvg(s.n, s.l, 'h');
       row.append(pips);
       row.onclick = () => {
         S.place.ships = S.place.ships.filter(p => p.n !== s.n);
@@ -753,6 +868,7 @@ function renderGame(app) {
       tagClass: room.turn_seat === p.seat && p.alive && !finished ? 'turn' : '',
       dead: !p.alive,
       marks: marksFor(p.seat),
+      wrecks: sunkShipsFor(p.seat),
       interactive, spent,
       hp: [p.hits_taken, TOTAL_CELLS],
     });

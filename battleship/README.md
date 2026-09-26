@@ -38,6 +38,12 @@ moment the last fleet is locked in.
 **Controls:** click the grid to drop the highlighted ship · <kbd>R</kbd> or
 right-click to rotate · **Random** fills the board for you.
 
+Each class has its own silhouette and colour, drawn as SVG on a layer beneath
+the grid: the Carrier has a flight deck and island, the Battleship two gun
+turrets and a mast, the Cruiser a funnel, the Submarine a conning tower and
+periscope, the Destroyer a single stack. Hit markers sit on top of the hull like
+pegs on the real board, and an enemy ship reveals its silhouette when it sinks.
+
 To remove a single ship, hit **Erase** (or <kbd>E</kbd>), then click that ship on
 the grid — it highlights in red as you hover so you can see exactly what will go.
 Erase mode stays on so you can remove several in a row, and switches itself off
