@@ -167,6 +167,7 @@
   .banner.win{background:#0f3a2c;border-color:var(--accent);color:var(--accent)}
   .banner.lose{background:#3a1218;border-color:var(--hit);color:#ff9fa2}
   .banner.turn{background:#3a2f0f;border-color:var(--warn);color:var(--warn)}
+  .banner.idle{background:#3a2412;border-color:#c87a2f;color:#ffbf7a}
 
   #toast{
     position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(140%);
@@ -229,6 +230,7 @@ const S = {
   busy: false,
   channel: null,
   poll: null,
+  beat: null,
 };
 
 const SKEY = 'battleship.session.v1';
@@ -583,6 +585,14 @@ function render() {
   const leave = el('button', 'ghost', 'Leave');
   leave.onclick = () => { teardown(); dropSession(); S.session = null; S.state = null; setRoomInUrl(null); render(); };
   hdr.append(pill, leave);
+
+  const idle = S.state.idle_seconds ?? 0, limit = S.state.timeout_seconds ?? 300;
+  if (limit - idle <= 120) {
+    const left = Math.max(0, limit - idle);
+    app.append(el('div', 'banner idle',
+      `⏳  Nobody has touched this game in a while — it closes in ${left}s. Make a move to keep it open.`));
+    const sp = el('div'); sp.style.height = '14px'; app.append(sp);
+  }
 
   if (room.status === 'lobby') { renderLobby(app); updatePreview(S.hover); }
   else renderGame(app);
@@ -957,8 +967,12 @@ async function refresh() {
     }
     render();
   } catch (e) {
-    toast(e.message);
-    if (/Room not found/i.test(e.message)) { dropSession(); S.session = null; S.state = null; teardown(); render(); }
+    if (/Room not found/i.test(e.message)) {
+      toast('That game closed after 5 minutes with nobody in it.');
+      dropSession(); S.session = null; S.state = null; teardown(); render();
+    } else {
+      toast(e.message);
+    }
   } finally {
     refreshing = false;
     if (refreshAgain) { refreshAgain = false; refresh(); }
@@ -975,10 +989,14 @@ function subscribe() {
     .subscribe();
   // Belt and braces: poll in case Realtime is unavailable on the project.
   S.poll = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 3000);
+  const beat = () => { if (S.session) rpc('touch', { p_token: S.session.token }).catch(() => {}); };
+  beat();
+  S.beat = setInterval(beat, 60000);
 }
 function teardown() {
   if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
   if (S.poll) { clearInterval(S.poll); S.poll = null; }
+  if (S.beat) { clearInterval(S.beat); S.beat = null; }
 }
 
 document.addEventListener('keydown', e => {

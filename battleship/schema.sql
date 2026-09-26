@@ -59,7 +59,10 @@ create table if not exists shots (
   created_at timestamptz not null default now()
 );
 
-create index if not exists shots_room_idx   on shots(room_code, seq);
+alter table rooms add column if not exists last_move_at timestamptz not null default now();
+
+create index if not exists rooms_idle_idx    on rooms(last_move_at);
+create index if not exists shots_room_idx    on shots(room_code, seq);
 create index if not exists players_room_idx on players(room_code);
 
 -- ------------------------------------------------------------- constants ---
@@ -72,6 +75,31 @@ $$;
 
 create or replace function bs_fleet_cells() returns int
 language sql immutable as $$ select 17; $$;
+
+-- How long a room may sit with nobody holding it open before it is binned.
+-- Open tabs heartbeat every 60s, and every move counts too, so this only
+-- expires games that genuinely have nobody at them.
+create or replace function bs_idle_timeout() returns interval
+language sql immutable as $$ select interval '5 minutes'; $$;
+
+-- Backstop for a tab left open forever.
+create or replace function bs_max_age() returns interval
+language sql immutable as $$ select interval '12 hours'; $$;
+
+-- Bin abandoned rooms. players/secrets/shots follow via ON DELETE CASCADE.
+create or replace function bs_cleanup() returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  with gone as (
+    delete from rooms
+     where last_move_at < now() - bs_idle_timeout()
+        or created_at   < now() - bs_max_age()
+    returning 1
+  )
+  select count(*) into n from gone;
+  return n;
+end $$;
 
 -- Expand one ship {n,x,y,d,l} into its list of "x,y" cells. Raises if off-grid.
 create or replace function bs_cells(ship jsonb) returns text[]
@@ -100,6 +128,7 @@ language plpgsql security definer set search_path = public as $$
 declare v_code text; v_pid uuid; v_tok uuid; v_name text; i int; tries int := 0;
 begin
   if p_max not in (2, 3) then raise exception 'Room size must be 2 or 3'; end if;
+  perform bs_cleanup();
   v_name := nullif(btrim(p_name), '');
   if v_name is null then raise exception 'Pick a name first'; end if;
   v_name := left(v_name, 16);
@@ -130,6 +159,7 @@ returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare v_code text; v_max int; v_status text; v_seat int; v_pid uuid; v_tok uuid; v_name text;
 begin
+  perform bs_cleanup();
   v_code := upper(btrim(coalesce(p_code, '')));
   v_name := nullif(btrim(p_name), '');
   if v_name is null then raise exception 'Pick a name first'; end if;
@@ -150,6 +180,7 @@ begin
   insert into players(room_code, seat, name) values (v_code, v_seat, v_name)
     returning id into v_pid;
   insert into secrets(player_id) values (v_pid) returning token into v_tok;
+  update rooms set last_move_at = now() where code = v_code;
 
   return jsonb_build_object('code', v_code, 'token', v_tok, 'seat', v_seat, 'name', v_name);
 end $$;
@@ -202,6 +233,7 @@ begin
 
   update secrets set ships = p_ships, hits = '{}' where player_id = v_pid;
   update players set ready = true, alive = true, hits_taken = 0 where id = v_pid;
+  update rooms set last_move_at = now() where code = v_room;
   perform bs_try_start(v_room);
 
   return jsonb_build_object('ok', true);
@@ -284,7 +316,7 @@ begin
 
   if v_alive <= 1 then
     select seat into v_win from players where room_code = v_room and alive limit 1;
-    update rooms set status = 'finished', winner_seat = v_win, seq = v_seq where code = v_room;
+    update rooms set status = 'finished', winner_seat = v_win, seq = v_seq, last_move_at = now() where code = v_room;
   else
     v_next := v_seat;
     for i in 1 .. 6 loop
@@ -292,7 +324,7 @@ begin
       exit when exists (select 1 from players
                          where room_code = v_room and seat = v_next and alive);
     end loop;
-    update rooms set turn_seat = v_next, seq = v_seq where code = v_room;
+    update rooms set turn_seat = v_next, seq = v_seq, last_move_at = now() where code = v_room;
   end if;
 
   return jsonb_build_object('ok', true, 'results', v_results);
@@ -300,6 +332,21 @@ end $$;
 
 
 -- Everything a client needs for one render. Only ever returns YOUR fleet.
+-- Called every 60s by each open tab. Keeps the room from being binned.
+create or replace function touch(p_token uuid)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_room text;
+begin
+  select p.room_code into v_room
+    from secrets sec join players p on p.id = sec.player_id
+   where sec.token = p_token;
+  if v_room is null then return jsonb_build_object('ok', false); end if;
+  update rooms set last_move_at = now() where code = v_room;
+  return jsonb_build_object('ok', true);
+end $$;
+
+
 create or replace function get_state(p_code text, p_token uuid default null)
 returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -327,8 +374,11 @@ begin
      where sec.token = p_token and p.room_code = v_code;
   end if;
 
-  return jsonb_build_object('room', v_room, 'players', v_players,
-                            'shots', v_shots, 'me', v_me);
+  return jsonb_build_object(
+    'room', v_room, 'players', v_players, 'shots', v_shots, 'me', v_me,
+    'idle_seconds',    (select extract(epoch from now() - last_move_at)::int
+                          from rooms where code = v_code),
+    'timeout_seconds', extract(epoch from bs_idle_timeout())::int);
 end $$;
 
 
@@ -346,6 +396,7 @@ begin
   if v_status <> 'lobby' then raise exception 'The game has already started'; end if;
 
   update players set ready = false where id = v_pid;
+  update rooms set last_move_at = now() where code = v_room;
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -364,7 +415,8 @@ begin
   update secrets sec set ships = null, hits = '{}'
     from players p where p.id = sec.player_id and p.room_code = v_room;
   update players set ready = false, alive = true, hits_taken = 0 where room_code = v_room;
-  update rooms set status = 'lobby', turn_seat = 0, winner_seat = null, seq = 0
+  update rooms set status = 'lobby', turn_seat = 0, winner_seat = null, seq = 0,
+                   last_move_at = now()
    where code = v_room;
 
   return jsonb_build_object('ok', true);
@@ -390,12 +442,14 @@ grant select on rooms, players, shots to anon, authenticated;
 revoke all on secrets from anon, authenticated;
 
 revoke execute on function bs_try_start(text) from public;
+revoke execute on function bs_cleanup() from public;
 
 grant execute on function create_room(text, int)      to anon, authenticated;
 grant execute on function join_room(text, text)       to anon, authenticated;
 grant execute on function place_ships(uuid, jsonb)    to anon, authenticated;
 grant execute on function fire(uuid, int, int)        to anon, authenticated;
 grant execute on function get_state(text, uuid)       to anon, authenticated;
+grant execute on function touch(uuid)                 to anon, authenticated;
 grant execute on function unready(uuid)               to anon, authenticated;
 grant execute on function rematch(uuid)               to anon, authenticated;
 
