@@ -9,6 +9,9 @@
 -- Afterwards: everyone is signed out, nobody has an account, and the Main room
 -- is empty. Names are all free again, so re-register yours. Logging in with the
 -- admin password recreates Lucaca92 automatically.
+--
+-- This also deletes the seeded 'Lucaca92 (Dev)' account. Re-run schema.sql
+-- afterwards to put it back.
 
 begin;
 

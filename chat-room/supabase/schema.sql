@@ -119,6 +119,15 @@ returns text language sql immutable as $$ select 'Lucaca92' $$;
 create or replace function public.chat_admin_color()
 returns text language sql immutable as $$ select '#ffab00' $$;
 
+-- A second account for you, seeded near the bottom of this file. Same person,
+-- but its chat switcher lists EVERY chat that exists, so it can read any of
+-- them without being given a code.
+create or replace function public.chat_dev_name()
+returns text language sql immutable as $$ select 'Lucaca92 (Dev)' $$;
+create or replace function public.chat_dev_password()
+returns text language sql immutable as $$ select 'welecome1234' $$;
+revoke all on function public.chat_dev_password() from public, anon, authenticated;
+
 -- How many messages the room keeps. Once the 501st message is posted the
 -- oldest one is deleted, so the table never holds more than this.
 create or replace function public.chat_message_limit()
@@ -143,7 +152,9 @@ declare v text := btrim(coalesce(p_name, ''));
 begin
   if v = '' then raise exception 'Please enter a name.'; end if;
   if char_length(v) > 24 then raise exception 'Names can be at most 24 characters.'; end if;
-  if v !~ '^[A-Za-z0-9_. -]+$' then raise exception 'Use letters, numbers, spaces, _ - only.'; end if;
+  if v !~ '^[A-Za-z0-9_.() -]+$' then
+    raise exception 'Use letters, numbers, spaces and _ - . ( ) only.';
+  end if;
   return v;
 end $$;
 revoke all on function public.chat_check_name(text) from public, anon, authenticated;
@@ -159,7 +170,7 @@ begin
   if char_length(coalesce(p_password, '')) < 4 then
     raise exception 'Your password needs at least 4 characters.';
   end if;
-  if v_key = lower(chat_admin_name()) then
+  if v_key in (lower(chat_admin_name()), lower(chat_dev_name())) then
     raise exception 'That name is reserved.';
   end if;
   if exists (select 1 from accounts a where a.name_key = v_key) then
@@ -338,6 +349,15 @@ returns table (code text, name text, is_owner boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key text := chat_auth(p_name, p_token);
 begin
+  -- The dev account sees every chat, joined or not.
+  if v_key = lower(chat_dev_name()) then
+    return query
+      select r.code, r.name, (r.owner_key = v_key) as is_owner
+        from chat_rooms r
+       order by (r.code <> 'main'), r.created_at;
+    return;
+  end if;
+
   return query
     select r.code, r.name, (r.owner_key = v_key) as is_owner
       from chat_rooms r
@@ -380,6 +400,23 @@ begin
    );
 end $$;
 
+-- ---- Seed the dev account ----
+-- Re-running this file re-applies the password defined by chat_dev_password(),
+-- so it is always the one the README documents. Its colour matches the admin
+-- account's; recolour it in the profile editor and that is not reset.
+-- Unlike the functions above, this runs at the top level, where pgcrypto's
+-- schema isn't on the path by default. Naming both schemas finds crypt()
+-- whether the extension sits in `extensions` (Supabase) or `public`.
+set search_path = public, extensions;
+
+insert into public.accounts (name_key, name, pass_hash, color)
+values (lower(chat_dev_name()), chat_dev_name(),
+        crypt(chat_dev_password(), gen_salt('bf')), chat_admin_color())
+on conflict (name_key) do update
+  set name       = chat_dev_name(),
+      pass_hash  = crypt(chat_dev_password(), gen_salt('bf')),
+      updated_at = now();
+
 grant execute on function
   public.chat_signup(text, text, text, text),
   public.chat_login(text, text),
@@ -389,5 +426,6 @@ grant execute on function
   public.chat_post(text, uuid, text, text),
   public.chat_create_room(text, uuid, text),
   public.chat_join_room(text, uuid, text),
-  public.chat_my_rooms(text, uuid)
+  public.chat_my_rooms(text, uuid),
+  public.chat_dev_name()
 to anon, authenticated;

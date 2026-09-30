@@ -8,7 +8,8 @@ create chats and share a code so other people can join them.
 
 - **Accounts** — create one with a name + password, then log in with it. A
   registered name can't be taken by anyone else, ever (not just while you're
-  online). Reloading the page keeps you logged in.
+  online). Reloading the page keeps you logged in. Names are up to 24 characters
+  of letters, numbers, spaces and `_ - . ( )`.
 - **Passwords are hashed** with bcrypt (`pgcrypto`) inside Postgres and never
   leave the database. The browser only calls the database functions in
   [`supabase/schema.sql`](supabase/schema.sql); the `accounts` table itself has
@@ -37,6 +38,12 @@ create chats and share a code so other people can join them.
   stored hash is a throwaway random value), so the admin password is the only
   way in. Every admin login re-pins the name and colour, so if you recolour
   Lucaca92 in the profile editor it goes back to `#ffab00` next time you log in.
+- **The dev account** — `Lucaca92 (Dev)`, password `welecome1234`. It works like
+  any other account except that its chat switcher lists **every chat that
+  exists**, so it can open and read any of them without being given a code. The
+  name is reserved, so nobody else can register it. The account is created by
+  `supabase/schema.sql`, and re-running that file resets its password to
+  whatever `chat_dev_password()` says.
 - **Live messages + online count** — new rows are pushed to every open client
   through Supabase Realtime; the online count comes from Realtime Presence.
 
@@ -131,7 +138,7 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_post(name, token, code, body)` | Send a message to a chat, then trim that chat to 500 |
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
-| `chat_my_rooms(name, token)` | The chats in your switcher |
+| `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
 
 ## How private is a chat code?
 

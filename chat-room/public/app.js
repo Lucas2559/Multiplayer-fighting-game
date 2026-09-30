@@ -345,8 +345,9 @@ $("gate-form").addEventListener("submit", async (e) => {
   const name = raw.replace(/^@+/, "").slice(0, 24);
   const pass = $("pass-input").value;
   if (!name) return showError("Please enter a name.");
-  if (!/^[a-zA-Z0-9_\- .]+$/.test(name))
-    return showError("Use letters, numbers, spaces, _ - only.");
+  // Keep this in step with chat_check_name() in supabase/schema.sql.
+  if (!/^[a-zA-Z0-9_.() -]+$/.test(name))
+    return showError("Use letters, numbers, spaces and _ - . ( ) only.");
   if (!pass) return showError("Please enter your password.");
   if (gateMode === "signup") {
     if (pass.length < 4) return showError("Your password needs at least 4 characters.");
