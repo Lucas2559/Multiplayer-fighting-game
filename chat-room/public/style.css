@@ -29,7 +29,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------------- Name gate ---------------- */
+/* ---------------- Login / signup gate ---------------- */
 .gate {
   position: fixed;
   inset: 0;
@@ -62,6 +62,20 @@ html, body {
 .brand-name { font-weight: 700; letter-spacing: -0.2px; }
 .brand-sub { color: var(--faint); font-size: 12px; }
 
+/* Log in / Create account switch */
+.gate-tabs {
+  display: flex; gap: 6px; margin-bottom: 20px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 4px;
+}
+.gate-tab {
+  flex: 1; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 9px 8px; border-radius: 7px; transition: background 0.15s, color 0.15s;
+}
+.gate-tab:hover { color: var(--text); }
+.gate-tab.sel { background: var(--panel-2); color: var(--text); }
+
 .gate-card h1 { font-size: 24px; margin: 0 0 8px; letter-spacing: -0.4px; }
 .gate-hint { color: var(--muted); line-height: 1.5; margin: 0 0 22px; font-size: 14px; }
 .gate-hint strong { color: var(--accent-2); }
@@ -74,6 +88,7 @@ html, body {
   padding: 0 14px;
   transition: border-color 0.15s;
 }
+.field + .field { margin-top: 10px; }
 .field:focus-within { border-color: var(--accent); }
 .field .at { color: var(--faint); font-weight: 600; }
 .field input {
@@ -127,7 +142,25 @@ html, body {
   border: 1px solid var(--line); border-radius: 16px; padding: 24px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 }
+.modal-card {
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
 .modal-card h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: -0.3px; }
+.modal-sep { border: none; border-top: 1px solid var(--line); margin: 24px 0 18px; }
+.modal-sub { margin: 0 0 6px; font-size: 14px; letter-spacing: -0.2px; }
+
+/* Account (name / password) fields */
+.account-fields { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.acct-row { display: flex; flex-direction: column; gap: 5px; }
+.acct-row span { color: var(--muted); font-size: 12px; font-weight: 600; }
+.acct-row input {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--text); outline: none; padding: 10px 12px; font-size: 14px;
+  font-family: "JetBrains Mono", monospace;
+}
+.acct-row input:focus { border-color: var(--accent); }
+.acct-row input::placeholder { color: var(--faint); font-family: "Inter", sans-serif; }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .modal-actions button {
   flex: 1; border-radius: 10px; padding: 11px; font-weight: 600;
@@ -136,12 +169,49 @@ html, body {
 #profile-save { background: linear-gradient(135deg, var(--accent), #6a58e0); color: #fff; }
 #profile-save:hover { filter: brightness(1.08); }
 #profile-cancel { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+#acct-save { background: linear-gradient(135deg, var(--accent), #6a58e0); color: #fff; }
+#acct-save:hover { filter: brightness(1.08); }
+#acct-save:disabled { opacity: 0.55; cursor: wait; }
+.ghost-btn { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line) !important; }
+.ghost-btn:hover { color: var(--danger); border-color: var(--danger) !important; }
+
+/* code entry + the code you get back when you make a chat */
+.code-input {
+  width: 100%; margin-top: 14px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); outline: none; padding: 14px;
+  font-family: "JetBrains Mono", monospace; font-size: 22px;
+  letter-spacing: 4px; text-align: center; text-transform: uppercase;
+}
+.code-input.name {
+  font-family: inherit; font-size: 16px; letter-spacing: 0;
+  text-align: left; text-transform: none;
+}
+.code-input:focus { border-color: var(--accent); }
+.code-input:disabled { opacity: 0.6; }
+.code-input::placeholder { color: var(--faint); letter-spacing: 2px; }
+.code-out {
+  margin: 8px 0 12px; padding: 14px;
+  background: var(--bg); border: 1px dashed rgba(124, 108, 240, 0.5);
+  border-radius: 10px; color: var(--accent);
+  font-family: "JetBrains Mono", monospace; font-size: 26px;
+  letter-spacing: 6px; text-align: center;
+}
+#code-join, #new-create { background: linear-gradient(135deg, var(--accent), #6a58e0); color: #fff; }
+#code-join:hover, #new-create:hover { filter: brightness(1.08); }
+#code-join:disabled, #new-create:disabled { opacity: 0.55; cursor: wait; }
+#code-cancel, #new-cancel { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
 
 .gate-error {
   margin-top: 12px; color: var(--danger); font-size: 13px;
   background: rgba(230, 104, 90, 0.1);
   border: 1px solid rgba(230, 104, 90, 0.3);
   padding: 10px 12px; border-radius: 8px;
+}
+.gate-error.ok {
+  color: var(--accent-2);
+  background: rgba(63, 185, 138, 0.1);
+  border-color: rgba(63, 185, 138, 0.3);
 }
 
 #gate-submit {
@@ -175,8 +245,24 @@ html, body {
   padding: 0 20px; border-bottom: 1px solid var(--line);
   background: var(--bg-2);
 }
-.topbar-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 2px; }
-.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* chat switcher + shareable code */
+.room-select {
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 9px;
+  padding: 7px 10px; font-family: inherit; font-size: 14px; font-weight: 600;
+  max-width: 220px; cursor: pointer; outline: none;
+}
+.room-select:hover { border-color: var(--accent); }
+.room-code {
+  background: rgba(124, 108, 240, 0.12); color: var(--accent);
+  border: 1px dashed rgba(124, 108, 240, 0.5); border-radius: 8px;
+  padding: 6px 9px; cursor: pointer;
+  font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 1px;
+}
+.room-code:hover { background: rgba(124, 108, 240, 0.22); }
 .topbar-title .hash { color: var(--faint); }
 .online { color: var(--accent-2); font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .online .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
@@ -222,6 +308,13 @@ html, body {
 }
 .handle { color: var(--accent); font-family: "JetBrains Mono", monospace; }
 .topbar-title .brand-mark { display: inline-grid; }
+
+@media (max-width: 720px) {
+  .topbar { height: auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .topbar-title .brand-mark.sm { display: none; }
+  .room-select { max-width: 150px; }
+  .online { font-size: 12px; }
+}
 
 .banner {
   position: fixed; top: 16px; left: 50%; transform: translateX(-50%);

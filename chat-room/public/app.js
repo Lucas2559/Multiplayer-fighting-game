@@ -1,7 +1,12 @@
 /* Nexus Canvas chat — Supabase client (single room, presence-based names) */
 
 const COLORS = ["#7c6cf0", "#3fb98a", "#e0a44a", "#d16bd1", "#5aa9e6", "#e6685a"];
-const ROOM = "main"; // this app is a single room; value written to the messages.channel column
+
+// The room keeps only this many messages: the database deletes the oldest one
+// as each new message past the cap arrives (see chat_message_limit() in
+// supabase/schema.sql — keep the two in step). Open tabs trim their own list to
+// match, so what you see is what's still stored.
+const MAX_MESSAGES = 500;
 
 function colorFor(name) {
   let h = 0;
@@ -24,6 +29,20 @@ function loadProfile() {
 }
 function saveProfile(p) {
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
+}
+
+// Your logged-in account: { name, token }. The token is the session secret the
+// database handed us at login; every write is checked against it server-side.
+const SESSION_KEY = "nexus.session";
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)) || null; }
+  catch { return null; }
+}
+function saveSession(s) {
+  try {
+    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {}
 }
 
 // name(lowercased) -> avatar data URL, rebuilt from realtime presence on each sync.
@@ -150,6 +169,22 @@ const sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
   realtime: { params: { eventsPerSecond: 20 } },
 });
 
+// Every account/message write goes through a database function (see
+// supabase/schema.sql) rather than a table, so password hashes and session
+// tokens never reach the browser. Errors come back as the plpgsql message.
+async function rpc(fn, args) {
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) {
+    const m = error.message || "";
+    if (error.code === "PGRST202" || /could not find the function|does not exist/i.test(m))
+      throw new Error(
+        "Accounts aren't set up in Supabase yet — run supabase/schema.sql in the SQL editor."
+      );
+    throw new Error(m || "Server error.");
+  }
+  return Array.isArray(data) ? data[0] || null : data;
+}
+
 // Surface any otherwise-silent async failure.
 window.addEventListener("unhandledrejection", (e) => {
   banner("Error: " + (e.reason?.message || e.reason || "unknown"));
@@ -168,21 +203,29 @@ const CID = (() => {
 
 // ---- App state ----
 const state = {
-  me: null, // { name, color, avatar }
-  room: null, // active realtime channel
+  me: null, // { name, color, avatar, token }
+  chat: null, // { code, name } — the chat you're looking at
+  channel: null, // its active realtime channel
+  rooms: [], // chats in your switcher
   lastRenderedName: null,
 };
+
+// Which chat to reopen next time. Per-account so two people sharing a browser
+// don't land in each other's last room.
+const lastChatKey = (name) => "nexus.lastChat." + name.toLowerCase();
 
 // ---- Elements ----
 const $ = (id) => document.getElementById(id);
 const gate = $("gate");
 const app = $("app");
 
-/* =================== Name picker =================== */
+/* =================== Log in / sign up =================== */
+let gateMode = "login"; // or "signup"
+
 const gateBtn = () => $("gate-submit");
 function resetGateBtn() {
   gateBtn().disabled = false;
-  gateBtn().textContent = "Join chat →";
+  gateBtn().textContent = gateMode === "signup" ? "Create account →" : "Log in →";
 }
 function showError(msg) {
   const err = $("gate-error");
@@ -190,6 +233,28 @@ function showError(msg) {
   err.hidden = false;
   resetGateBtn();
 }
+
+// Login shows just name + password; signup also asks to confirm it and lets you
+// pick the colour/photo the account is created with.
+function setGateMode(mode) {
+  gateMode = mode;
+  const signup = mode === "signup";
+  $("tab-login").classList.toggle("sel", !signup);
+  $("tab-signup").classList.toggle("sel", signup);
+  $("gate-title").textContent = signup ? "Create an account" : "Welcome back";
+  $("gate-hint").textContent = signup
+    ? "Your name is registered with this password and stays yours."
+    : "Sign in with the name and password you registered.";
+  $("confirm-field").hidden = !signup;
+  $("gate-profile").hidden = !signup;
+  $("gate-profile-hint").hidden = !signup;
+  $("pass-input").setAttribute("autocomplete", signup ? "new-password" : "current-password");
+  $("gate-error").hidden = true;
+  resetGateBtn();
+  if (signup) gateEditor.render();
+}
+$("tab-login").addEventListener("click", () => setGateMode("login"));
+$("tab-signup").addEventListener("click", () => setGateMode("signup"));
 
 // Is `name` claimed by some OTHER client right now? (Our own stale presence from
 // a reload doesn't count — it shares our CID.)
@@ -202,31 +267,40 @@ function nameTakenByOther(room, name) {
   return false;
 }
 
-$("gate-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  $("gate-error").hidden = true;
-  const raw = $("name-input").value.trim();
-  const name = raw.replace(/^@+/, "").slice(0, 24);
-  if (!name) return showError("Please enter a name.");
-  if (!/^[a-zA-Z0-9_\- .]+$/.test(name))
-    return showError("Use letters, numbers, spaces, _ - only.");
+// Take an authenticated account ({ name, color, avatar, token }) into the app.
+async function joinRoom(acct) {
+  const me = {
+    name: acct.name,
+    color: acct.color || colorFor(acct.name),
+    avatar: acct.avatar || null,
+    token: acct.token,
+  };
+  state.me = me;
+  saveSession({ name: me.name, token: me.token });
+  saveProfile({ name: me.name, color: me.color, avatar: me.avatar });
+  await enterApp();
+}
 
-  gateBtn().disabled = true;
-  gateBtn().textContent = "Joining…";
-  const { color, avatar } = gateEditor.values(name);
-
-  // Never leave a dead "chat" channel around from a failed attempt.
-  if (state.room) {
-    await sb.removeChannel(state.room);
-    state.room = null;
+// Subscribe to one chat: its own realtime channel, its own history, its own
+// presence roster. Called on entry and on every chat switch.
+async function openChat(chat) {
+  // Never leave a dead channel around from a previous chat or failed attempt.
+  if (state.channel) {
+    await sb.removeChannel(state.channel);
+    state.channel = null;
   }
+  state.chat = chat;
+  state.lastRenderedName = null;
+  $("messages").innerHTML = "";
+  renderChatHeader();
 
-  const room = sb.channel("chat", {
+  const room = sb.channel("chat:" + chat.code, {
     config: { presence: { key: CID } },
   });
   let synced = false;
   room
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" },
+    .on("postgres_changes",
+      { event: "INSERT", schema: "public", table: "messages", filter: "channel=eq." + chat.code },
       (payload) => appendMessage(payload.new))
     .on("presence", { event: "sync" }, () => { synced = true; renderOnline(room); });
 
@@ -246,35 +320,79 @@ $("gate-form").addEventListener("submit", async (e) => {
     // Wait for the first presence sync so the roster is populated (max ~1.5s).
     for (let i = 0; i < 15 && !synced; i++) await new Promise((r) => setTimeout(r, 100));
 
-    if (nameTakenByOther(room, name))
-      throw new Error("Someone's already chatting under that name. Pick another.");
+    // The account owns the name for good; this only stops one account being in
+    // the same chat twice at once.
+    if (nameTakenByOther(room, state.me.name))
+      throw new Error("You're already in this chat in another tab or window.");
 
+    const { name, color, avatar } = state.me;
     await room.track({ name, color, avatar, cid: CID });
-    state.me = { name, color, avatar };
-    state.room = room;
-    saveProfile({ name, color, avatar });
-    enterApp();
+    state.channel = room;
+    try { localStorage.setItem(lastChatKey(name), chat.code); } catch {}
+    await loadHistory();
+    renderOnline(room);
   } catch (ex) {
     await sb.removeChannel(room);
+    state.channel = null;
+    throw ex;
+  }
+}
+
+$("gate-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("gate-error").hidden = true;
+  const raw = $("name-input").value.trim();
+  const name = raw.replace(/^@+/, "").slice(0, 24);
+  const pass = $("pass-input").value;
+  if (!name) return showError("Please enter a name.");
+  if (!/^[a-zA-Z0-9_\- .]+$/.test(name))
+    return showError("Use letters, numbers, spaces, _ - only.");
+  if (!pass) return showError("Please enter your password.");
+  if (gateMode === "signup") {
+    if (pass.length < 4) return showError("Your password needs at least 4 characters.");
+    if (pass !== $("confirm-input").value) return showError("Those passwords don't match.");
+  }
+
+  gateBtn().disabled = true;
+  gateBtn().textContent = gateMode === "signup" ? "Creating…" : "Logging in…";
+
+  try {
+    let acct;
+    if (gateMode === "signup") {
+      const { color, avatar } = gateEditor.values(name);
+      acct = await rpc("chat_signup", {
+        p_name: name, p_password: pass, p_color: color, p_avatar: avatar,
+      });
+    } else {
+      acct = await rpc("chat_login", { p_name: name, p_password: pass });
+    }
+    const renamed = acct.name.toLowerCase() !== name.toLowerCase();
+    $("pass-input").value = "";
+    $("confirm-input").value = "";
+    await joinRoom(acct);
+    if (renamed) banner("Signed in as @" + acct.name + ".");
+  } catch (ex) {
     showError(ex?.message || "Network error.");
   }
 });
 
-/* =================== Chat =================== */
-// The legacy schema has a foreign key messages.name -> handles(name). If that
-// table still exists, make sure a row for this name is present so inserts pass.
-// This is NOT the old locking behaviour: there's no gate, no uniqueness read
-// from here — it only satisfies a leftover constraint. Best fixed for real by
-// dropping the FK (see README), which makes this a harmless no-op.
-async function ensureHandle() {
-  const { name, color } = state.me;
-  const { error } = await sb
-    .from("handles")
-    .upsert({ name, name_key: name.toLowerCase(), color }, { ignoreDuplicates: true });
-  // 42P01 = table doesn't exist (fresh schema) — expected, ignore.
-  if (error && error.code !== "42P01") console.warn("ensureHandle:", error.message);
+// Reloading shouldn't log you out: resume the stored session if it's still valid.
+async function resumeSession() {
+  const sess = loadSession();
+  if (!sess || !sess.name || !sess.token) return;
+  gateBtn().disabled = true;
+  gateBtn().textContent = "Resuming…";
+  try {
+    const acct = await rpc("chat_session", { p_name: sess.name, p_token: sess.token });
+    if (!acct) { saveSession(null); return resetGateBtn(); }
+    await joinRoom(acct);
+  } catch {
+    saveSession(null);
+    resetGateBtn();
+  }
 }
 
+/* =================== Chat =================== */
 async function enterApp() {
   gate.hidden = true;
   app.hidden = false;
@@ -286,19 +404,95 @@ async function enterApp() {
   if (state.me.avatar) avatars.set(state.me.name.toLowerCase(), state.me.avatar);
   refreshAvatars();
 
-  await ensureHandle();
-  await loadHistory();
-  renderOnline(state.room);
+  await loadRooms();
+  let want = null;
+  try { want = localStorage.getItem(lastChatKey(state.me.name)); } catch {}
+  const chat = state.rooms.find((r) => r.code === want) || state.rooms[0]
+            || { code: "main", name: "Main room" };
+  await openChat(chat);
 }
 
+/* =================== Chats =================== */
+// The switcher only lists chats you're in: the main room, ones you made, and
+// ones you've joined with a code.
+async function loadRooms() {
+  try {
+    const { data, error } = await sb.rpc("chat_my_rooms", {
+      p_name: state.me.name, p_token: state.me.token,
+    });
+    if (error) throw new Error(error.message);
+    state.rooms = data || [];
+  } catch (ex) {
+    banner("Could not load your chats: " + ex.message);
+    if (!state.rooms.length) state.rooms = [{ code: "main", name: "Main room" }];
+  }
+  renderRoomList();
+}
+
+function renderRoomList() {
+  const sel = $("room-select");
+  sel.innerHTML = "";
+  for (const r of state.rooms) {
+    const o = document.createElement("option");
+    o.value = r.code;
+    o.textContent = r.name;
+    sel.appendChild(o);
+  }
+  if (state.chat) sel.value = state.chat.code;
+}
+
+function renderChatHeader() {
+  renderRoomList();
+  const code = $("room-code");
+  // The main room is where everyone starts, so its code isn't worth sharing.
+  if (state.chat && state.chat.code !== "main") {
+    code.hidden = false;
+    code.textContent = state.chat.code;
+  } else {
+    code.hidden = true;
+  }
+}
+
+// Switching chats can fail (a deleted room, a dropped connection); fall back to
+// the chat we were in rather than leaving an empty screen.
+async function switchChat(chat) {
+  const previous = state.chat;
+  try {
+    await openChat(chat);
+  } catch (ex) {
+    banner("Could not open that chat: " + ex.message);
+    if (previous && previous.code !== chat.code) await openChat(previous).catch(() => {});
+    else renderChatHeader();
+  }
+}
+
+$("room-select").addEventListener("change", async (e) => {
+  const chat = state.rooms.find((r) => r.code === e.target.value);
+  if (chat && (!state.chat || chat.code !== state.chat.code)) await switchChat(chat);
+});
+
+// Click the code chip to copy it.
+$("room-code").addEventListener("click", async () => {
+  const code = state.chat && state.chat.code;
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    banner("Copied " + code + " — share it so people can join.");
+  } catch {
+    banner("This chat's code is " + code);
+  }
+});
+
 async function loadHistory() {
+  // Newest first so we get the current window, then flip it for rendering.
   const { data, error } = await sb
     .from("messages")
     .select("*")
-    .order("created_at", { ascending: true })
-    .limit(100);
+    .eq("channel", state.chat.code)
+    .order("id", { ascending: false })
+    .limit(MAX_MESSAGES);
   if (error) return banner("Could not load history: " + error.message);
-  for (const m of data) appendMessage(m, true);
+  for (const m of data.slice().reverse()) appendMessage(m, true);
   scrollToBottom();
 }
 
@@ -321,6 +515,7 @@ function appendMessage(m, quiet) {
     </div>`;
   paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatars.get(String(m.name).toLowerCase()) || null);
   box.appendChild(el);
+  while (box.childElementCount > MAX_MESSAGES) box.firstElementChild.remove();
   if (!quiet) scrollToBottom();
 }
 
@@ -346,14 +541,15 @@ $("composer-form").addEventListener("submit", async (e) => {
   const body = input.value.trim();
   if (!body) return;
   input.value = "";
-  const { error } = await sb.from("messages").insert({
-    channel: ROOM, // single room; kept so the legacy NOT NULL column is satisfied
-    name: state.me.name,
-    color: state.me.color,
-    body,
-  });
-  if (error) {
-    banner("Message failed: " + error.message);
+  // chat_post checks the session token and posts under the account's stored
+  // name + colour, so nobody can speak as somebody else.
+  try {
+    await rpc("chat_post", {
+      p_name: state.me.name, p_token: state.me.token,
+      p_code: state.chat.code, p_body: body,
+    });
+  } catch (ex) {
+    banner("Message failed: " + ex.message);
     input.value = body;
   }
 });
@@ -402,6 +598,10 @@ const modalEditor = makeEditor({
 function closeProfileModal() { $("profile-modal").hidden = true; }
 $("profile-btn").addEventListener("click", () => {
   modalEditor.set({ color: state.me.color, avatar: state.me.avatar });
+  $("acct-name").value = "";
+  $("acct-pass").value = "";
+  $("acct-master").value = "";
+  $("acct-msg").hidden = true;
   $("profile-modal").hidden = false;
 });
 $("profile-cancel").addEventListener("click", closeProfileModal);
@@ -410,6 +610,13 @@ $("profile-modal").addEventListener("click", (e) => {
 });
 $("profile-save").addEventListener("click", async () => {
   const { color, avatar } = modalEditor.values(state.me.name);
+  try {
+    await rpc("chat_update_profile", {
+      p_name: state.me.name, p_token: state.me.token, p_color: color, p_avatar: avatar,
+    });
+  } catch (ex) {
+    return banner("Could not save profile: " + ex.message);
+  }
   state.me.color = color;
   state.me.avatar = avatar;
   saveProfile({ name: state.me.name, color, avatar });
@@ -421,8 +628,197 @@ $("profile-save").addEventListener("click", async () => {
   closeProfileModal();
 
   // Re-broadcast so everyone else sees the new colour/photo immediately.
-  try { await state.room.track({ name: state.me.name, color, avatar, cid: CID }); }
+  try { await state.channel.track({ name: state.me.name, color, avatar, cid: CID }); }
   catch (e) { banner("Could not update profile: " + (e.message || e)); }
 });
 
+/* =================== Account (name / password) =================== */
+function acctMsg(text, ok) {
+  const el = $("acct-msg");
+  el.textContent = text;
+  el.classList.toggle("ok", !!ok);
+  el.hidden = false;
+}
+
+$("acct-save").addEventListener("click", async () => {
+  $("acct-msg").hidden = true;
+  const newName = $("acct-name").value.trim().replace(/^@+/, "").slice(0, 24);
+  const newPass = $("acct-pass").value;
+  const master = $("acct-master").value;
+
+  if (!master) return acctMsg("Enter the admin password to unlock account changes.");
+  if (!newName && !newPass) return acctMsg("Enter a new name or a new password.");
+
+  const btn = $("acct-save");
+  btn.disabled = true;
+  btn.textContent = "Applying…";
+  try {
+    // The master password is checked in the database, not here.
+    const acct = await rpc("chat_update_account", {
+      p_name: state.me.name,
+      p_master: master,
+      p_new_name: newName || null,
+      p_new_password: newPass || null,
+    });
+
+    const oldKey = state.me.name.toLowerCase();
+    state.me.name = acct.name;
+    state.me.token = acct.token; // a password change rotates it
+    saveSession({ name: state.me.name, token: state.me.token });
+    saveProfile({ name: state.me.name, color: state.me.color, avatar: state.me.avatar });
+
+    $("composer-handle").textContent = "@" + state.me.name;
+    avatars.delete(oldKey);
+    if (state.me.avatar) avatars.set(state.me.name.toLowerCase(), state.me.avatar);
+
+    // Re-announce under the new name so everyone's roster follows along.
+    await state.channel.track({
+      name: state.me.name, color: state.me.color, avatar: state.me.avatar, cid: CID,
+    });
+    refreshAvatars();
+
+    $("acct-name").value = "";
+    $("acct-pass").value = "";
+    $("acct-master").value = "";
+    closeProfileModal();
+    banner(newName ? `You're now @${state.me.name}.` : "Password changed.");
+  } catch (ex) {
+    acctMsg(ex.message || "Could not update the account.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Apply changes";
+  }
+});
+
+$("acct-logout").addEventListener("click", async () => {
+  saveSession(null);
+  if (state.channel) {
+    await sb.removeChannel(state.channel);
+    state.channel = null;
+  }
+  location.reload();
+});
+
+/* =================== Join / create a chat =================== */
+function modalError(id, msg) {
+  const el = $(id);
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+// ---- Join with a code ----
+function openCodeModal() {
+  $("code-input").value = "";
+  $("code-error").hidden = true;
+  $("code-modal").hidden = false;
+  $("code-input").focus();
+}
+function closeCodeModal() { $("code-modal").hidden = true; }
+
+$("join-btn").addEventListener("click", openCodeModal);
+$("code-cancel").addEventListener("click", closeCodeModal);
+$("code-modal").addEventListener("click", (e) => {
+  if (e.target === $("code-modal")) closeCodeModal();
+});
+$("code-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("code-join").click();
+});
+
+$("code-join").addEventListener("click", async () => {
+  $("code-error").hidden = true;
+  const code = $("code-input").value.trim();
+  if (!code) return modalError("code-error", "Enter a code.");
+
+  const btn = $("code-join");
+  btn.disabled = true;
+  btn.textContent = "Joining…";
+  try {
+    // chat_join_room adds you to the chat and hands back its real code + name,
+    // so a lowercase or mistyped-case code still works.
+    const chat = await rpc("chat_join_room", {
+      p_name: state.me.name, p_token: state.me.token, p_code: code,
+    });
+    closeCodeModal();
+    await loadRooms();
+    await switchChat({ code: chat.code, name: chat.name });
+    banner("Joined " + chat.name + ".");
+  } catch (ex) {
+    modalError("code-error", ex.message || "Could not join that chat.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Join →";
+  }
+});
+
+// ---- Create a chat ----
+let createdCode = null;
+function openNewModal() {
+  createdCode = null;
+  $("new-input").value = "";
+  $("new-input").disabled = false;
+  $("new-error").hidden = true;
+  $("new-done").hidden = true;
+  $("new-create").hidden = false;
+  $("new-cancel").textContent = "Cancel";
+  $("new-modal").hidden = false;
+  $("new-input").focus();
+}
+async function closeNewModal() {
+  $("new-modal").hidden = true;
+  // Made one? Go straight into it.
+  if (createdCode) {
+    const chat = state.rooms.find((r) => r.code === createdCode);
+    createdCode = null;
+    if (chat) await switchChat(chat);
+  }
+}
+
+$("new-btn").addEventListener("click", openNewModal);
+$("new-cancel").addEventListener("click", closeNewModal);
+$("new-modal").addEventListener("click", (e) => {
+  if (e.target === $("new-modal")) closeNewModal();
+});
+$("new-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("new-create").click();
+});
+$("new-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("new-code").textContent);
+    banner("Code copied.");
+  } catch {
+    banner("Write it down: " + $("new-code").textContent);
+  }
+});
+
+$("new-create").addEventListener("click", async () => {
+  $("new-error").hidden = true;
+  const name = $("new-input").value.trim();
+  if (!name) return modalError("new-error", "Give your chat a name.");
+
+  const btn = $("new-create");
+  btn.disabled = true;
+  btn.textContent = "Creating…";
+  try {
+    const chat = await rpc("chat_create_room", {
+      p_name: state.me.name, p_token: state.me.token, p_room_name: name,
+    });
+    await loadRooms();
+    // Show the code before leaving the modal — it's the only way in for others.
+    createdCode = chat.code;
+    $("new-code").textContent = chat.code;
+    $("new-done").hidden = false;
+    $("new-input").disabled = true;
+    btn.hidden = true;
+    $("new-cancel").textContent = "Open chat →";
+  } catch (ex) {
+    modalError("new-error", ex.message || "Could not create that chat.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Create →";
+  }
+});
+
+/* =================== Boot =================== */
+setGateMode("login");
 $("name-input").focus();
+resumeSession();

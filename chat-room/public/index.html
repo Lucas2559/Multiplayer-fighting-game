@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- ============ Name picker ============ -->
+  <!-- ============ Log in / create account ============ -->
   <div id="gate" class="gate">
     <div class="gate-card">
       <div class="brand">
@@ -19,19 +19,32 @@
           <div class="brand-sub">Chat</div>
         </div>
       </div>
-      <h1>Pick a name</h1>
-      <p class="gate-hint">
-        Choose the name you'll chat under. It's only yours while you're here —
-        no two people online can use the same name.
+      <div class="gate-tabs" role="tablist">
+        <button type="button" class="gate-tab sel" id="tab-login" role="tab">Log in</button>
+        <button type="button" class="gate-tab" id="tab-signup" role="tab">Create account</button>
+      </div>
+      <h1 id="gate-title">Welcome back</h1>
+      <p class="gate-hint" id="gate-hint">
+        Sign in with the name and password you registered.
       </p>
       <form id="gate-form" autocomplete="off">
         <div class="field">
           <span class="at">@</span>
           <input id="name-input" type="text" maxlength="24" placeholder="your-name"
-                 spellcheck="false" autofocus />
+                 spellcheck="false" autocomplete="username" autofocus />
+        </div>
+        <div class="field">
+          <span class="at">&#128274;</span>
+          <input id="pass-input" type="password" placeholder="password"
+                 autocomplete="current-password" />
+        </div>
+        <div class="field" id="confirm-field" hidden>
+          <span class="at">&#128274;</span>
+          <input id="confirm-input" type="password" placeholder="repeat password"
+                 autocomplete="new-password" />
         </div>
 
-        <div class="profile-edit">
+        <div class="profile-edit" id="gate-profile" hidden>
           <div class="avatar-preview" id="gate-avatar">?</div>
           <div class="profile-controls">
             <div class="swatches" id="gate-swatches"></div>
@@ -45,10 +58,12 @@
             <input type="file" id="gate-file" accept="image/*" hidden />
           </div>
         </div>
-        <p class="profile-hint">Pick a colour or upload a photo — GIFs animate (up to ~500&nbsp;KB).</p>
+        <p class="profile-hint" id="gate-profile-hint" hidden>
+          Pick a colour or upload a photo — GIFs animate (up to ~500&nbsp;KB).
+        </p>
 
         <div id="gate-error" class="gate-error" hidden></div>
-        <button id="gate-submit" type="submit">Join chat →</button>
+        <button id="gate-submit" type="submit">Log in →</button>
       </form>
     </div>
   </div>
@@ -57,9 +72,13 @@
   <div id="app" class="app" hidden>
     <header class="topbar">
       <div class="topbar-title">
-        <span class="brand-mark sm">✦</span> Nexus Canvas
+        <span class="brand-mark sm">✦</span>
+        <select id="room-select" class="room-select" title="Switch chat"></select>
+        <button id="room-code" class="room-code" title="Copy this chat's code"></button>
       </div>
       <div class="topbar-right">
+        <button id="join-btn" class="mini-btn" title="Join a chat with a code">Join code</button>
+        <button id="new-btn" class="mini-btn" title="Create a new chat">+ New chat</button>
         <button id="profile-btn" class="profile-btn" title="Edit your profile">
           <span class="avatar" id="me-avatar">?</span>
         </button>
@@ -104,6 +123,71 @@
       <div class="modal-actions">
         <button id="profile-cancel" type="button">Cancel</button>
         <button id="profile-save" type="button">Save</button>
+      </div>
+
+      <hr class="modal-sep" />
+
+      <h3 class="modal-sub">Account</h3>
+      <p class="profile-hint">
+        Changing your name or password is locked. You need the admin password to
+        unlock it — your own password won't do.
+      </p>
+      <div class="account-fields">
+        <label class="acct-row">
+          <span>New name</span>
+          <input id="acct-name" type="text" maxlength="24" placeholder="leave blank to keep"
+                 spellcheck="false" autocomplete="off" />
+        </label>
+        <label class="acct-row">
+          <span>New password</span>
+          <input id="acct-pass" type="password" placeholder="leave blank to keep"
+                 autocomplete="new-password" />
+        </label>
+        <label class="acct-row">
+          <span>Admin password</span>
+          <input id="acct-master" type="password" placeholder="required to unlock"
+                 autocomplete="off" />
+        </label>
+      </div>
+      <div id="acct-msg" class="gate-error" hidden></div>
+      <div class="modal-actions">
+        <button id="acct-logout" type="button" class="ghost-btn">Log out</button>
+        <button id="acct-save" type="button">Apply changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Join a chat by code ============ -->
+  <div id="code-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2>Join a chat</h2>
+      <p class="profile-hint">Type the code someone shared with you.</p>
+      <input id="code-input" class="code-input" maxlength="12" placeholder="ABC123"
+             spellcheck="false" autocomplete="off" />
+      <div id="code-error" class="gate-error" hidden></div>
+      <div class="modal-actions">
+        <button id="code-cancel" type="button">Cancel</button>
+        <button id="code-join" type="button">Join &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Create a chat ============ -->
+  <div id="new-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2>New chat</h2>
+      <p class="profile-hint">Give it a name, then share the code it gets.</p>
+      <input id="new-input" class="code-input name" maxlength="40" placeholder="Squad chat"
+             autocomplete="off" />
+      <div id="new-error" class="gate-error" hidden></div>
+      <div id="new-done" hidden>
+        <p class="profile-hint">Share this code so people can join:</p>
+        <div class="code-out" id="new-code"></div>
+        <button id="new-copy" type="button" class="mini-btn">Copy code</button>
+      </div>
+      <div class="modal-actions">
+        <button id="new-cancel" type="button">Close</button>
+        <button id="new-create" type="button">Create &rarr;</button>
       </div>
     </div>
   </div>
