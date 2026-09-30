@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Naval War</title>
+<style>
+  :root{
+    --bg:#040a10; --panel:#08121c; --line:#123047; --ink:#cfe6f5; --dim:#5d7f99;
+    --go:#3ddc97; --warn:#ffc857; --bad:#ff5a5f; --hull:#8fb8d6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg)}
+  body{
+    color:var(--ink);font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    display:flex;align-items:center;justify-content:center;
+    -webkit-font-smoothing:antialiased;user-select:none;
+  }
+  #stage{position:relative;width:min(100vw,1100px);height:min(100vh,720px)}
+  canvas{display:block;width:100%;height:100%;background:#061524;border-radius:10px}
+
+  .screen{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,10,16,.9);backdrop-filter:blur(3px);z-index:10;
+  }
+  .panel{
+    width:min(440px,92vw);background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:26px;
+  }
+  .brand{font-size:24px;letter-spacing:.26em;color:var(--go);font-weight:700}
+  .tag{color:var(--dim);font-size:11px;letter-spacing:.2em;margin-top:6px}
+  label{display:block;font-size:10px;letter-spacing:.2em;color:var(--dim);margin:18px 0 6px}
+  input{
+    width:100%;background:#0b1a28;border:1px solid var(--line);color:var(--ink);
+    border-radius:7px;padding:11px 12px;font:inherit;font-size:15px;letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  input:focus{outline:2px solid var(--go);outline-offset:-1px}
+  button{
+    width:100%;margin-top:18px;background:var(--go);border:none;color:#04221a;
+    border-radius:7px;padding:13px;font:inherit;font-weight:700;letter-spacing:.18em;
+    text-transform:uppercase;cursor:pointer;
+  }
+  button:hover{background:#54e8a9}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);margin-top:10px}
+  button.ghost:hover{background:#0f2133}
+  .keys{margin-top:18px;color:var(--dim);font-size:11.5px;line-height:1.9}
+  .keys b{color:var(--ink);font-weight:600}
+
+  /* HUD */
+  .hud{position:absolute;inset:0;pointer-events:none;padding:14px;z-index:5}
+  .hud .tl{position:absolute;top:14px;left:16px}
+  .hud .tr{position:absolute;top:14px;right:16px;text-align:right}
+  .hud .bl{position:absolute;bottom:14px;left:16px;max-width:52%}
+  .cap{font-size:10px;letter-spacing:.22em;color:var(--dim)}
+  .val{font-size:17px;letter-spacing:.1em;font-weight:700}
+  .bar{width:190px;height:9px;background:#10263a;border:1px solid var(--line);border-radius:5px;margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--go);transition:width .15s}
+  .bar.low i{background:var(--bad)}
+  .bar.god i{background:#d46bff;width:100% !important}
+  #godtag{display:none;margin-top:6px;font-size:10px;letter-spacing:.22em;color:#d46bff}
+  #godtag.on{display:block;animation:godpulse 1.2s ease-in-out infinite}
+  @keyframes godpulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .log div{font-size:11.5px;color:var(--dim);line-height:1.75}
+  .log b{color:var(--ink);font-weight:600}
+  .log .k{color:var(--warn)}
+  .log .o{color:#d46bff}
+
+  /* override console */
+  #override{
+    position:absolute;left:50%;bottom:26px;transform:translateX(-50%) translateY(150%);
+    width:min(460px,92vw);background:#0a0014;border:1px solid #d46bff;border-radius:9px;
+    padding:11px 13px;display:flex;align-items:center;gap:9px;z-index:20;
+    box-shadow:0 0 26px rgba(212,107,255,.3);transition:transform .2s cubic-bezier(.2,.9,.3,1.3);
+    pointer-events:auto;
+  }
+  #override.show{transform:translateX(-50%) translateY(0)}
+  #override span{color:#d46bff;font-size:12px;letter-spacing:.12em;white-space:nowrap}
+  #override input{
+    border:none;background:transparent;padding:0;color:#eec6ff;letter-spacing:.2em;
+    font-size:14px;
+  }
+  #override input:focus{outline:none}
+  #toast{
+    position:absolute;left:50%;top:26px;transform:translateX(-50%) translateY(-160%);
+    background:#d46bff;color:#12001c;padding:9px 18px;border-radius:8px;font-weight:700;
+    letter-spacing:.12em;font-size:12px;transition:transform .2s;z-index:20;white-space:nowrap;
+  }
+  #toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+
+  <div class="hud" id="hud" style="display:none">
+    <div class="tl">
+      <div class="cap">CAPTAIN</div>
+      <div class="val" id="h-name">—</div>
+      <div class="cap" style="margin-top:10px">HULL INTEGRITY</div>
+      <div class="bar" id="h-bar"><i style="width:100%"></i></div>
+      <div id="godtag">░ INVINCIBLE · LEVIATHAN CLASS ░</div>
+    </div>
+    <div class="tr">
+      <div class="cap">HOSTILES</div>
+      <div class="val" id="h-left">0</div>
+      <div class="cap" style="margin-top:10px">WAVE</div>
+      <div class="val" id="h-wave">1</div>
+    </div>
+    <div class="bl log" id="h-log"></div>
+  </div>
+
+  <div class="screen" id="menu">
+    <div class="panel">
+      <div class="brand">NAVAL WAR</div>
+      <div class="tag">BATTLEZONE &middot; SECURE FLEET UPLINK</div>
+      <label for="callsign">Captain callsign</label>
+      <input id="callsign" maxlength="12" placeholder="CALLSIGN" autocomplete="off">
+      <button id="deploy">Deploy warship</button>
+      <div class="keys">
+        <b>W A S D</b> &mdash; steer and throttle<br>
+        <b>MOUSE</b> &mdash; aim turret &middot; <b>CLICK</b> &mdash; fire<br>
+        <b>SPACE</b> &mdash; fire &middot; <b>P</b> &mdash; pause
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="endcard" style="display:none">
+    <div class="panel">
+      <div class="brand" id="end-title">FLEET LOST</div>
+      <div class="tag" id="end-sub">&nbsp;</div>
+      <div class="keys" id="end-stats"></div>
+      <button id="again">Redeploy</button>
+      <button class="ghost" id="tomenu">Stand down</button>
+    </div>
+  </div>
+
+  <div id="override"><span>ADMIRALTY OVERRIDE &gt;</span><input id="ovin" maxlength="14" autocomplete="off" placeholder="TARGET CALLSIGN"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+/* =========================================================================
+   NAVAL WAR — BATTLEZONE
+   Top-down real-time naval combat. Runs entirely offline in this tab.
+   ========================================================================= */
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const ARENA = { w: 1600, h: 1100 };          // world units
+const CALLSIGNS = ['KRAKEN','VIPER','REAPER','TALON','WRAITH','COBRA','OSPREY',
+                   'MARLIN','TEMPEST','BARRACUDA','SABRE','NOMAD','ORCA','LANCE'];
+
+const CLASSES = {
+  patrol:    { hp: 40,  spd: 1.55, len: 26, beam: 10, rof: 1500, dmg: 7,  col: '#ff7a5f', pts: 100 },
+  destroyer: { hp: 70,  spd: 1.15, len: 34, beam: 13, rof: 1150, dmg: 10, col: '#ff5a8a', pts: 180 },
+  cruiser:   { hp: 120, spd: 0.85, len: 44, beam: 17, rof: 900,  dmg: 13, col: '#c86bff', pts: 300 },
+};
+
+const G = {
+  state: 'menu',
+  name: 'CAPTAIN',
+  player: null,
+  enemies: [], shells: [], parts: [], wakes: [],
+  keys: {}, mouse: { x: 0, y: 0 },
+  cam: { x: 0, y: 0 },
+  wave: 1, score: 0, kills: 0,
+  log: [],
+  paused: false,
+  last: 0,
+  cheatBuf: '',
+  overrideOpen: false,
+  overrides: 0,
+  god: false,      // set by the hidden code: invincible + oversized
+  rams: 0,
+};
+
+/* ------------------------------------------------------------------ util */
+const rnd  = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angDiff = d => { while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
+
+function log(text, cls) {
+  G.log.unshift({ text, cls });
+  G.log = G.log.slice(0, 6);
+  const box = document.getElementById('h-log');
+  box.replaceChildren();
+  for (const l of G.log) {
+    const d = document.createElement('div');
+    if (l.cls) { const s = document.createElement('span'); s.className = l.cls; s.textContent = l.text; d.append(s); }
+    else d.textContent = l.text;
+    box.append(d);
+  }
+}
+
+let toastT;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ------------------------------------------------------------- entities */
+function makeShip(kind, x, y, name, friendly) {
+  const c = CLASSES[kind];
+  return { kind, x, y, a: rnd(0, Math.PI * 2), vx: 0, vy: 0,
+           hp: c.hp, maxhp: c.hp, name, friendly, cool: rnd(0, c.rof),
+           hit: 0, dead: false, scale: 1 };
+}
+
+function spawnWave(n) {
+  const pool = [...CALLSIGNS].sort(() => Math.random() - 0.5);
+  const kinds = ['patrol','patrol','destroyer','cruiser'];
+  for (let i = 0; i < n; i++) {
+    const kind = kinds[clamp(Math.floor(rnd(0, 2 + G.wave * 0.6)), 0, kinds.length - 1)];
+    let x, y, guard = 0;
+    do { x = rnd(80, ARENA.w - 80); y = rnd(80, ARENA.h - 80); guard++; }
+    while (guard < 60 && dist({x,y}, G.player) < 420);
+    G.enemies.push(makeShip(kind, x, y, pool[i % pool.length] + (i >= pool.length ? '-' + i : ''), false));
+  }
+}
+
+function boom(x, y, n, col, spread) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd(0, Math.PI * 2), s = rnd(0.5, spread || 3.4);
+    G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(18, 46), max: 46, col });
+  }
+}
+
+function fire(ship, tx, ty) {
+  const c = CLASSES[ship.kind];
+  if (ship.cool > 0 || ship.dead) return;
+  ship.cool = c.rof;
+  const a = Math.atan2(ty - ship.y, tx - ship.x);
+  const muzzle = c.len * 0.5;
+  G.shells.push({
+    x: ship.x + Math.cos(a) * muzzle, y: ship.y + Math.sin(a) * muzzle,
+    vx: Math.cos(a) * 6.2, vy: Math.sin(a) * 6.2,
+    dmg: c.dmg, friendly: ship.friendly, life: 150,
+  });
+}
+
+function damage(ship, dmg, why) {
+  if (ship.dead) return;
+  if (ship.friendly && G.god) {            // shells just spark off the hull
+    boom(ship.x, ship.y, 4, '#d46bff', 1.6);
+    return;
+  }
+  ship.hp -= dmg; ship.hit = 8;
+  if (ship.hp > 0) return;
+  ship.dead = true;
+  boom(ship.x, ship.y, 46, CLASSES[ship.kind].col, 4.6);
+  if (ship.friendly) {
+    G.state = 'over';
+    showEnd(false);
+  } else {
+    G.kills++; G.score += CLASSES[ship.kind].pts;
+    if (why === 'override') log(`OVERRIDE ACCEPTED — ${ship.name} SCUTTLED`, 'o');
+    else log(`${ship.name} DESTROYED`, 'k');
+  }
+}
+
+/* --------------------------------------------------------------- update */
+function update(dt) {
+  const P = G.player;
+
+  /* player helm */
+  const turn = 0.045 * dt, acc = 0.028 * dt;
+  if (G.keys['a']) P.a -= turn;
+  if (G.keys['d']) P.a += turn;
+  if (G.keys['w']) { P.vx += Math.cos(P.a) * acc; P.vy += Math.sin(P.a) * acc; }
+  if (G.keys['s']) { P.vx -= Math.cos(P.a) * acc * 0.6; P.vy -= Math.sin(P.a) * acc * 0.6; }
+  P.vx *= 0.982; P.vy *= 0.982;
+  const sp = Math.hypot(P.vx, P.vy), max = 3.1;
+  if (sp > max) { P.vx = P.vx / sp * max; P.vy = P.vy / sp * max; }
+  P.x = clamp(P.x + P.vx * dt, 24, ARENA.w - 24);
+  P.y = clamp(P.y + P.vy * dt, 24, ARENA.h - 24);
+  if (sp > 0.6 && Math.random() < 0.4) G.wakes.push({ x: P.x - Math.cos(P.a) * 14, y: P.y - Math.sin(P.a) * 14, life: 34 });
+  P.cool = Math.max(0, P.cool - dt * 16);
+
+  // the hidden code makes you a leviathan: grow smoothly, then ram through
+  const wantScale = G.god ? 2.9 : 1;
+  P.scale += (wantScale - P.scale) * 0.06 * dt;
+  if (G.god) {
+    P.hp = P.maxhp;
+    const reach = CLASSES[P.kind].beam * P.scale + 8;
+    for (const e of G.enemies) {
+      if (e.dead) continue;
+      if (dist(e, P) < reach + CLASSES[e.kind].len * 0.45) {
+        G.rams++;
+        boom(e.x, e.y, 30, '#d46bff', 4);
+        damage(e, 1e9, 'ram');
+        log(`${e.name} RUN DOWN`, 'o');
+      }
+    }
+  }
+
+  /* camera follows, clamped to the arena */
+  const vw = cv.width / DPR, vh = cv.height / DPR;
+  G.cam.x = clamp(P.x - vw / 2, 0, Math.max(0, ARENA.w - vw));
+  G.cam.y = clamp(P.y - vh / 2, 0, Math.max(0, ARENA.h - vh));
+
+  /* enemy helm + gunnery */
+  for (const e of G.enemies) {
+    if (e.dead) continue;
+    const c = CLASSES[e.kind];
+    const d = dist(e, P);
+    const want = Math.atan2(P.y - e.y, P.x - e.x);
+    const off = angDiff(want - e.a);
+    e.a += clamp(off, -0.026 * dt, 0.026 * dt);
+    const thrust = d > 260 ? 1 : d < 150 ? -0.5 : 0.15;
+    e.vx += Math.cos(e.a) * 0.02 * thrust * dt;
+    e.vy += Math.sin(e.a) * 0.02 * thrust * dt;
+    e.vx *= 0.975; e.vy *= 0.975;
+    const es = Math.hypot(e.vx, e.vy);
+    if (es > c.spd) { e.vx = e.vx / es * c.spd; e.vy = e.vy / es * c.spd; }
+    e.x = clamp(e.x + e.vx * dt, 24, ARENA.w - 24);
+    e.y = clamp(e.y + e.vy * dt, 24, ARENA.h - 24);
+    e.cool -= dt * 16;
+    e.hit = Math.max(0, e.hit - dt);
+    if (d < 520 && Math.abs(off) < 0.5 && e.cool <= 0) {
+      const lead = 14;
+      fire(e, P.x + P.vx * lead, P.y + P.vy * lead);
+    }
+  }
+  G.enemies = G.enemies.filter(e => !e.dead);
+  P.hit = Math.max(0, P.hit - dt);
+
+  /* shells */
+  for (const s of G.shells) {
+    s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
+    if (s.x < 0 || s.y < 0 || s.x > ARENA.w || s.y > ARENA.h) s.life = 0;
+    const targets = s.friendly ? G.enemies : [P];
+    for (const t of targets) {
+      if (t.dead) continue;
+      if (dist(s, t) < CLASSES[t.kind].beam * (t.scale || 1) + 6) {
+        damage(t, s.dmg);
+        boom(s.x, s.y, 9, '#ffd8a8', 2.2);
+        s.life = 0;
+        break;
+      }
+    }
+  }
+  G.shells = G.shells.filter(s => s.life > 0);
+
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= dt; }
+  G.parts = G.parts.filter(p => p.life > 0);
+  for (const w of G.wakes) w.life -= dt;
+  G.wakes = G.wakes.filter(w => w.life > 0);
+
+  if (!G.enemies.length && G.state === 'playing') {
+    G.wave++;
+    if (G.wave > 4) { G.state = 'won'; showEnd(true); return; }
+    log(`WAVE ${G.wave} INBOUND`, 'k');
+    spawnWave(2 + G.wave);
+  }
+  syncHud();
+}
+
+/* ----------------------------------------------------------------- draw */
+let DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = cv.clientWidth * DPR;
+  cv.height = cv.clientHeight * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+function drawShip(s) {
+  const c = CLASSES[s.kind];
+  const sc = s.scale || 1;
+  const L = c.len * sc, B = c.beam * sc;
+  ctx.save();
+  ctx.translate(s.x - G.cam.x, s.y - G.cam.y);
+  ctx.rotate(s.a);
+
+  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = s.hit > 0 ? '#ffffff'
+    : (s.friendly ? (G.god ? '#d46bff' : '#7fd8ff') : c.col);
+  if (s.friendly && G.god) { ctx.shadowColor = 'rgba(212,107,255,.85)'; ctx.shadowBlur = 22; }
+  ctx.beginPath();
+  ctx.moveTo(L * 0.5, 0);
+  ctx.quadraticCurveTo(L * 0.2, -B * 0.55, -L * 0.34, -B * 0.5);
+  ctx.lineTo(-L * 0.5, -B * 0.34);
+  ctx.lineTo(-L * 0.5, B * 0.34);
+  ctx.lineTo(-L * 0.34, B * 0.5);
+  ctx.quadraticCurveTo(L * 0.2, B * 0.55, L * 0.5, 0);
+  ctx.fill();
+  ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,.34)';
+  ctx.fillRect(-L * 0.14, -B * 0.3, L * 0.3, B * 0.6);
+  ctx.fillRect(L * 0.2, -1.6, L * 0.2, 3.2);
+  ctx.restore();
+
+  /* callsign + health */
+  const sx = s.x - G.cam.x, sy = s.y - G.cam.y;
+  ctx.font = '600 10px ui-monospace,Menlo,monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = s.friendly ? 'rgba(127,216,255,.95)' : 'rgba(255,255,255,.72)';
+  ctx.fillText(s.name, sx, sy - B - 13);
+  const bw = 34, pct = clamp(s.hp / s.maxhp, 0, 1);
+  ctx.fillStyle = 'rgba(0,0,0,.45)';
+  ctx.fillRect(sx - bw / 2, sy - B - 9, bw, 3.4);
+  ctx.fillStyle = pct > 0.45 ? '#3ddc97' : pct > 0.2 ? '#ffc857' : '#ff5a5f';
+  ctx.fillRect(sx - bw / 2, sy - B - 9, bw * pct, 3.4);
+}
+
+function draw() {
+  const vw = cv.width / DPR, vh = cv.height / DPR;
+  ctx.fillStyle = '#061524';
+  ctx.fillRect(0, 0, vw, vh);
+
+  /* swell */
+  ctx.strokeStyle = 'rgba(80,150,200,.07)'; ctx.lineWidth = 1;
+  const t = performance.now() * 0.00035;
+  for (let y = -60; y < ARENA.h + 60; y += 46) {
+    const sy = y - G.cam.y;
+    if (sy < -60 || sy > vh + 60) continue;
+    ctx.beginPath();
+    for (let x = 0; x <= vw; x += 22)
+      ctx.lineTo(x, sy + Math.sin((x + G.cam.x) * 0.012 + t + y) * 4);
+    ctx.stroke();
+  }
+
+  /* arena bounds */
+  ctx.strokeStyle = 'rgba(61,220,151,.22)'; ctx.lineWidth = 2;
+  ctx.strokeRect(-G.cam.x, -G.cam.y, ARENA.w, ARENA.h);
+
+  for (const w of G.wakes) {
+    ctx.globalAlpha = w.life / 34 * 0.4;
+    ctx.fillStyle = '#9fd8ff';
+    ctx.beginPath(); ctx.arc(w.x - G.cam.x, w.y - G.cam.y, 3.2, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const e of G.enemies) drawShip(e);
+  if (G.player && !G.player.dead) drawShip(G.player);
+
+  ctx.fillStyle = '#ffe2b0';
+  for (const s of G.shells) {
+    ctx.beginPath(); ctx.arc(s.x - G.cam.x, s.y - G.cam.y, 2.6, 0, 7); ctx.fill();
+  }
+  for (const p of G.parts) {
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x - G.cam.x - 1.6, p.y - G.cam.y - 1.6, 3.2, 3.2);
+  }
+  ctx.globalAlpha = 1;
+
+  /* offscreen hostile markers */
+  for (const e of G.enemies) {
+    const sx = e.x - G.cam.x, sy = e.y - G.cam.y;
+    if (sx > 6 && sx < vw - 6 && sy > 6 && sy < vh - 6) continue;
+    const cx = clamp(sx, 12, vw - 12), cy = clamp(sy, 12, vh - 12);
+    ctx.fillStyle = 'rgba(255,90,95,.8)';
+    ctx.beginPath(); ctx.arc(cx, cy, 3.4, 0, 7); ctx.fill();
+  }
+}
+
+function syncHud() {
+  const P = G.player; if (!P) return;
+  document.getElementById('h-left').textContent = G.enemies.length;
+  document.getElementById('h-wave').textContent = G.wave;
+  const bar = document.getElementById('h-bar');
+  const pct = clamp(P.hp / P.maxhp, 0, 1);
+  bar.firstElementChild.style.width = (pct * 100) + '%';
+  bar.classList.toggle('low', !G.god && pct < 0.35);
+}
+
+/* ----------------------------------------------------------------- loop */
+function frame(ts) {
+  const dt = clamp((ts - G.last) / 16.67, 0, 3);
+  G.last = ts;
+  if (G.state === 'playing' && !G.paused) update(dt);
+  if (G.player) draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------------------------------------------------------------- input */
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+
+  /* the hidden sequence — ignored while the override box has focus */
+  if (!G.overrideOpen && e.key.length === 1) {
+    G.cheatBuf = (G.cheatBuf + k).slice(-8);
+    if (G.cheatBuf === 'hihihihi') { G.cheatBuf = ''; openOverride(); return; }
+  }
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+  G.keys[k] = true;
+  if (k === 'p' && G.state === 'playing') { G.paused = !G.paused; toast(G.paused ? 'PAUSED' : 'RESUMED'); }
+  if (k === ' ' && G.state === 'playing') { e.preventDefault(); fire(G.player, G.mouse.x + G.cam.x, G.mouse.y + G.cam.y); }
+});
+addEventListener('keyup', e => { G.keys[e.key.toLowerCase()] = false; });
+
+cv.addEventListener('mousemove', e => {
+  const r = cv.getBoundingClientRect();
+  G.mouse.x = (e.clientX - r.left) * (cv.width / DPR / r.width);
+  G.mouse.y = (e.clientY - r.top) * (cv.height / DPR / r.height);
+});
+cv.addEventListener('mousedown', () => {
+  if (G.state === 'playing' && !G.paused) fire(G.player, G.mouse.x + G.cam.x, G.mouse.y + G.cam.y);
+});
+
+/* ------------------------------------------------- admiralty override */
+function openOverride() {
+  G.overrideOpen = true;
+  document.getElementById('override').classList.add('show');
+  const i = document.getElementById('ovin');
+  i.value = ''; i.focus();
+  if (!G.god) {
+    G.god = true;
+    document.getElementById('godtag').classList.add('on');
+    document.getElementById('h-bar').classList.add('god');
+    if (G.player) { G.player.hp = G.player.maxhp; }
+    log('LEVIATHAN PROTOCOL — HULL SEALED, DISPLACEMENT x3', 'o');
+    toast('INVINCIBLE · LEVIATHAN CLASS');
+  } else {
+    toast('ADMIRALTY OVERRIDE ARMED');
+  }
+  log('OVERRIDE CHANNEL OPEN', 'o');
+}
+function closeOverride() {
+  G.overrideOpen = false;
+  document.getElementById('override').classList.remove('show');
+  document.getElementById('ovin').blur();
+}
+document.getElementById('ovin').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Escape') { closeOverride(); return; }
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim().toUpperCase();
+  e.target.value = '';
+  if (!q) { closeOverride(); return; }
+  const target = G.enemies.find(s => s.name === q) || G.enemies.find(s => s.name.startsWith(q));
+  if (!target) { toast('NO SUCH VESSEL: ' + q); log(`OVERRIDE REJECTED — ${q} NOT FOUND`, 'o'); return; }
+  G.overrides++;
+  boom(target.x, target.y, 26, '#d46bff', 3);
+  damage(target, 1e9, 'override');
+  toast(q + ' SCUTTLED');
+});
+
+/* ---------------------------------------------------------- lifecycle */
+function startGame() {
+  const raw = document.getElementById('callsign').value.trim().toUpperCase();
+  G.name = raw || 'CAPTAIN';
+  document.getElementById('h-name').textContent = G.name;
+  G.player = makeShip('destroyer', ARENA.w / 2, ARENA.h / 2, G.name, true);
+  G.player.hp = G.player.maxhp = 110;
+  G.enemies = []; G.shells = []; G.parts = []; G.wakes = [];
+  G.wave = 1; G.score = 0; G.kills = 0; G.overrides = 0; G.rams = 0; G.log = [];
+  G.god = false;
+  document.getElementById('godtag').classList.remove('on');
+  document.getElementById('h-bar').classList.remove('god');
+  G.paused = false; G.state = 'playing';
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('endcard').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  log('DEPLOYED — OPEN OCEAN SECTOR', 'k');
+  spawnWave(3);
+  syncHud();
+}
+
+function showEnd(won) {
+  document.getElementById('hud').style.display = 'block';
+  const card = document.getElementById('endcard');
+  document.getElementById('end-title').textContent = won ? 'SECTOR CLEARED' : 'VESSEL LOST';
+  document.getElementById('end-sub').textContent = won
+    ? 'ALL HOSTILES DESTROYED' : 'YOUR HULL BREACHED';
+  document.getElementById('end-stats').innerHTML =
+    `<b>${G.kills}</b> hostiles destroyed<br><b>${G.score}</b> points<br>` +
+    `reached wave <b>${Math.min(G.wave, 4)}</b>` +
+    (G.overrides ? `<br><span style="color:#d46bff">${G.overrides} scuttled by override</span>` : '') +
+    (G.rams ? `<br><span style="color:#d46bff">${G.rams} run down by the leviathan</span>` : '');
+  card.style.display = 'flex';
+  closeOverride();
+}
+
+document.getElementById('deploy').onclick = startGame;
+document.getElementById('callsign').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') startGame();
+});
+document.getElementById('again').onclick = startGame;
+document.getElementById('tomenu').onclick = () => {
+  G.state = 'menu';
+  document.getElementById('endcard').style.display = 'none';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+};
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

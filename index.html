@@ -86,6 +86,11 @@
         .battleship-card .game-icon {
             color: #3ddc97;
         }
+        /* Naval War is hidden from the hub for now; keeping the styles for later.
+        .naval-card .game-icon {
+            color: #ff7a5f;
+        }
+        */
     </style>
 </head>
 <body>
@@ -153,9 +158,20 @@
             <div class="game-icon">&#128172;</div>
             <h2 class="game-title">Chat Room</h2>
             <p class="game-description">
-                Real-time chat room powered by Supabase. Jump in and message everyone live!
+                Real-time chat room powered by Supabase. Create an account, log
+                in and message everyone live!
             </p>
         </a>
+        <!-- Naval War is hidden from the hub for now; the game lives in naval-war/index.html.
+        <a href="naval-war/index.html" class="game-card naval-card">
+            <div class="game-icon">&#9875;</div>
+            <h2 class="game-title">Naval War</h2>
+            <p class="game-description">
+                Top-down real-time naval combat. Steer with WASD, aim with the
+                mouse and fight off four waves of hostile warships.
+            </p>
+        </a>
+        -->
         <a href="battleship/index.html" class="game-card battleship-card">
             <div class="game-icon">&#128674;</div>
             <h2 class="game-title">Battleship</h2>
