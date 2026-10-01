@@ -151,6 +151,10 @@ html, body {
 .modal-card h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: -0.3px; }
 .modal-sep { border: none; border-top: 1px solid var(--line); margin: 24px 0 18px; }
 .modal-sub { margin: 0 0 6px; font-size: 14px; letter-spacing: -0.2px; }
+.modal-sub .opt {
+  color: var(--faint); font-size: 11px; font-weight: 500;
+  letter-spacing: 0; margin-left: 6px; text-transform: uppercase;
+}
 
 /* Account (name / password) fields */
 .account-fields { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
@@ -163,7 +167,7 @@ html, body {
 }
 .acct-row input:focus { border-color: var(--accent); }
 .acct-row input::placeholder { color: var(--faint); font-family: "Inter", sans-serif; }
-.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
 .modal-actions button {
   flex: 1; border-radius: 10px; padding: 11px; font-weight: 600;
   cursor: pointer; font-size: 14px; border: none; font-family: inherit;

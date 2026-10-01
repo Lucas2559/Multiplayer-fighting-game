@@ -895,30 +895,73 @@ $("profile-cancel").addEventListener("click", closeProfileModal);
 $("profile-modal").addEventListener("click", (e) => {
   if (e.target === $("profile-modal")) closeProfileModal();
 });
+// One Save for the whole dialog. The picture and colour always save; the name
+// and password only if you actually typed one, which is the only case that
+// needs the admin password.
 $("profile-save").addEventListener("click", async () => {
+  $("acct-msg").hidden = true;
   const { color, avatar } = modalEditor.values(state.me.name);
+  const newName = $("acct-name").value.trim().replace(/^@+/, "").slice(0, 24);
+  const newPass = $("acct-pass").value;
+  const master = $("acct-master").value;
+  const changingAccount = !!(newName || newPass);
+
+  if (changingAccount && !master)
+    return acctMsg("Enter the admin password to change your name or password.");
+
+  const btn = $("profile-save");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
   try {
+    // Picture and colour first: chat_update_profile is keyed on the current
+    // name, which a rename below would change out from under it.
     await rpc("chat_update_profile", {
       p_name: state.me.name, p_token: state.me.token, p_color: color, p_avatar: avatar,
     });
+    state.me.color = color;
+    state.me.avatar = avatar;
+    state.me.avh = hashAvatar(avatar);
+    avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
+    saveProfile({ name: state.me.name, color, avatar });
+
+    if (changingAccount) {
+      const acct = await rpc("chat_update_account", {
+        p_name: state.me.name,
+        p_master: master,
+        p_new_name: newName || null,
+        p_new_password: newPass || null,
+      });
+      const oldKey = state.me.name.toLowerCase();
+      state.me.name = acct.name;
+      state.me.token = acct.token; // a password change rotates it
+      saveSession({ name: state.me.name, token: state.me.token });
+      saveProfile({ name: state.me.name, color, avatar });
+      $("composer-handle").textContent = "@" + state.me.name;
+      avatars.delete(oldKey);
+      avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
+    }
+
+    refreshAvatars();
+    if (state.channel) {
+      // Re-announce so everyone else picks up the new name/colour, and the new
+      // hash tells them to re-fetch the picture.
+      await state.channel.track({
+        name: state.me.name, color: state.me.color, avh: state.me.avh || "", cid: CID,
+      });
+    }
+    $("acct-name").value = "";
+    $("acct-pass").value = "";
+    $("acct-master").value = "";
+    closeProfileModal();
+    banner(changingAccount
+      ? (newName ? `Saved — you're now @${state.me.name}.` : "Saved — password changed.")
+      : "Profile saved.");
   } catch (ex) {
-    return banner("Could not save profile: " + ex.message);
+    acctMsg(ex.message || "Could not save.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Save";
   }
-  state.me.color = color;
-  state.me.avatar = avatar;
-  saveProfile({ name: state.me.name, color, avatar });
-
-  state.me.avh = hashAvatar(avatar);
-  avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
-  refreshAvatars();
-  closeProfileModal();
-
-  // Re-announce with the new hash so other tabs notice and re-fetch the photo.
-  try {
-    await state.channel.track({
-      name: state.me.name, color, avh: state.me.avh || "", cid: CID,
-    });
-  } catch (e) { banner("Could not update profile: " + (e.message || e)); }
 });
 
 /* =================== Account (name / password) =================== */
@@ -928,56 +971,6 @@ function acctMsg(text, ok) {
   el.classList.toggle("ok", !!ok);
   el.hidden = false;
 }
-
-$("acct-save").addEventListener("click", async () => {
-  $("acct-msg").hidden = true;
-  const newName = $("acct-name").value.trim().replace(/^@+/, "").slice(0, 24);
-  const newPass = $("acct-pass").value;
-  const master = $("acct-master").value;
-
-  if (!master) return acctMsg("Enter the admin password to unlock account changes.");
-  if (!newName && !newPass) return acctMsg("Enter a new name or a new password.");
-
-  const btn = $("acct-save");
-  btn.disabled = true;
-  btn.textContent = "Applying…";
-  try {
-    // The master password is checked in the database, not here.
-    const acct = await rpc("chat_update_account", {
-      p_name: state.me.name,
-      p_master: master,
-      p_new_name: newName || null,
-      p_new_password: newPass || null,
-    });
-
-    const oldKey = state.me.name.toLowerCase();
-    state.me.name = acct.name;
-    state.me.token = acct.token; // a password change rotates it
-    saveSession({ name: state.me.name, token: state.me.token });
-    saveProfile({ name: state.me.name, color: state.me.color, avatar: state.me.avatar });
-
-    $("composer-handle").textContent = "@" + state.me.name;
-    avatars.delete(oldKey);
-    avatars.set(state.me.name.toLowerCase(), { h: state.me.avh || "", url: state.me.avatar || null });
-
-    // Re-announce under the new name so everyone's roster follows along.
-    await state.channel.track({
-      name: state.me.name, color: state.me.color, avh: state.me.avh || "", cid: CID,
-    });
-    refreshAvatars();
-
-    $("acct-name").value = "";
-    $("acct-pass").value = "";
-    $("acct-master").value = "";
-    closeProfileModal();
-    banner(newName ? `You're now @${state.me.name}.` : "Password changed.");
-  } catch (ex) {
-    acctMsg(ex.message || "Could not update the account.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Apply changes";
-  }
-});
 
 $("acct-logout").addEventListener("click", async () => {
   saveSession(null);

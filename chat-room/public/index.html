@@ -132,17 +132,13 @@
         </div>
       </div>
       <p class="profile-hint">GIFs animate. Uploads are capped at 5&nbsp;MB.</p>
-      <div class="modal-actions">
-        <button id="profile-cancel" type="button">Cancel</button>
-        <button id="profile-save" type="button">Save</button>
-      </div>
 
       <hr class="modal-sep" />
 
-      <h3 class="modal-sub">Account</h3>
+      <h3 class="modal-sub">Account <span class="opt">optional</span></h3>
       <p class="profile-hint">
-        Changing your name or password is locked. You need the admin password to
-        unlock it — your own password won't do.
+        Leave these empty to just change your picture or colour. To change your
+        name or password you also need the admin password — your own won't do.
       </p>
       <div class="account-fields">
         <label class="acct-row">
@@ -164,7 +160,8 @@
       <div id="acct-msg" class="gate-error" hidden></div>
       <div class="modal-actions">
         <button id="acct-logout" type="button" class="ghost-btn">Log out</button>
-        <button id="acct-save" type="button">Apply changes</button>
+        <button id="profile-cancel" type="button">Cancel</button>
+        <button id="profile-save" type="button">Save</button>
       </div>
     </div>
   </div>
