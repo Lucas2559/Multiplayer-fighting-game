@@ -33,6 +33,23 @@ create table if not exists public.messages (
 create index if not exists messages_created_idx
   on public.messages (created_at);
 
+-- A message can carry a picture instead of, or as well as, text. It is a data
+-- URL, like an avatar. chat_history() never returns this column -- 500 of them
+-- would be a hundreds-of-megabytes reply -- it reports has_image and the
+-- browser asks for each one separately through chat_image().
+alter table public.messages add column if not exists image text;
+
+-- The original constraint demanded at least one character of text, which a
+-- picture-only message has none of. "Something must be here" moves into
+-- chat_post(), which can see both columns.
+alter table public.messages drop constraint if exists messages_body_check;
+do $$
+begin
+  alter table public.messages add constraint messages_body_ck
+    check (char_length(body) <= 2000);
+exception when duplicate_object then null;
+end $$;
+
 -- Legacy: the very first version of this app tied messages.name to a `handles`
 -- table with a foreign key. Posting now goes through chat_post(), so drop it.
 alter table public.messages drop constraint if exists messages_name_fkey;
@@ -489,15 +506,20 @@ end $$;
 -- and colour are used, so nobody can post under someone else's name.
 -- The old 3-argument version (before chats) has to go, or both would resolve.
 drop function if exists public.chat_post(text, uuid, text);
-create or replace function public.chat_post(p_name text, p_token uuid, p_code text, p_body text)
+drop function if exists public.chat_post(text, uuid, text, text);
+create or replace function public.chat_post(p_name text, p_token uuid, p_code text, p_body text,
+                                            p_image text default null)
 returns void
 language plpgsql security definer set search_path = public as $$
 declare v_key  text := chat_auth(p_name, p_token);
         v_body text := btrim(coalesce(p_body, ''));
         v_code text;
 begin
-  if char_length(v_body) < 1 or char_length(v_body) > 2000 then
-    raise exception 'Messages must be 1-2000 characters.';
+  if v_body = '' and p_image is null then
+    raise exception 'Type something or choose a picture.';
+  end if;
+  if char_length(v_body) > 2000 then
+    raise exception 'Messages can be at most 2000 characters.';
   end if;
   select r.code into v_code from chat_rooms r
    where upper(r.code) = upper(btrim(coalesce(p_code, '')));
@@ -506,8 +528,8 @@ begin
     raise exception 'You do not have access to that chat.';
   end if;
 
-  insert into messages (channel, name, color, body)
-  select v_code, a.name, a.color, v_body from accounts a where a.name_key = v_key;
+  insert into messages (channel, name, color, body, image)
+  select v_code, a.name, a.color, v_body, p_image from accounts a where a.name_key = v_key;
 
   -- Rolling window, per chat: drop anything past the newest
   -- chat_message_limit() rows in THIS room. `id` is an identity column, so
@@ -523,10 +545,13 @@ end $$;
 -- The messages in a chat, newest-window first, but only if you may see it.
 -- `p_after` fetches just what has arrived since an id you already hold, which
 -- is what the ping-then-fetch path uses.
+-- The return type gained has_image, so the old signature has to go first.
+drop function if exists public.chat_history(text, uuid, text, bigint, integer);
 create or replace function public.chat_history(p_name text, p_token uuid, p_code text,
                                                p_after bigint default 0,
                                                p_limit integer default null)
-returns table (id bigint, channel text, name text, color text, body text, created_at timestamptz)
+returns table (id bigint, channel text, name text, color text, body text,
+               created_at timestamptz, has_image boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key  text := chat_auth(p_name, p_token);
         v_code text;
@@ -541,12 +566,30 @@ begin
 
   return query
     select * from (
-      select m.id, m.channel, m.name, m.color, m.body, m.created_at
+      select m.id, m.channel, m.name, m.color, m.body, m.created_at,
+             (m.image is not null) as has_image
         from messages m
        where m.channel = v_code and m.id > coalesce(p_after, 0)
        order by m.id desc
        limit v_lim
     ) q order by q.id;
+end $$;
+
+-- One message's picture. Separate from chat_history() so a screen of messages
+-- is a small reply and the pictures stream in behind it.
+create or replace function public.chat_image(p_name text, p_token uuid, p_id bigint)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_chan text;
+        v_img  text;
+begin
+  select m.channel, m.image into v_chan, v_img from messages m where m.id = p_id;
+  if v_chan is null then return null; end if;
+  if not chat_can_see(v_key, v_chan) then
+    raise exception 'You do not have access to that chat.';
+  end if;
+  return v_img;
 end $$;
 
 -- Profile pictures for a set of accounts. Avatars used to ride along in the
@@ -898,12 +941,13 @@ grant execute on function
   public.chat_session(text, uuid),
   public.chat_update_account(text, text, text, text),
   public.chat_update_profile(text, uuid, text, text),
-  public.chat_post(text, uuid, text, text),
+  public.chat_post(text, uuid, text, text, text),
   public.chat_create_room(text, uuid, text),
   public.chat_join_room(text, uuid, text),
   public.chat_my_rooms(text, uuid),
   public.chat_avatars(text, uuid, text[]),
   public.chat_history(text, uuid, text, bigint, integer),
+  public.chat_image(text, uuid, bigint),
   public.chat_set_visibility(text, uuid, text, text),
   public.chat_room_people(text, uuid, text),
   public.chat_grant(text, uuid, text, text, text),

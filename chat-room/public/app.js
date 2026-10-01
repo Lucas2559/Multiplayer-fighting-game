@@ -652,10 +652,12 @@ function appendMessage(m, quiet) {
         <span class="msg-name" style="color:${m.color}">${escapeHtml(m.name)}</span>
         <span class="msg-time">${fmtTime(ts)}</span>
       </div>
-      <div class="msg-text">${escapeHtml(m.body)}</div>
+      ${m.body ? `<div class="msg-text">${escapeHtml(m.body)}</div>` : ""}
+      ${m.has_image ? `<div class="msg-image">Loading picture…</div>` : ""}
     </div>
     <button class="msg-del" title="Delete this message" aria-label="Delete">&times;</button>`;
   paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatarUrl(m.name));
+  if (m.has_image) fillImage(el.querySelector(".msg-image"), m.id);
   if (m.id != null && m.id > lastSeenId) lastSeenId = m.id;
   box.appendChild(el);
   while (box.childElementCount > MAX_MESSAGES) box.firstElementChild.remove();
@@ -918,25 +920,109 @@ $("delete-btn").addEventListener("click", async () => {
   }
 });
 
+/* =================== Pictures in messages =================== */
+// Bigger than an avatar, since these are looked at rather than glanced at.
+const MAX_IMAGE_PX = 1280;
+let pending = null; // the data URL staged for the next message
+
+// GIFs go through untouched so they keep animating; a still photo is scaled
+// down, which usually takes a phone picture from several MB to a couple of
+// hundred KB.
+function processMessageImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) return reject(new Error("Please choose an image."));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (file.type === "image/gif") {
+        if (file.size > MAX_UPLOAD_BYTES)
+          return reject(new Error("That GIF is too big (max 5 MB). Try a smaller one."));
+        return resolve(dataUrl);
+      }
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, MAX_IMAGE_PX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        const out = canvas.toDataURL("image/webp", 0.85);
+        if (out.length > MAX_UPLOAD_BYTES * 1.4)
+          return reject(new Error("That picture is too big even after shrinking."));
+        resolve(out);
+      };
+      img.onerror = () => reject(new Error("That image could not be loaded."));
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showPending(url) {
+  pending = url;
+  $("attach-preview").hidden = !url;
+  if (url) {
+    $("attach-thumb").src = url;
+    $("attach-note").textContent = Math.round((url.length * 0.75) / 1024) + " KB";
+  }
+}
+
+$("attach-btn").addEventListener("click", () => $("attach-file").click());
+$("attach-clear").addEventListener("click", () => showPending(null));
+$("attach-file").addEventListener("change", async () => {
+  const f = $("attach-file").files[0];
+  $("attach-file").value = "";
+  if (!f) return;
+  try { showPending(await processMessageImage(f)); }
+  catch (e) { banner(e.message); }
+});
+
+// Pictures arrive one at a time, after the text of the screen is already up.
+const imageCache = new Map(); // message id -> data URL
+async function fillImage(el, id) {
+  try {
+    let url = imageCache.get(id);
+    if (url === undefined) {
+      url = await rpc("chat_image", {
+        p_name: state.me.name, p_token: state.me.token, p_id: id,
+      });
+      imageCache.set(id, url);
+    }
+    if (!url) return el.remove();
+    const img = document.createElement("img");
+    img.alt = "";
+    img.addEventListener("error", () => el.remove());
+    img.src = url;
+    el.textContent = "";
+    el.appendChild(img);
+  } catch {
+    el.textContent = "Picture could not be loaded.";
+  }
+}
+
 /* =================== Composer =================== */
 $("composer-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = $("composer-input");
   const body = input.value.trim();
-  if (!body) return;
+  const image = pending;
+  if (!body && !image) return;
   input.value = "";
+  showPending(null);
   // chat_post checks the session token and posts under the account's stored
   // name + colour, so nobody can speak as somebody else.
   try {
     await rpc("chat_post", {
       p_name: state.me.name, p_token: state.me.token,
-      p_code: state.chat.code, p_body: body,
+      p_code: state.chat.code, p_body: body, p_image: image || null,
     });
     await pullNew();   // show it here straight away
     notify("sent");    // and tell the other tabs to fetch it
   } catch (ex) {
     banner("Message failed: " + ex.message);
     input.value = body;
+    if (image) showPending(image);
   }
 });
 

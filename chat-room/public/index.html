@@ -101,7 +101,16 @@
     <div id="messages" class="messages"></div>
 
     <footer class="composer">
+      <div id="attach-preview" class="attach-preview" hidden>
+        <img id="attach-thumb" alt="" />
+        <span id="attach-note" class="attach-note"></span>
+        <button type="button" id="attach-clear" class="mini-btn ghost">Remove</button>
+      </div>
       <form id="composer-form">
+        <button type="button" id="attach-btn" class="attach-btn" title="Send a photo or GIF">
+          &#128247;
+        </button>
+        <input type="file" id="attach-file" accept="image/*" hidden />
         <input id="composer-input" type="text" placeholder="Message…"
                maxlength="2000" autocomplete="off" />
         <button type="submit" id="send-btn">Send ▷</button>

@@ -50,6 +50,13 @@ create chats and share a code so other people can join them.
   without the code. It is per chat, not global. They cannot create more
   inviters, and cannot clear or delete the chat — only its owner and the dev
   account can do those. Only the owner (or dev) sees the tickbox.
+- **Photos and GIFs in messages** — the 📷 button beside the composer stages a
+  picture; send it on its own or with a caption. GIFs keep every frame (up to
+  5 MB); photos are scaled to 1280px first, which usually takes a phone picture
+  down to a few hundred KB. Pictures are **not** returned with the history —
+  500 of them would be a reply hundreds of megabytes long — so `chat_history()`
+  reports `has_image` and each picture is fetched separately by
+  `chat_image()`, which checks you can see that chat.
 - **Each chat keeps its own last 500 messages.** When the 501st message is
   posted to a chat, that chat's oldest message is deleted; other chats are
   untouched. The trim runs inside `chat_post()`, so it holds however the message
@@ -169,7 +176,8 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_update_account(name, master, new_name, new_password)` | Rename / change password — **needs the admin password** |
 | `chat_update_profile(name, token, color, avatar)` | Change colour / photo |
 | `chat_avatars(name, token, names[])` | Fetch profile pictures for a set of accounts |
-| `chat_post(name, token, code, body)` | Send a message to a chat, then trim that chat to 500 |
+| `chat_post(name, token, code, body, image)` | Send a message and/or a picture, then trim that chat to 500 |
+| `chat_image(name, token, id)` | One message's picture, if you can see its chat |
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
