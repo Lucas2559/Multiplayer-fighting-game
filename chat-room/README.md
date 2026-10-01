@@ -28,6 +28,18 @@ create chats and share a code so other people can join them.
   loud). Anyone who enters that code in the **Join code** popup lands in the
   chat and it appears in their switcher from then on. Codes are matched
   case-insensitively. Click the code chip in the top bar to copy it.
+- **Who can reach a chat** — every chat is **hidden** by default: only people
+  with the code. The dev account can change that from the **People** panel to
+  **public** (shows up for everyone, no code) or **private** (only the dev
+  account — the owner is locked out too, which is the point). A private chat
+  answers a join attempt exactly like a code that doesn't exist, so you can't
+  probe for one.
+- **Letting one person in** — a chat's owner (or the dev account) can open
+  **People** and add somebody by name. That chat then appears in their switcher
+  without the code ever being shared. If that name has no account yet it is
+  **held** for them and you get a 6-character **invite code**: only somebody
+  with that code can register the name, so a stranger can't grab it first and
+  inherit the permission. They type it in the invite-code box when they sign up.
 - **Each chat keeps its own last 500 messages.** When the 501st message is
   posted to a chat, that chat's oldest message is deleted; other chats are
   untouched. The trim runs inside `chat_post()`, so it holds however the message
@@ -116,7 +128,7 @@ returns text language sql immutable as $$ select 'your-new-admin-password' $$;
 | `public/style.css`  | Dark Nexus Canvas theme |
 | `public/app.js`     | Supabase client: accounts, realtime messages, presence |
 | `public/config.js`  | Your Supabase URL + anon key |
-| `supabase/schema.sql` | `messages`, `accounts`, `chat_rooms`, `chat_room_members`, RLS, all functions |
+| `supabase/schema.sql` | `messages`, `accounts`, `chat_rooms`, `chat_room_members`, `chat_grants`, `chat_reserved`, RLS, all functions |
 | `server.js`         | Zero-dependency static file server for local dev |
 
 ## Database API
@@ -125,7 +137,7 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 
 | Function | Purpose |
 |----------|---------|
-| `chat_signup(name, password, color, avatar)` | Register; returns profile + session token |
+| `chat_signup(name, password, color, avatar, claim)` | Register; `claim` is the invite code, if the name is being held |
 | `chat_login(name, password)` | Log in; returns profile + session token |
 | `chat_session(name, token)` | Resume a stored session after a reload |
 | `chat_update_account(name, master, new_name, new_password)` | Rename / change password — **needs the admin password** |
@@ -135,11 +147,18 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
+| `chat_set_visibility(name, token, code, visibility)` | public / hidden / private — **dev account only** |
+| `chat_room_people(name, token, code)` | Who has permissions on a chat, and any unclaimed invite codes |
+| `chat_grant(name, token, code, who, perm)` | Let someone see a chat; holds the name if they haven't signed up |
+| `chat_revoke(name, token, code, who, perm)` | Take it away again |
 | `chat_delete_message(name, token, id)` | Delete one message (yours, or any if you own the chat) |
 | `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |
 | `chat_delete_room(name, token, code)` | Delete a chat and its messages; never the Main room |
 
 ## How private is a chat code?
+
+> A chat marked **private** is a real wall for joining and posting — those are
+> checked in the database. Reading is the weak part, as below.
 
 A code keeps a chat **out of sight, not secret**. `chat_rooms` is locked down so
 nobody can list the codes that exist, and you can only post to a chat you know
@@ -165,6 +184,9 @@ chats as separate rooms, not as a safe for secrets.
   the next message arrives.
 - You can delete a chat you own, but there's no way to *leave* one someone else
   owns, or to rename a chat.
+- `see` is the only permission so far. The `chat_grants` table is keyed by
+  permission name, so adding (say) `delete` or `clear` is a check constraint and
+  a few lines in the matching function.
 - Renaming your account carries your chat ownership and memberships across, so
   you keep the chats you made.
 - The same account can't be in the *same* chat in two tabs at once, but it can

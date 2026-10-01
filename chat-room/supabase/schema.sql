@@ -63,6 +63,45 @@ create table if not exists public.chat_rooms (
 insert into public.chat_rooms (code, name)
   values ('main', 'Main room') on conflict (code) do nothing;
 
+-- How a chat is reached, set by the built-in account only:
+--   public   anyone sees it in their switcher, no code needed
+--   hidden   only people who know the code (the default, and how chats worked
+--            before this column existed)
+--   private  only the built-in account, even the owner is locked out
+alter table public.chat_rooms
+  add column if not exists visibility text not null default 'hidden';
+do $$
+begin
+  alter table public.chat_rooms add constraint chat_rooms_visibility_ck
+    check (visibility in ('public', 'hidden', 'private'));
+exception when duplicate_object then null;
+end $$;
+
+-- Per-person permissions on one chat. Today the only one is 'see', which puts
+-- the chat in someone's switcher without them needing the code. The table is
+-- keyed by perm so more can be added without a migration.
+create table if not exists public.chat_grants (
+  code       text not null references public.chat_rooms(code) on delete cascade,
+  name_key   text not null,
+  perm       text not null check (perm in ('see')),
+  granted_by text,
+  granted_at timestamptz not null default now(),
+  primary key (code, name_key, perm)
+);
+
+-- Names held for a specific person. A reserved name can't be registered by
+-- anyone except whoever has its claim code, so you can hand someone
+-- permissions before they have an account and be sure they're the one who
+-- ends up with it.
+create table if not exists public.chat_reserved (
+  name_key   text primary key,
+  name       text not null,
+  claim_code text not null,
+  reserved_by text,
+  created_at timestamptz not null default now(),
+  claimed_at timestamptz
+);
+
 -- Which chats show up in your switcher. Joining with a code adds a row here.
 create table if not exists public.chat_room_members (
   code      text not null references public.chat_rooms(code) on delete cascade,
@@ -95,7 +134,11 @@ revoke all on table public.accounts from anon, authenticated;
 -- is what stops someone listing every room code that exists.
 alter table public.chat_rooms enable row level security;
 alter table public.chat_room_members enable row level security;
-revoke all on table public.chat_rooms, public.chat_room_members from anon, authenticated;
+alter table public.chat_grants enable row level security;
+alter table public.chat_reserved enable row level security;
+revoke all on table public.chat_rooms, public.chat_room_members,
+                   public.chat_grants, public.chat_reserved
+  from anon, authenticated;
 
 -- Realtime: broadcast new message rows to subscribed clients.
 do $$
@@ -147,6 +190,29 @@ returns boolean language sql stable as $$
 $$;
 revoke all on function public.chat_is_staff(text) from public, anon, authenticated;
 
+-- May this account open this chat at all? Everything that lists or touches a
+-- chat goes through here, so visibility and grants can't be worked around by
+-- knowing a code.
+create or replace function public.chat_can_see(p_key text, p_code text)
+returns boolean language plpgsql stable as $$
+declare r record;
+begin
+  select * into r from chat_rooms c where c.code = p_code;
+  if not found then return false; end if;
+  if chat_is_staff(p_key) then return true; end if;   -- the built-in account
+  if r.visibility = 'private' then return false; end if;
+  if r.code = 'main' or r.visibility = 'public' then return true; end if;
+  if r.owner_key = p_key then return true; end if;
+  if exists (select 1 from chat_room_members m
+              where m.code = r.code and m.name_key = p_key) then return true; end if;
+  if exists (select 1 from chat_grants g
+              where g.code = r.code and g.name_key = p_key and g.perm = 'see') then
+    return true;
+  end if;
+  return false;
+end $$;
+revoke all on function public.chat_can_see(text, text) from public, anon, authenticated;
+
 -- Shared validation for a display name.
 create or replace function public.chat_check_name(p_name text)
 returns text language plpgsql as $$
@@ -162,12 +228,17 @@ end $$;
 revoke all on function public.chat_check_name(text) from public, anon, authenticated;
 
 -- Register a new account and return its profile + session token.
+-- The old signature has to go, or adding p_claim would leave two candidates
+-- for a four-argument call and Postgres would refuse to pick one.
+drop function if exists public.chat_signup(text, text, text, text);
 create or replace function public.chat_signup(
-  p_name text, p_password text, p_color text default null, p_avatar text default null
+  p_name text, p_password text, p_color text default null, p_avatar text default null,
+  p_claim text default null
 ) returns table (name text, color text, avatar text, token uuid)
 language plpgsql security definer set search_path = public, extensions as $$
 declare v_name text := chat_check_name(p_name);
         v_key  text := lower(v_name);
+        v_res  record;
 begin
   if char_length(coalesce(p_password, '')) < 4 then
     raise exception 'Your password needs at least 4 characters.';
@@ -177,6 +248,16 @@ begin
   end if;
   if exists (select 1 from accounts a where a.name_key = v_key) then
     raise exception 'That name is already registered. Log in instead.';
+  end if;
+
+  -- A held name can only be taken by whoever was given its invite code.
+  select * into v_res from chat_reserved res
+   where res.name_key = v_key and res.claimed_at is null;
+  if found then
+    if upper(btrim(coalesce(p_claim, ''))) <> upper(v_res.claim_code) then
+      raise exception 'That name is being held for someone. You need the invite code that goes with it.';
+    end if;
+    update chat_reserved res set claimed_at = now() where res.name_key = v_key;
   end if;
 
   insert into accounts (name_key, name, pass_hash, color, avatar)
@@ -326,10 +407,17 @@ returns table (code text, name text)
 language plpgsql security definer set search_path = public as $$
 declare v_key  text := chat_auth(p_name, p_token);
         v_code text;
+        v_vis  text;
 begin
-  select r.code into v_code from chat_rooms r
+  -- Deliberately NOT chat_can_see(): the whole point of a code is to let in
+  -- somebody who cannot see the chat yet. Only 'private' is a hard no, and it
+  -- gives the same answer as a code that doesn't exist, so a private chat's
+  -- code can't be confirmed by probing.
+  select r.code, r.visibility into v_code, v_vis from chat_rooms r
    where upper(r.code) = upper(btrim(coalesce(p_code, '')));
-  if v_code is null then raise exception 'No chat with that code.'; end if;
+  if v_code is null or (v_vis = 'private' and not chat_is_staff(v_key)) then
+    raise exception 'No chat with that code.';
+  end if;
 
   insert into chat_room_members (code, name_key) values (v_code, v_key)
     on conflict do nothing;
@@ -337,32 +425,24 @@ begin
 end $$;
 
 -- The chats in your switcher: the main room, ones you made, ones you joined.
--- The return type gains can_clear, and Postgres will not change a function's
--- return type in place, so the previous signature has to go first.
+-- The switcher. Its return type has changed more than once and Postgres will
+-- not change a function's return type in place, so drop the old one first.
 drop function if exists public.chat_my_rooms(text, uuid);
 create or replace function public.chat_my_rooms(p_name text, p_token uuid)
-returns table (code text, name text, is_owner boolean, can_clear boolean)
+returns table (code text, name text, is_owner boolean, can_clear boolean,
+               visibility text, can_manage boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key text := chat_auth(p_name, p_token);
 begin
-  -- The dev account sees every chat, joined or not.
-  if v_key = lower(chat_dev_name()) then
-    return query
-      select r.code, r.name, (r.owner_key = v_key) as is_owner,
-             true as can_clear
-        from chat_rooms r
-       order by (r.code <> 'main'), r.created_at;
-    return;
-  end if;
-
   return query
-    select r.code, r.name, (r.owner_key = v_key) as is_owner,
-           (r.owner_key = v_key or chat_is_staff(v_key)) as can_clear
+    select r.code, r.name,
+           (r.owner_key = v_key)                            as is_owner,
+           (r.owner_key = v_key or chat_is_staff(v_key))    as can_clear,
+           r.visibility,
+           -- who may hand out 'see' permissions on this chat
+           (r.owner_key = v_key or chat_is_staff(v_key))    as can_manage
       from chat_rooms r
-     where r.code = 'main'
-        or r.owner_key = v_key
-        or exists (select 1 from chat_room_members m
-                    where m.code = r.code and m.name_key = v_key)
+     where chat_can_see(v_key, r.code)
      order by (r.code <> 'main'), r.created_at;
 end $$;
 
@@ -383,6 +463,9 @@ begin
   select r.code into v_code from chat_rooms r
    where upper(r.code) = upper(btrim(coalesce(p_code, '')));
   if v_code is null then raise exception 'That chat no longer exists.'; end if;
+  if not chat_can_see(v_key, v_code) then
+    raise exception 'You do not have access to that chat.';
+  end if;
 
   insert into messages (channel, name, color, body)
   select v_code, a.name, a.color, v_body from accounts a where a.name_key = v_key;
@@ -411,6 +494,124 @@ begin
       from accounts a
      where a.name_key = any (select lower(btrim(n)) from unnest(p_names) n)
      limit 200;
+end $$;
+
+-- ---- Visibility and per-person permissions ----
+
+-- Only the built-in account decides how a chat is reached.
+create or replace function public.chat_set_visibility(p_name text, p_token uuid,
+                                                      p_code text, p_visibility text)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+        v_code text;
+begin
+  if not chat_is_staff(v_key) then
+    raise exception 'Only the % account can change who can reach a chat.', chat_dev_name();
+  end if;
+  if p_visibility not in ('public', 'hidden', 'private') then
+    raise exception 'Visibility must be public, hidden or private.';
+  end if;
+
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+
+  update chat_rooms r set visibility = p_visibility where r.code = v_code;
+  return p_visibility;
+end $$;
+
+-- Who may hand out permissions on a chat: its owner, or the built-in account.
+create or replace function public.chat_can_manage(p_key text, p_code text)
+returns boolean language sql stable as $$
+  select chat_is_staff(p_key)
+      or exists (select 1 from chat_rooms r where r.code = p_code and r.owner_key = p_key)
+$$;
+revoke all on function public.chat_can_manage(text, text) from public, anon, authenticated;
+
+-- Everyone with an explicit permission on this chat, plus whether their
+-- account exists yet and the claim code if the name is still being held.
+create or replace function public.chat_room_people(p_name text, p_token uuid, p_code text)
+returns table (name text, perm text, registered boolean, claim_code text)
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  if not chat_can_manage(v_key, p_code) then
+    raise exception 'Only the owner of this chat can see its permissions.';
+  end if;
+  return query
+    select coalesce(a.name, res.name, g.name_key) as name,
+           g.perm,
+           (a.name_key is not null)               as registered,
+           case when a.name_key is null then res.claim_code end as claim_code
+      from chat_grants g
+      left join accounts a      on a.name_key   = g.name_key
+      left join chat_reserved res on res.name_key = g.name_key
+     where g.code = p_code
+     order by 1;
+end $$;
+
+-- Give someone permission on a chat. If that name has no account yet it is
+-- reserved here and a claim code comes back: only somebody with that code can
+-- register the name, so the permission can't be intercepted by a stranger.
+create or replace function public.chat_grant(p_name text, p_token uuid,
+                                             p_code text, p_who text, p_perm text default 'see')
+returns table (name text, perm text, registered boolean, claim_code text)
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_who  text := chat_check_name(p_who);
+        v_wkey text := lower(v_who);
+        v_code text;
+        v_claim text;
+        v_registered boolean;
+begin
+  if p_perm <> 'see' then raise exception 'Unknown permission: %', p_perm; end if;
+
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+  if not chat_can_manage(v_key, v_code) then
+    raise exception 'Only the owner of this chat can give out permissions.';
+  end if;
+  if v_wkey = lower(chat_dev_name()) then
+    raise exception 'That account already reaches every chat.';
+  end if;
+
+  v_registered := exists (select 1 from accounts a where a.name_key = v_wkey);
+  if not v_registered then
+    -- Hold the name, with a claim code to hand to the person it is meant for.
+    insert into chat_reserved (name_key, name, claim_code, reserved_by)
+    values (v_wkey, v_who, upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6)), v_key)
+    on conflict (name_key) do update set name = v_who;
+    select res.claim_code into v_claim from chat_reserved res where res.name_key = v_wkey;
+  end if;
+
+  insert into chat_grants (code, name_key, perm, granted_by)
+  values (v_code, v_wkey, p_perm, v_key)
+  on conflict do nothing;
+
+  return query select v_who, p_perm, v_registered, v_claim;
+end $$;
+
+create or replace function public.chat_revoke(p_name text, p_token uuid,
+                                              p_code text, p_who text, p_perm text default 'see')
+returns void
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_wkey text := lower(btrim(coalesce(p_who, '')));
+        v_code text;
+begin
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+  if not chat_can_manage(v_key, v_code) then
+    raise exception 'Only the owner of this chat can take permissions away.';
+  end if;
+
+  delete from chat_grants g
+   where g.code = v_code and g.name_key = v_wkey and g.perm = p_perm;
+  -- Also drop them from the chat if they had joined with the code.
+  delete from chat_room_members m where m.code = v_code and m.name_key = v_wkey;
 end $$;
 
 -- Delete one message. You can always delete your own; the chat's owner can
@@ -518,7 +719,7 @@ drop function if exists public.chat_admin_name();
 drop function if exists public.chat_admin_color();
 
 grant execute on function
-  public.chat_signup(text, text, text, text),
+  public.chat_signup(text, text, text, text, text),
   public.chat_login(text, text),
   public.chat_session(text, uuid),
   public.chat_update_account(text, text, text, text),
@@ -528,6 +729,10 @@ grant execute on function
   public.chat_join_room(text, uuid, text),
   public.chat_my_rooms(text, uuid),
   public.chat_avatars(text, uuid, text[]),
+  public.chat_set_visibility(text, uuid, text, text),
+  public.chat_room_people(text, uuid, text),
+  public.chat_grant(text, uuid, text, text, text),
+  public.chat_revoke(text, uuid, text, text, text),
   public.chat_delete_message(text, uuid, bigint),
   public.chat_clear_room(text, uuid, text),
   public.chat_delete_room(text, uuid, text),

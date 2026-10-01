@@ -43,6 +43,12 @@
           <input id="confirm-input" type="password" placeholder="repeat password"
                  autocomplete="new-password" />
         </div>
+        <div class="field" id="claim-field" hidden>
+          <span class="at">&#127915;</span>
+          <input id="claim-input" type="text" maxlength="12" spellcheck="false"
+                 placeholder="invite code (only if you were given one)"
+                 autocomplete="off" />
+        </div>
 
         <div class="profile-edit" id="gate-profile" hidden>
           <div class="avatar-preview" id="gate-avatar">?</div>
@@ -79,6 +85,8 @@
       <div class="topbar-right">
         <button id="join-btn" class="mini-btn" title="Join a chat with a code">Join code</button>
         <button id="new-btn" class="mini-btn" title="Create a new chat">+ New chat</button>
+        <button id="people-btn" class="mini-btn" hidden
+                title="Who can reach this chat">People</button>
         <button id="clear-btn" class="mini-btn warn" hidden
                 title="Delete every message in this chat">Clear</button>
         <button id="delete-btn" class="mini-btn warn" hidden
@@ -192,6 +200,48 @@
       <div class="modal-actions">
         <button id="new-cancel" type="button">Close</button>
         <button id="new-create" type="button">Create &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Who can reach this chat ============ -->
+  <div id="people-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2>People &amp; access</h2>
+      <p class="profile-hint" id="people-chat"></p>
+
+      <div id="vis-block" hidden>
+        <h3 class="modal-sub">Who can reach it</h3>
+        <div class="vis-options">
+          <label class="vis-row">
+            <input type="radio" name="vis" value="public" />
+            <span><strong>Public</strong> — shows up for everyone, no code needed</span>
+          </label>
+          <label class="vis-row">
+            <input type="radio" name="vis" value="hidden" />
+            <span><strong>Hidden</strong> — only people with the code can join</span>
+          </label>
+          <label class="vis-row">
+            <input type="radio" name="vis" value="private" />
+            <span><strong>Private</strong> — only the dev account, nobody else</span>
+          </label>
+        </div>
+        <p class="profile-hint" id="vis-note"></p>
+      </div>
+
+      <hr class="modal-sep" />
+
+      <h3 class="modal-sub">Let someone in without the code</h3>
+      <div class="people-add">
+        <input id="people-name" type="text" maxlength="24" spellcheck="false"
+               placeholder="their name" autocomplete="off" />
+        <button id="people-grant" type="button" class="mini-btn">Add</button>
+      </div>
+      <div id="people-error" class="gate-error" hidden></div>
+      <ul id="people-list" class="people-list"></ul>
+
+      <div class="modal-actions">
+        <button id="people-close" type="button">Done</button>
       </div>
     </div>
   </div>

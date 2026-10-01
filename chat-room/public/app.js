@@ -313,6 +313,7 @@ function setGateMode(mode) {
     ? "Your name is registered with this password and stays yours."
     : "Sign in with the name and password you registered.";
   $("confirm-field").hidden = !signup;
+  $("claim-field").hidden = !signup;
   $("gate-profile").hidden = !signup;
   $("gate-profile-hint").hidden = !signup;
   $("pass-input").setAttribute("autocomplete", signup ? "new-password" : "current-password");
@@ -437,6 +438,7 @@ $("gate-form").addEventListener("submit", async (e) => {
       const { color, avatar } = gateEditor.values(name);
       acct = await rpc("chat_signup", {
         p_name: name, p_password: pass, p_color: color, p_avatar: avatar,
+        p_claim: $("claim-input").value.trim() || null,
       });
     } else {
       acct = await rpc("chat_login", { p_name: name, p_password: pass });
@@ -444,6 +446,7 @@ $("gate-form").addEventListener("submit", async (e) => {
     const renamed = acct.name.toLowerCase() !== name.toLowerCase();
     $("pass-input").value = "";
     $("confirm-input").value = "";
+    $("claim-input").value = "";
     await joinRoom(acct);
     if (renamed) banner("Signed in as @" + acct.name + ".");
   } catch (ex) {
@@ -474,6 +477,13 @@ async function enterApp() {
 
   $("composer-handle").textContent = "@" + state.me.name;
   $("composer-input").focus();
+
+  // The built-in account gets the visibility controls. Its name is the only
+  // thing about it that isn't secret, so asking for it is safe.
+  try {
+    const { data } = await sb.rpc("chat_dev_name");
+    state.me.isStaff = String(data || "").toLowerCase() === state.me.name.toLowerCase();
+  } catch { state.me.isStaff = false; }
 
   // Show your own avatar right away, before anyone else's has been fetched.
   state.me.avh = hashAvatar(state.me.avatar);
@@ -520,6 +530,7 @@ function renderRoomList() {
 function renderChatHeader() {
   renderRoomList();
   const mayClear = !!(state.chat && state.chat.can_clear);
+  $("people-btn").hidden = !(state.chat && state.chat.can_manage);
   $("clear-btn").hidden = !mayClear;
   // The Main room is where everyone lands, so it can never be deleted.
   $("delete-btn").hidden = !(mayClear && state.chat.code !== "main");
@@ -635,6 +646,140 @@ function renderOnline(room) {
   $("online-count").innerHTML = `<span class="dot"></span>${cids.size} online`;
   refreshAvatars();
   ensureAvatars(wants);
+}
+
+/* =================== People & access =================== */
+// Only the built-in account may change visibility; a chat owner sees the
+// person list but not the radio buttons. The database enforces both.
+function peopleError(msg) {
+  const el = $("people-error");
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+async function renderPeople() {
+  const list = $("people-list");
+  list.innerHTML = "";
+  let rows = [];
+  try {
+    const { data, error } = await sb.rpc("chat_room_people", {
+      p_name: state.me.name, p_token: state.me.token, p_code: state.chat.code,
+    });
+    if (error) throw new Error(error.message);
+    rows = data || [];
+  } catch (ex) {
+    return peopleError(ex.message);
+  }
+
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.className = "people-empty";
+    li.textContent = "Nobody yet — only people with the code can get in.";
+    return list.appendChild(li);
+  }
+
+  for (const r of rows) {
+    const li = document.createElement("li");
+    li.className = "people-row";
+    const who = document.createElement("div");
+    who.className = "people-who";
+    who.textContent = r.name;
+    if (!r.registered) {
+      const tag = document.createElement("span");
+      tag.className = "people-tag";
+      // The name is held for them until they sign up with this code.
+      tag.textContent = r.claim_code ? "invite " + r.claim_code : "not signed up yet";
+      who.appendChild(tag);
+    }
+    const rm = document.createElement("button");
+    rm.className = "mini-btn ghost";
+    rm.textContent = "Remove";
+    rm.addEventListener("click", async () => {
+      rm.disabled = true;
+      try {
+        await rpc("chat_revoke", {
+          p_name: state.me.name, p_token: state.me.token,
+          p_code: state.chat.code, p_who: r.name, p_perm: r.perm,
+        });
+        await renderPeople();
+      } catch (ex) {
+        peopleError(ex.message);
+        rm.disabled = false;
+      }
+    });
+    li.append(who, rm);
+    list.appendChild(li);
+  }
+}
+
+function openPeople() {
+  if (!state.chat) return;
+  $("people-error").hidden = true;
+  $("people-name").value = "";
+  $("people-chat").textContent = `"${state.chat.name}"` +
+    (state.chat.code === "main" ? "" : ` · code ${state.chat.code}`);
+
+  const staff = !!(state.me && state.me.isStaff);
+  $("vis-block").hidden = !staff;
+  if (staff) {
+    const v = state.chat.visibility || "hidden";
+    for (const r of document.querySelectorAll('input[name="vis"]')) r.checked = r.value === v;
+    $("vis-note").textContent = state.chat.code === "main"
+      ? "The Main room is where everyone lands, so this has no effect on it."
+      : "";
+  }
+  $("people-modal").hidden = false;
+  renderPeople();
+}
+function closePeople() { $("people-modal").hidden = true; }
+
+$("people-btn").addEventListener("click", openPeople);
+$("people-close").addEventListener("click", closePeople);
+$("people-modal").addEventListener("click", (e) => {
+  if (e.target === $("people-modal")) closePeople();
+});
+$("people-name").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("people-grant").click();
+});
+
+$("people-grant").addEventListener("click", async () => {
+  $("people-error").hidden = true;
+  const who = $("people-name").value.trim().replace(/^@+/, "");
+  if (!who) return peopleError("Type the name of the person to let in.");
+  const btn = $("people-grant");
+  btn.disabled = true;
+  try {
+    const r = await rpc("chat_grant", {
+      p_name: state.me.name, p_token: state.me.token,
+      p_code: state.chat.code, p_who: who, p_perm: "see",
+    });
+    $("people-name").value = "";
+    await renderPeople();
+    if (r && !r.registered && r.claim_code) {
+      banner(`${r.name} has no account yet — give them invite code ${r.claim_code}.`);
+    }
+  } catch (ex) {
+    peopleError(ex.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+for (const radio of document.querySelectorAll('input[name="vis"]')) {
+  radio.addEventListener("change", async () => {
+    if (!radio.checked || !state.chat) return;
+    try {
+      await rpc("chat_set_visibility", {
+        p_name: state.me.name, p_token: state.me.token,
+        p_code: state.chat.code, p_visibility: radio.value,
+      });
+      state.chat.visibility = radio.value;
+      await loadRooms();
+      banner(`"${state.chat.name}" is now ${radio.value}.`);
+    } catch (ex) {
+      peopleError(ex.message);
+    }
+  });
 }
 
 /* =================== Deleting =================== */
