@@ -324,17 +324,6 @@ function setGateMode(mode) {
 $("tab-login").addEventListener("click", () => setGateMode("login"));
 $("tab-signup").addEventListener("click", () => setGateMode("signup"));
 
-// Is `name` claimed by some OTHER client right now? (Our own stale presence from
-// a reload doesn't count — it shares our CID.)
-function nameTakenByOther(room, name) {
-  const s = room.presenceState();
-  const target = name.toLowerCase();
-  for (const key in s)
-    for (const p of s[key])
-      if (String(p.name).toLowerCase() === target && p.cid !== CID) return true;
-  return false;
-}
-
 // Take an authenticated account ({ name, color, avatar, token }) into the app.
 async function joinRoom(acct) {
   const me = {
@@ -395,11 +384,9 @@ async function openChat(chat) {
     // Wait for the first presence sync so the roster is populated (max ~1.5s).
     for (let i = 0; i < 15 && !synced; i++) await new Promise((r) => setTimeout(r, 100));
 
-    // The account owns the name for good; this only stops one account being in
-    // the same chat twice at once.
-    if (nameTakenByOther(room, state.me.name))
-      throw new Error("You're already in this chat in another tab or window.");
-
+    // Deliberately no "already open elsewhere" check. Back when a name was
+    // claimed live by presence, two tabs would have fought over it; now the
+    // account owns the name outright, so a second tab is just a second tab.
     const { name, color } = state.me;
     await room.track({ name, color, avh: state.me.avh || "", cid: CID });
     state.channel = room;
@@ -472,11 +459,7 @@ async function resumeSession() {
 
 /* =================== Chat =================== */
 async function enterApp() {
-  gate.hidden = true;
-  app.hidden = false;
-
   $("composer-handle").textContent = "@" + state.me.name;
-  $("composer-input").focus();
 
   // The built-in account gets the visibility controls. Its name is the only
   // thing about it that isn't secret, so asking for it is safe.
@@ -495,7 +478,12 @@ async function enterApp() {
   try { want = localStorage.getItem(lastChatKey(state.me.name)); } catch {}
   const chat = state.rooms.find((r) => r.code === want) || state.rooms[0]
             || { code: "main", name: "Main room" };
+  // Only swap the gate for the chat once the chat is actually open. Doing it
+  // first meant any failure in here left an empty, dead screen with no way back.
   await openChat(chat);
+  gate.hidden = true;
+  app.hidden = false;
+  $("composer-input").focus();
 }
 
 /* =================== Chats =================== */
