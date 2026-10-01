@@ -696,14 +696,15 @@ async function renderPeople() {
   list.innerHTML = "";
   let rows = [];
   try {
-    const { data, error } = await sb.rpc("chat_room_people", {
+    rows = await rpcRows("chat_room_people", {
       p_name: state.me.name, p_token: state.me.token, p_code: state.chat.code,
     });
-    if (error) throw new Error(error.message);
-    rows = data || [];
   } catch (ex) {
     return peopleError(ex.message);
   }
+
+  // Only the chat's owner may create other inviters, so only they get the box.
+  const iAmOwner = !!(state.chat.is_owner || (state.me && state.me.isStaff));
 
   if (!rows.length) {
     const li = document.createElement("li");
@@ -715,16 +716,53 @@ async function renderPeople() {
   for (const r of rows) {
     const li = document.createElement("li");
     li.className = "people-row";
+
     const who = document.createElement("div");
     who.className = "people-who";
     who.textContent = r.name;
     if (!r.registered) {
       const tag = document.createElement("span");
       tag.className = "people-tag";
-      // The name is held for them until they sign up with this code.
       tag.textContent = r.claim_code ? "invite " + r.claim_code : "not signed up yet";
       who.appendChild(tag);
     }
+
+    const right = document.createElement("div");
+    right.className = "people-controls";
+
+    if (iAmOwner) {
+      const lbl = document.createElement("label");
+      lbl.className = "people-can-invite";
+      lbl.title = "Let them add other people to this chat";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !!r.can_invite;
+      box.addEventListener("change", async () => {
+        box.disabled = true;
+        try {
+          await rpc(box.checked ? "chat_grant" : "chat_revoke", {
+            p_name: state.me.name, p_token: state.me.token,
+            p_code: state.chat.code, p_who: r.name, p_perm: "invite",
+          });
+          banner(box.checked
+            ? `${r.name} can now invite people to this chat.`
+            : `${r.name} can no longer invite people.`);
+        } catch (ex) {
+          box.checked = !box.checked;
+          peopleError(ex.message);
+        } finally {
+          box.disabled = false;
+        }
+      });
+      lbl.append(box, document.createTextNode("can invite"));
+      right.appendChild(lbl);
+    } else if (r.can_invite) {
+      const tag = document.createElement("span");
+      tag.className = "people-tag";
+      tag.textContent = "can invite";
+      right.appendChild(tag);
+    }
+
     const rm = document.createElement("button");
     rm.className = "mini-btn ghost";
     rm.textContent = "Remove";
@@ -733,7 +771,7 @@ async function renderPeople() {
       try {
         await rpc("chat_revoke", {
           p_name: state.me.name, p_token: state.me.token,
-          p_code: state.chat.code, p_who: r.name, p_perm: r.perm,
+          p_code: state.chat.code, p_who: r.name, p_perm: "see",
         });
         await renderPeople();
       } catch (ex) {
@@ -741,7 +779,9 @@ async function renderPeople() {
         rm.disabled = false;
       }
     });
-    li.append(who, rm);
+    right.appendChild(rm);
+
+    li.append(who, right);
     list.appendChild(li);
   }
 }

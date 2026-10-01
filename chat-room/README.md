@@ -45,6 +45,11 @@ create chats and share a code so other people can join them.
   **held** for them and you get a 6-character **invite code**: only somebody
   with that code can register the name, so a stranger can't grab it first and
   inherit the permission. They type it in the invite-code box when they sign up.
+- **Letting someone else do the inviting** — tick **can invite** next to a
+  person in the People panel and they can add and remove others on *that chat*,
+  without the code. It is per chat, not global. They cannot create more
+  inviters, and cannot clear or delete the chat — only its owner and the dev
+  account can do those. Only the owner (or dev) sees the tickbox.
 - **Each chat keeps its own last 500 messages.** When the 501st message is
   posted to a chat, that chat's oldest message is deleted; other chats are
   untouched. The trim runs inside `chat_post()`, so it holds however the message
@@ -170,7 +175,7 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
 | `chat_set_visibility(name, token, code, visibility)` | public / hidden / private — **dev account only** |
 | `chat_room_people(name, token, code)` | Who has permissions on a chat, and any unclaimed invite codes |
-| `chat_grant(name, token, code, who, perm)` | Let someone see a chat; holds the name if they haven't signed up |
+| `chat_grant(name, token, code, who, perm)` | `see` (let them in) or `invite` (let them let others in); holds the name if they haven't signed up |
 | `chat_revoke(name, token, code, who, perm)` | Take it away again |
 | `chat_delete_message(name, token, id)` | Delete one message (yours, or any if you own the chat) |
 | `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |

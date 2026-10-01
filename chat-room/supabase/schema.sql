@@ -83,17 +83,28 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- Per-person permissions on one chat. Today the only one is 'see', which puts
--- the chat in someone's switcher without them needing the code. The table is
--- keyed by perm so more can be added without a migration.
+-- Per-person permissions on one chat:
+--   see     the chat is in their switcher; they never need the code
+--   invite  they can give other people 'see' on this chat, and take it back
+-- 'invite' is not a co-owner: it cannot hand out 'invite' itself, so it can't
+-- be used to escalate, and it cannot clear or delete the chat.
 create table if not exists public.chat_grants (
   code       text not null references public.chat_rooms(code) on delete cascade,
   name_key   text not null,
-  perm       text not null check (perm in ('see')),
+  perm       text not null,
   granted_by text,
   granted_at timestamptz not null default now(),
   primary key (code, name_key, perm)
 );
+
+-- The original table allowed only 'see'; widen it wherever that is still true.
+alter table public.chat_grants drop constraint if exists chat_grants_perm_check;
+do $$
+begin
+  alter table public.chat_grants add constraint chat_grants_perm_ck
+    check (perm in ('see', 'invite'));
+exception when duplicate_object then null;
+end $$;
 
 -- Names held for a specific person. A reserved name can't be registered by
 -- anyone except whoever has its claim code, so you can hand someone
@@ -467,8 +478,8 @@ begin
            (r.owner_key = v_key)                            as is_owner,
            (r.owner_key = v_key or chat_is_staff(v_key))    as can_clear,
            r.visibility,
-           -- who may hand out 'see' permissions on this chat
-           (r.owner_key = v_key or chat_is_staff(v_key))    as can_manage
+           -- opens the People panel: the owner, or anyone granted 'invite'
+           chat_can_manage(v_key, r.code)                   as can_manage
       from chat_rooms r
      where chat_can_see(v_key, r.code)
      order by (r.code <> 'main'), r.created_at;
@@ -578,18 +589,31 @@ begin
   return p_visibility;
 end $$;
 
--- Who may hand out permissions on a chat: its owner, or the built-in account.
-create or replace function public.chat_can_manage(p_key text, p_code text)
+-- Who owns the chat outright: its owner, or the built-in account. Only these
+-- two may hand out 'invite', or delete and clear the chat.
+create or replace function public.chat_is_owner(p_key text, p_code text)
 returns boolean language sql stable as $$
   select chat_is_staff(p_key)
       or exists (select 1 from chat_rooms r where r.code = p_code and r.owner_key = p_key)
 $$;
+revoke all on function public.chat_is_owner(text, text) from public, anon, authenticated;
+
+-- Who may let other people into a chat: the above, plus anyone granted 'invite'.
+create or replace function public.chat_can_manage(p_key text, p_code text)
+returns boolean language sql stable as $$
+  select chat_is_owner(p_key, p_code)
+      or exists (select 1 from chat_grants g
+                  where g.code = p_code and g.name_key = p_key and g.perm = 'invite')
+$$;
 revoke all on function public.chat_can_manage(text, text) from public, anon, authenticated;
 
--- Everyone with an explicit permission on this chat, plus whether their
--- account exists yet and the claim code if the name is still being held.
+-- Everyone with an explicit permission on this chat, one row each, plus
+-- whether their account exists yet and the claim code if the name is held.
+-- The return type changed when 'invite' arrived, so the old one has to go.
+drop function if exists public.chat_room_people(text, uuid, text);
 create or replace function public.chat_room_people(p_name text, p_token uuid, p_code text)
-returns table (name text, perm text, registered boolean, claim_code text)
+returns table (name text, registered boolean, claim_code text,
+               can_see boolean, can_invite boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key text := chat_auth(p_name, p_token);
 begin
@@ -597,14 +621,16 @@ begin
     raise exception 'Only the owner of this chat can see its permissions.';
   end if;
   return query
-    select coalesce(a.name, res.name, g.name_key) as name,
-           g.perm,
-           (a.name_key is not null)               as registered,
-           case when a.name_key is null then res.claim_code end as claim_code
+    select coalesce(a.name, res.name, g.name_key)                  as name,
+           bool_or(a.name_key is not null)                         as registered,
+           max(case when a.name_key is null then res.claim_code end) as claim_code,
+           bool_or(g.perm = 'see')                                 as can_see,
+           bool_or(g.perm = 'invite')                              as can_invite
       from chat_grants g
-      left join accounts a      on a.name_key   = g.name_key
+      left join accounts a        on a.name_key   = g.name_key
       left join chat_reserved res on res.name_key = g.name_key
      where g.code = p_code
+     group by coalesce(a.name, res.name, g.name_key)
      order by 1;
 end $$;
 
@@ -622,13 +648,19 @@ declare v_key  text := chat_auth(p_name, p_token);
         v_claim text;
         v_registered boolean;
 begin
-  if p_perm <> 'see' then raise exception 'Unknown permission: %', p_perm; end if;
+  if p_perm not in ('see', 'invite') then
+    raise exception 'Unknown permission: %', p_perm;
+  end if;
 
   select r.code into v_code from chat_rooms r
    where upper(r.code) = upper(btrim(coalesce(p_code, '')));
   if v_code is null then raise exception 'That chat no longer exists.'; end if;
   if not chat_can_manage(v_key, v_code) then
     raise exception 'Only the owner of this chat can give out permissions.';
+  end if;
+  -- Being able to invite does not let you create more inviters.
+  if p_perm = 'invite' and not chat_is_owner(v_key, v_code) then
+    raise exception 'Only the owner of this chat can let someone invite others.';
   end if;
   if v_wkey = lower(chat_dev_name()) then
     raise exception 'That account already reaches every chat.';
@@ -664,11 +696,17 @@ begin
   if not chat_can_manage(v_key, v_code) then
     raise exception 'Only the owner of this chat can take permissions away.';
   end if;
+  if p_perm = 'invite' and not chat_is_owner(v_key, v_code) then
+    raise exception 'Only the owner of this chat can take away inviting.';
+  end if;
 
   delete from chat_grants g
    where g.code = v_code and g.name_key = v_wkey and g.perm = p_perm;
-  -- Also drop them from the chat if they had joined with the code.
-  delete from chat_room_members m where m.code = v_code and m.name_key = v_wkey;
+  -- Losing 'see' also drops them from the chat if they had joined with a code.
+  if p_perm = 'see' then
+    delete from chat_grants g where g.code = v_code and g.name_key = v_wkey;
+    delete from chat_room_members m where m.code = v_code and m.name_key = v_wkey;
+  end if;
 end $$;
 
 -- ---- Managing accounts ----

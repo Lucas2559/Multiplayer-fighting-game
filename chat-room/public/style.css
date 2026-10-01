@@ -211,6 +211,12 @@ html, body {
   font-family: "JetBrains Mono", monospace; letter-spacing: 0.5px;
 }
 .people-empty { color: var(--faint); font-size: 13px; padding: 6px 0; }
+.people-controls { display: flex; align-items: center; gap: 8px; flex: none; }
+.people-can-invite {
+  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  color: var(--muted); font-size: 12px; white-space: nowrap;
+}
+.people-can-invite input { accent-color: var(--accent); cursor: pointer; }
 
 /* code entry + the code you get back when you make a chat */
 .code-input {
