@@ -136,6 +136,17 @@ create table if not exists public.chat_reserved (
   claimed_at timestamptz
 );
 
+-- Admins. They can do everything the built-in account can inside the chats --
+-- see every chat, set visibility, delete anything -- but they cannot hand out
+-- or take away admin, and they cannot delete the built-in account or each
+-- other. Only the built-in account manages this table, so nobody can demote
+-- the person who made them.
+create table if not exists public.chat_admins (
+  name_key   text primary key,
+  granted_by text,
+  granted_at timestamptz not null default now()
+);
+
 -- Which chats show up in your switcher. Joining with a code adds a row here.
 create table if not exists public.chat_room_members (
   code      text not null references public.chat_rooms(code) on delete cascade,
@@ -172,8 +183,9 @@ alter table public.chat_rooms enable row level security;
 alter table public.chat_room_members enable row level security;
 alter table public.chat_grants enable row level security;
 alter table public.chat_reserved enable row level security;
+alter table public.chat_admins enable row level security;
 revoke all on table public.chat_rooms, public.chat_room_members,
-                   public.chat_grants, public.chat_reserved
+                   public.chat_grants, public.chat_reserved, public.chat_admins
   from anon, authenticated;
 
 -- Realtime deliberately does NOT carry the messages table any more. Postgres
@@ -239,10 +251,20 @@ begin
 end $$;
 revoke all on function public.chat_auth(text, uuid) from public, anon, authenticated;
 
--- The built-in account, which may delete anything anywhere.
-create or replace function public.chat_is_staff(p_key text)
+-- The one account that is above everything, including admin itself. There is
+-- exactly one, it is never in chat_admins, and nothing can demote it.
+create or replace function public.chat_is_super(p_key text)
 returns boolean language sql stable as $$
   select p_key = lower(chat_dev_name())
+$$;
+revoke all on function public.chat_is_super(text) from public, anon, authenticated;
+
+-- Staff: the built-in account plus anyone it has made an admin. This is what
+-- every "can do anything in the chats" check reads.
+create or replace function public.chat_is_staff(p_key text)
+returns boolean language sql stable as $$
+  select chat_is_super(p_key)
+      or exists (select 1 from chat_admins a where a.name_key = p_key)
 $$;
 revoke all on function public.chat_is_staff(text) from public, anon, authenticated;
 
@@ -756,8 +778,10 @@ end $$;
 
 -- Everyone who has registered. Built-in account only: an ordinary member has no
 -- business enumerating the other people on the server.
+-- The return type gained is_admin, so the old signature has to go.
+drop function if exists public.chat_accounts(text, uuid);
 create or replace function public.chat_accounts(p_name text, p_token uuid)
-returns table (name text, created_at timestamptz, is_builtin boolean)
+returns table (name text, created_at timestamptz, is_builtin boolean, is_admin boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key text := chat_auth(p_name, p_token);
 begin
@@ -765,9 +789,41 @@ begin
     raise exception 'Only the % account can see the member list.', chat_dev_name();
   end if;
   return query
-    select a.name, a.created_at, (a.name_key = lower(chat_dev_name())) as is_builtin
+    select a.name, a.created_at,
+           chat_is_super(a.name_key)                                   as is_builtin,
+           exists (select 1 from chat_admins ad where ad.name_key = a.name_key) as is_admin
       from accounts a
-     order by (a.name_key = lower(chat_dev_name())) desc, a.created_at;
+     order by chat_is_super(a.name_key) desc,
+              exists (select 1 from chat_admins ad where ad.name_key = a.name_key) desc,
+              a.created_at;
+end $$;
+
+-- Make somebody an admin, or take it back. Only the built-in account may call
+-- this, which is the whole point: an admin cannot un-admin the person who made
+-- them, nor promote anybody else.
+create or replace function public.chat_set_admin(p_name text, p_token uuid,
+                                                 p_who text, p_on boolean)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_wkey text := lower(btrim(coalesce(p_who, '')));
+begin
+  if not chat_is_super(v_key) then
+    raise exception 'Only the % account can make people admins.', chat_dev_name();
+  end if;
+  if v_wkey = lower(chat_dev_name()) then
+    raise exception 'The % account is always an admin.', chat_dev_name();
+  end if;
+  if not exists (select 1 from accounts a where a.name_key = v_wkey) then
+    raise exception 'No account with that name.';
+  end if;
+
+  if p_on then
+    insert into chat_admins (name_key, granted_by) values (v_wkey, v_key)
+      on conflict (name_key) do nothing;
+  else
+    delete from chat_admins a where a.name_key = v_wkey;
+  end if;
 end $$;
 
 -- Delete somebody's account. Built-in account only, and it cannot delete
@@ -785,8 +841,13 @@ begin
   if not chat_is_staff(v_key) then
     raise exception 'Only the % account can delete people.', chat_dev_name();
   end if;
-  if v_wkey = lower(chat_dev_name()) then
+  if chat_is_super(v_wkey) then
     raise exception 'The % account cannot be deleted.', chat_dev_name();
+  end if;
+  -- An admin may clear up ordinary members, but not remove another admin --
+  -- only the built-in account can do that.
+  if chat_is_staff(v_wkey) and not chat_is_super(v_key) then
+    raise exception 'Only the % account can delete an admin.', chat_dev_name();
   end if;
   if not exists (select 1 from accounts a where a.name_key = v_wkey) then
     raise exception 'No account with that name.';
@@ -798,7 +859,8 @@ begin
   delete from chat_grants       g where g.name_key   = v_wkey;
   delete from chat_room_members m where m.name_key   = v_wkey;
   delete from chat_reserved     res where res.name_key = v_wkey;
-  delete from accounts          a where a.name_key   = v_wkey;
+  delete from chat_admins       ad  where ad.name_key  = v_wkey;
+  delete from accounts          a   where a.name_key   = v_wkey;
 end $$;
 
 -- Delete one message. You can always delete your own; the chat's owner can
@@ -957,5 +1019,6 @@ grant execute on function
   public.chat_delete_room(text, uuid, text),
   public.chat_accounts(text, uuid),
   public.chat_delete_account(text, uuid, text),
+  public.chat_set_admin(text, uuid, text, boolean),
   public.chat_dev_name()
 to anon, authenticated;

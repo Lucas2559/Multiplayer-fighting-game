@@ -83,6 +83,14 @@ create chats and share a code so other people can join them.
   used to limit them. Presence carries only a short hash, so other tabs still
   notice when your picture changes. If a picture can't be displayed, the avatar
   falls back to your initials rather than showing an empty box.
+- **Admins** — the owner account (`Lucaca92 Dev`) can tick **admin** next to
+  anyone in its Everyone list. An admin can do everything the owner can *inside
+  the chats*: reach every chat, set visibility, delete any message, clear or
+  delete a chat, and remove ordinary members. What an admin cannot do is touch
+  admin itself — they cannot promote anybody, cannot demote the owner, cannot
+  demote themselves or another admin, and cannot delete the owner's account or
+  another admin's. Only the owner account manages the admin list, so the power
+  you hand out can never be turned back on you.
 - **Deleting people** — the dev account gets an **Everyone** list in its profile
   dialog, with a Delete next to each member. Deleting removes their login, their
   permissions and the chats they had joined; any chat they *owned* is left
@@ -188,8 +196,9 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_delete_message(name, token, id)` | Delete one message (yours, or any if you own the chat) |
 | `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |
 | `chat_delete_room(name, token, code)` | Delete a chat and its messages; never the Main room |
-| `chat_accounts(name, token)` | Everyone who has registered — **dev account only** |
-| `chat_delete_account(name, token, who)` | Delete somebody's account — **dev account only** |
+| `chat_accounts(name, token)` | Everyone who has registered, with admin status — staff only |
+| `chat_delete_account(name, token, who)` | Delete an account — staff; only the owner may delete an admin |
+| `chat_set_admin(name, token, who, on)` | Make somebody an admin, or take it back — **owner account only** |
 
 ## What a stranger can get at
 

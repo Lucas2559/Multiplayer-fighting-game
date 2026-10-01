@@ -478,8 +478,17 @@ async function enterApp() {
   // thing about it that isn't secret, so asking for it is safe.
   try {
     const { data } = await sb.rpc("chat_dev_name");
-    state.me.isStaff = String(data || "").toLowerCase() === state.me.name.toLowerCase();
-  } catch { state.me.isStaff = false; }
+    // The owner account is the only one that can hand out admin; being an
+    // admin is reported by chat_accounts, which only staff may call at all.
+    state.me.isSuper = String(data || "").toLowerCase() === state.me.name.toLowerCase();
+    state.me.isStaff = state.me.isSuper;
+    if (!state.me.isSuper) {
+      const probe = await sb.rpc("chat_accounts", {
+        p_name: state.me.name, p_token: state.me.token,
+      });
+      state.me.isStaff = !probe.error;
+    }
+  } catch { state.me.isSuper = false; state.me.isStaff = false; }
 
   // Show your own avatar right away, before anyone else's has been fetched.
   state.me.avh = hashAvatar(state.me.avatar);
@@ -1165,21 +1174,57 @@ async function renderMembers() {
     return acctMsg(ex.message);
   }
 
+  // Only the built-in account hands out admin; an admin sees who is who but
+  // gets no switches, so nobody can demote the person who promoted them.
+  const iAmSuper = !!(state.me && state.me.isSuper);
+
   for (const r of rows) {
     const li = document.createElement("li");
     li.className = "people-row";
+
     const who = document.createElement("div");
     who.className = "people-who";
     who.textContent = r.name;
-    if (r.is_builtin) {
+    if (r.is_builtin || r.is_admin) {
       const tag = document.createElement("span");
       tag.className = "people-tag";
-      tag.textContent = "that's you — can't be deleted";
+      tag.textContent = r.is_builtin ? "owner — always admin" : "admin";
       who.appendChild(tag);
     }
     li.appendChild(who);
 
-    if (!r.is_builtin) {
+    const right = document.createElement("div");
+    right.className = "people-controls";
+
+    if (iAmSuper && !r.is_builtin) {
+      const lbl = document.createElement("label");
+      lbl.className = "people-can-invite";
+      lbl.title = "Admins can manage every chat, but cannot change who is an admin";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !!r.is_admin;
+      box.addEventListener("change", async () => {
+        box.disabled = true;
+        try {
+          await rpc("chat_set_admin", {
+            p_name: state.me.name, p_token: state.me.token,
+            p_who: r.name, p_on: box.checked,
+          });
+          banner(box.checked ? `${r.name} is now an admin.` : `${r.name} is no longer an admin.`);
+          await renderMembers();
+        } catch (ex) {
+          box.checked = !box.checked;
+          acctMsg(ex.message);
+          box.disabled = false;
+        }
+      });
+      lbl.append(box, document.createTextNode("admin"));
+      right.appendChild(lbl);
+    }
+
+    // An admin can tidy up ordinary members; only the owner can remove an admin.
+    const mayDelete = !r.is_builtin && (iAmSuper || !r.is_admin);
+    if (mayDelete) {
       const del = document.createElement("button");
       del.className = "mini-btn warn";
       del.textContent = "Delete";
@@ -1197,8 +1242,10 @@ async function renderMembers() {
           del.disabled = false;
         }
       });
-      li.appendChild(del);
+      right.appendChild(del);
     }
+
+    li.appendChild(right);
     list.appendChild(li);
   }
 }
