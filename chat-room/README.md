@@ -32,12 +32,9 @@ create chats and share a code so other people can join them.
   posted to a chat, that chat's oldest message is deleted; other chats are
   untouched. The trim runs inside `chat_post()`, so it holds however the message
   was sent, and open tabs trim their own list to match.
-- **Admin login** — logging in with the admin password `hiwelecome1234`, under
-  *any* username, signs you straight in as **Lucaca92** in `#ffab00`. That
-  account can't be registered by anyone else and has no ordinary password (its
-  stored hash is a throwaway random value), so the admin password is the only
-  way in. Every admin login re-pins the name and colour, so if you recolour
-  Lucaca92 in the profile editor it goes back to `#ffab00` next time you log in.
+- **One way in** — every login is a name plus that account's own password.
+  There is no password-only shortcut: the admin password unlocks name/password
+  *changes*, and nothing else.
 - **The dev account** — `Lucaca92 Dev`, password `welecome1234`. It works like
   any other account except that its chat switcher lists **every chat that
   exists**, so it can open and read any of them without being given a code. The
@@ -50,6 +47,13 @@ create chats and share a code so other people can join them.
   messages for everyone. Both buttons only appear if you're allowed, and both
   ask first. The Main room can be cleared (built-in accounts only) but never
   deleted. Deletions reach other open tabs live.
+- **Profile pictures** — a colour, or a photo/GIF up to **5 MB**. GIFs keep
+  every frame; other images are cropped to a small square. Pictures live in the
+  `accounts` table and are fetched with `chat_avatars()`, *not* sent over
+  realtime presence — presence frames cap out around a megabyte, which is what
+  used to limit them. Presence carries only a short hash, so other tabs still
+  notice when your picture changes. If a picture can't be displayed, the avatar
+  falls back to your initials rather than showing an empty box.
 - **Live messages + online count** — new rows are pushed to every open client
   through Supabase Realtime; the online count comes from Realtime Presence.
 
@@ -83,21 +87,6 @@ create chats and share a code so other people can join them.
    ```
 
    Open the URL in two browsers/windows, create two accounts, and chat live.
-
-## Changing the admin identity
-
-`chat_admin_name()` and `chat_admin_color()` hold the name and colour the admin
-password signs you in as. Edit and re-run them the same way:
-
-```sql
-create or replace function public.chat_admin_name()
-returns text language sql immutable as $$ select 'Lucaca92' $$;
-create or replace function public.chat_admin_color()
-returns text language sql immutable as $$ select '#ffab00' $$;
-```
-
-Renaming here does not rename the existing account row — use the profile
-editor's Account section (with the admin password) for that.
 
 ## Changing the message cap
 
@@ -137,10 +126,11 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | Function | Purpose |
 |----------|---------|
 | `chat_signup(name, password, color, avatar)` | Register; returns profile + session token |
-| `chat_login(name, password)` | Log in; returns profile + session token. The admin password signs you in as `Lucaca92` |
+| `chat_login(name, password)` | Log in; returns profile + session token |
 | `chat_session(name, token)` | Resume a stored session after a reload |
 | `chat_update_account(name, master, new_name, new_password)` | Rename / change password — **needs the admin password** |
 | `chat_update_profile(name, token, color, avatar)` | Change colour / photo |
+| `chat_avatars(name, token, names[])` | Fetch profile pictures for a set of accounts |
 | `chat_post(name, token, code, body)` | Send a message to a chat, then trim that chat to 500 |
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
@@ -159,6 +149,10 @@ determined, with devtools and a guessed code, could read another chat. Treat
 chats as separate rooms, not as a safe for secrets.
 
 ## Notes
+
+- A 5 MB GIF is about 6.7 MB once base64-encoded, and that is what gets stored
+  and sent to each person who sees your messages. A handful of large avatars is
+  fine; dozens would make the chat slow to load.
 
 - A name change only moves the account. Messages already sent keep the name they
   were posted under.

@@ -112,16 +112,11 @@ create or replace function public.chat_master_password()
 returns text language sql immutable as $$ select 'hiwelecome1234' $$;
 revoke all on function public.chat_master_password() from public, anon, authenticated;
 
--- Logging in with the master password signs you in as this account, whatever
--- username was typed, and pins it to this colour.
-create or replace function public.chat_admin_name()
-returns text language sql immutable as $$ select 'Lucaca92' $$;
-create or replace function public.chat_admin_color()
+-- The one built-in account, seeded near the bottom of this file. It is an
+-- ordinary account except that its chat switcher lists EVERY chat that exists,
+-- so it can read any of them without being given a code.
+create or replace function public.chat_dev_color()
 returns text language sql immutable as $$ select '#ffab00' $$;
-
--- A second account for you, seeded near the bottom of this file. Same person,
--- but its chat switcher lists EVERY chat that exists, so it can read any of
--- them without being given a code.
 create or replace function public.chat_dev_name()
 returns text language sql immutable as $$ select 'Lucaca92 Dev' $$;
 create or replace function public.chat_dev_password()
@@ -145,10 +140,10 @@ begin
 end $$;
 revoke all on function public.chat_auth(text, uuid) from public, anon, authenticated;
 
--- The two built-in accounts, which may delete anything anywhere.
+-- The built-in account, which may delete anything anywhere.
 create or replace function public.chat_is_staff(p_key text)
 returns boolean language sql stable as $$
-  select p_key in (lower(chat_admin_name()), lower(chat_dev_name()))
+  select p_key = lower(chat_dev_name())
 $$;
 revoke all on function public.chat_is_staff(text) from public, anon, authenticated;
 
@@ -177,7 +172,7 @@ begin
   if char_length(coalesce(p_password, '')) < 4 then
     raise exception 'Your password needs at least 4 characters.';
   end if;
-  if v_key in (lower(chat_admin_name()), lower(chat_dev_name())) then
+  if v_key = lower(chat_dev_name()) then
     raise exception 'That name is reserved.';
   end if;
   if exists (select 1 from accounts a where a.name_key = v_key) then
@@ -195,24 +190,11 @@ end $$;
 create or replace function public.chat_login(p_name text, p_password text)
 returns table (name text, color text, avatar text, token uuid)
 language plpgsql security definer set search_path = public, extensions as $$
-declare v_key   text := lower(btrim(coalesce(p_name, '')));
-        v_ok    boolean;
-        v_admin text;
+declare v_key text := lower(btrim(coalesce(p_name, '')));
+        v_ok  boolean;
 begin
-  -- The master password is a way in regardless of the name typed: it signs you
-  -- in as the owner account, creating it the first time. Its own stored hash is
-  -- a throwaway random value, so there is no ordinary password for it.
-  if coalesce(p_password, '') = chat_master_password() then
-    v_admin := chat_admin_name();
-    v_key := lower(v_admin);
-    insert into accounts (name_key, name, pass_hash, color)
-    values (v_key, v_admin, crypt(gen_random_uuid()::text, gen_salt('bf')), chat_admin_color())
-    on conflict (name_key) do update
-      set name = v_admin, color = chat_admin_color(), updated_at = now();
-    return query select a.name, a.color, a.avatar, a.token from accounts a where a.name_key = v_key;
-    return;
-  end if;
-
+  -- There is no password-only way in: every login is name + password. The
+  -- master password still unlocks name/password changes in chat_update_account.
   select a.pass_hash = crypt(coalesce(p_password, ''), a.pass_hash)
     into v_ok from accounts a where a.name_key = v_key;
   if v_ok is null then raise exception 'No account with that name yet. Create one first.'; end if;
@@ -416,6 +398,21 @@ begin
    );
 end $$;
 
+-- Profile pictures for a set of accounts. Avatars used to ride along in the
+-- realtime presence frame, which caps out around a megabyte; they live here
+-- instead so a big animated GIF is not limited by the websocket.
+create or replace function public.chat_avatars(p_name text, p_token uuid, p_names text[])
+returns table (name text, color text, avatar text)
+language plpgsql security definer set search_path = public as $$
+begin
+  perform chat_auth(p_name, p_token);
+  return query
+    select a.name, a.color, a.avatar
+      from accounts a
+     where a.name_key = any (select lower(btrim(n)) from unnest(p_names) n)
+     limit 200;
+end $$;
+
 -- Delete one message. You can always delete your own; the chat's owner can
 -- delete anything in their chat, and the built-in accounts can delete anything.
 create or replace function public.chat_delete_message(p_name text, p_token uuid, p_id bigint)
@@ -503,11 +500,22 @@ set search_path = public, extensions;
 
 insert into public.accounts (name_key, name, pass_hash, color)
 values (lower(chat_dev_name()), chat_dev_name(),
-        crypt(chat_dev_password(), gen_salt('bf')), chat_admin_color())
+        crypt(chat_dev_password(), gen_salt('bf')), chat_dev_color())
 on conflict (name_key) do update
   set name       = chat_dev_name(),
       pass_hash  = crypt(chat_dev_password(), gen_salt('bf')),
       updated_at = now();
+
+-- ---- Retire the old Lucaca92 account ----
+-- It used to be created on demand by a password-only login, which no longer
+-- exists. Messages it posted (if any) keep its name, as they do for any rename.
+delete from public.accounts where name_key = 'lucaca92';
+
+-- These are only reachable now if an older version of this file created them.
+-- Everything above has already been redefined without them, so nothing depends
+-- on them by the time we get here.
+drop function if exists public.chat_admin_name();
+drop function if exists public.chat_admin_color();
 
 grant execute on function
   public.chat_signup(text, text, text, text),
@@ -519,6 +527,7 @@ grant execute on function
   public.chat_create_room(text, uuid, text),
   public.chat_join_room(text, uuid, text),
   public.chat_my_rooms(text, uuid),
+  public.chat_avatars(text, uuid, text[]),
   public.chat_delete_message(text, uuid, bigint),
   public.chat_clear_room(text, uuid, text),
   public.chat_delete_room(text, uuid, text),

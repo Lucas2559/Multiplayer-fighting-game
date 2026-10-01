@@ -18,9 +18,11 @@ function initials(name) {
   return name.replace(/[^a-z0-9]/gi, "").slice(0, 2) || "?";
 }
 
-// ~500 KB cap so an avatar (sent to everyone over a realtime presence frame)
-// stays well under the websocket message limit.
-const MAX_UPLOAD_BYTES = 512 * 1024;
+// Avatars are stored in the database and fetched with chat_avatars(), NOT sent
+// over realtime presence, which caps out around a megabyte. That's what lets a
+// GIF be this big. Presence carries only a short hash so other tabs know when
+// someone's picture has changed and needs re-fetching.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const PROFILE_KEY = "nexus.profile";
 
 function loadProfile() {
@@ -45,27 +47,92 @@ function saveSession(s) {
   } catch {}
 }
 
-// name(lowercased) -> avatar data URL, rebuilt from realtime presence on each sync.
+// name(lowercased) -> { h, url }. `h` is a cheap hash of the picture, so a tab
+// can tell someone's avatar changed without shipping the picture itself over
+// presence. Filled by ensureAvatars() from the database.
 const avatars = new Map();
+const avatarUrl = (name) => {
+  const e = avatars.get(String(name).toLowerCase());
+  return (e && e.url) || null;
+};
+
+function hashAvatar(url) {
+  if (!url) return "";
+  let h = 5381;
+  for (let i = 0; i < url.length; i++) h = ((h * 33) ^ url.charCodeAt(i)) >>> 0;
+  return h.toString(36) + "." + url.length.toString(36);
+}
+
+// Fetch any avatar we don't have, or whose hash has moved on. `wants` maps a
+// lowercased name to the hash we expect, or null when we simply don't know.
+let avatarFetch = null;
+async function ensureAvatars(wants) {
+  const need = [];
+  for (const [key, h] of wants) {
+    const have = avatars.get(key);
+    if (!have || (h && have.h !== h)) need.push(key);
+  }
+  if (!need.length || !state.me) return;
+  // One request at a time; a later sync will pick up anything missed.
+  if (avatarFetch) return;
+  avatarFetch = (async () => {
+    try {
+      const { data, error } = await sb.rpc("chat_avatars", {
+        p_name: state.me.name, p_token: state.me.token, p_names: need,
+      });
+      if (error) throw new Error(error.message);
+      const seen = new Set();
+      for (const row of data || []) {
+        const key = String(row.name).toLowerCase();
+        seen.add(key);
+        avatars.set(key, { h: hashAvatar(row.avatar), url: row.avatar || null });
+      }
+      // Remember the misses too, so we don't ask again every render.
+      for (const key of need) if (!seen.has(key)) avatars.set(key, { h: "", url: null });
+      refreshAvatars();
+    } catch (e) {
+      // Not worth a banner: a missing picture is cosmetic.
+      console.warn("avatars:", e.message);
+    } finally {
+      avatarFetch = null;
+    }
+  })();
+}
+
+// Every name currently on screen, so we can fetch pictures for all of them.
+function avatarWantsFromDom() {
+  const wants = new Map();
+  for (const el of document.querySelectorAll(".avatar[data-name]"))
+    wants.set(el.dataset.name.toLowerCase(), null);
+  return wants;
+}
 
 // Paint an avatar box: a custom photo/GIF if we have one, else coloured initials.
-function paintAvatar(el, name, color, avatarUrl) {
-  if (avatarUrl) {
-    el.classList.add("has-img");
-    el.style.background = "#0d0f16";
-    el.innerHTML = `<img src="${avatarUrl}" alt="" />`;
-  } else {
+function paintAvatar(el, name, color, url) {
+  const letters = () => {
     el.classList.remove("has-img");
     el.style.background = color;
     el.textContent = initials(name);
-  }
+  };
+  if (!url) return letters();
+
+  el.classList.add("has-img");
+  el.style.background = "#0d0f16";
+  el.innerHTML = "";
+  const img = document.createElement("img");
+  img.alt = "";
+  // A picture that won't load (corrupt, or too big for the browser to decode)
+  // would otherwise leave an empty box — put the initials back instead.
+  img.addEventListener("error", letters);
+  img.src = url;
+  el.appendChild(img);
 }
 
 // Re-skin every rendered avatar (messages + your own chip) from the current map.
 function refreshAvatars() {
   for (const el of document.querySelectorAll(".avatar[data-name]")) {
     const name = el.dataset.name;
-    paintAvatar(el, name, el.dataset.color, avatars.get(name.toLowerCase()) || null);
+    paintAvatar(el, name, el.dataset.color, avatarUrl(name));
   }
   const me = document.getElementById("me-avatar");
   if (state.me && me) paintAvatar(me, state.me.name, state.me.color, state.me.avatar || null);
@@ -83,7 +150,7 @@ function processImageFile(file) {
       const dataUrl = reader.result;
       if (file.type === "image/gif") {
         if (file.size > MAX_UPLOAD_BYTES)
-          return reject(new Error("That GIF is too big (max ~500 KB). Try a smaller one."));
+          return reject(new Error("That GIF is too big (max 5 MB). Try a smaller one."));
         return resolve(dataUrl); // keep every frame — never run a GIF through a canvas
       }
       const img = new Image();
@@ -332,8 +399,8 @@ async function openChat(chat) {
     if (nameTakenByOther(room, state.me.name))
       throw new Error("You're already in this chat in another tab or window.");
 
-    const { name, color, avatar } = state.me;
-    await room.track({ name, color, avatar, cid: CID });
+    const { name, color } = state.me;
+    await room.track({ name, color, avh: state.me.avh || "", cid: CID });
     state.channel = room;
     try { localStorage.setItem(lastChatKey(name), chat.code); } catch {}
     await loadHistory();
@@ -408,8 +475,9 @@ async function enterApp() {
   $("composer-handle").textContent = "@" + state.me.name;
   $("composer-input").focus();
 
-  // Show your own avatar right away, before the first presence sync lands.
-  if (state.me.avatar) avatars.set(state.me.name.toLowerCase(), state.me.avatar);
+  // Show your own avatar right away, before anyone else's has been fetched.
+  state.me.avh = hashAvatar(state.me.avatar);
+  avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: state.me.avatar || null });
   refreshAvatars();
 
   await loadRooms();
@@ -506,6 +574,7 @@ async function loadHistory() {
   if (error) return banner("Could not load history: " + error.message);
   for (const m of data.slice().reverse()) appendMessage(m, true);
   scrollToBottom();
+  ensureAvatars(avatarWantsFromDom());
 }
 
 // You can always delete your own messages. Owning the chat (or being one of
@@ -542,9 +611,11 @@ function appendMessage(m, quiet) {
       <div class="msg-text">${escapeHtml(m.body)}</div>
     </div>
     <button class="msg-del" title="Delete this message" aria-label="Delete">&times;</button>`;
-  paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatars.get(String(m.name).toLowerCase()) || null);
+  paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatarUrl(m.name));
   box.appendChild(el);
   while (box.childElementCount > MAX_MESSAGES) box.firstElementChild.remove();
+  const key = String(m.name).toLowerCase();
+  if (!quiet && !avatars.has(key)) ensureAvatars(new Map([[key, null]]));
   if (!quiet) scrollToBottom();
 }
 
@@ -553,14 +624,17 @@ function appendMessage(m, quiet) {
 function renderOnline(room) {
   const s = room.presenceState();
   const cids = new Set();
-  avatars.clear();
+  const wants = avatarWantsFromDom(); // everyone whose message is on screen
   for (const key in s)
     for (const p of s[key]) {
       cids.add(p.cid || key);
-      if (p.avatar) avatars.set(String(p.name).toLowerCase(), p.avatar);
+      // Someone online tells us the hash of their current picture, so a change
+      // is noticed even though the picture itself never crosses the websocket.
+      wants.set(String(p.name).toLowerCase(), p.avh || null);
     }
   $("online-count").innerHTML = `<span class="dot"></span>${cids.size} online`;
   refreshAvatars();
+  ensureAvatars(wants);
 }
 
 /* =================== Deleting =================== */
@@ -701,15 +775,17 @@ $("profile-save").addEventListener("click", async () => {
   state.me.avatar = avatar;
   saveProfile({ name: state.me.name, color, avatar });
 
-  const key = state.me.name.toLowerCase();
-  if (avatar) avatars.set(key, avatar);
-  else avatars.delete(key);
+  state.me.avh = hashAvatar(avatar);
+  avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
   refreshAvatars();
   closeProfileModal();
 
-  // Re-broadcast so everyone else sees the new colour/photo immediately.
-  try { await state.channel.track({ name: state.me.name, color, avatar, cid: CID }); }
-  catch (e) { banner("Could not update profile: " + (e.message || e)); }
+  // Re-announce with the new hash so other tabs notice and re-fetch the photo.
+  try {
+    await state.channel.track({
+      name: state.me.name, color, avh: state.me.avh || "", cid: CID,
+    });
+  } catch (e) { banner("Could not update profile: " + (e.message || e)); }
 });
 
 /* =================== Account (name / password) =================== */
@@ -749,11 +825,11 @@ $("acct-save").addEventListener("click", async () => {
 
     $("composer-handle").textContent = "@" + state.me.name;
     avatars.delete(oldKey);
-    if (state.me.avatar) avatars.set(state.me.name.toLowerCase(), state.me.avatar);
+    avatars.set(state.me.name.toLowerCase(), { h: state.me.avh || "", url: state.me.avatar || null });
 
     // Re-announce under the new name so everyone's roster follows along.
     await state.channel.track({
-      name: state.me.name, color: state.me.color, avatar: state.me.avatar, cid: CID,
+      name: state.me.name, color: state.me.color, avh: state.me.avh || "", cid: CID,
     });
     refreshAvatars();
 
