@@ -239,23 +239,27 @@ const sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
 // Every account/message write goes through a database function (see
 // supabase/schema.sql) rather than a table, so password hashes and session
 // tokens never reach the browser. Errors come back as the plpgsql message.
+// A missing function means the database is behind the code, which is worth
+// saying plainly rather than passing on PostgREST's wording.
+function rpcError(error) {
+  const m = error.message || "";
+  if (error.code === "PGRST202" || /could not find the function|does not exist/i.test(m))
+    return new Error(
+      "This needs a newer database — re-run supabase/schema.sql in the SQL editor."
+    );
+  return new Error(m || "Server error.");
+}
+
 async function rpc(fn, args) {
   const { data, error } = await sb.rpc(fn, args);
-  if (error) {
-    const m = error.message || "";
-    if (error.code === "PGRST202" || /could not find the function|does not exist/i.test(m))
-      throw new Error(
-        "Accounts aren't set up in Supabase yet — run supabase/schema.sql in the SQL editor."
-      );
-    throw new Error(m || "Server error.");
-  }
+  if (error) throw rpcError(error);
   return Array.isArray(data) ? data[0] || null : data;
 }
 
 // Same as rpc(), for the calls that return a set rather than one row.
 async function rpcRows(fn, args) {
   const { data, error } = await sb.rpc(fn, args);
-  if (error) throw new Error(error.message || "Server error.");
+  if (error) throw rpcError(error);
   return data || [];
 }
 
