@@ -145,6 +145,13 @@ begin
 end $$;
 revoke all on function public.chat_auth(text, uuid) from public, anon, authenticated;
 
+-- The two built-in accounts, which may delete anything anywhere.
+create or replace function public.chat_is_staff(p_key text)
+returns boolean language sql stable as $$
+  select p_key in (lower(chat_admin_name()), lower(chat_dev_name()))
+$$;
+revoke all on function public.chat_is_staff(text) from public, anon, authenticated;
+
 -- Shared validation for a display name.
 create or replace function public.chat_check_name(p_name text)
 returns text language plpgsql as $$
@@ -255,6 +262,10 @@ begin
     -- Messages keep the name they were posted under; only the account moves.
     update accounts a set name = v_new, name_key = v_new_key, updated_at = now()
       where a.name_key = v_key;
+    -- Chats and memberships are keyed by name_key too, so carry them across or
+    -- a rename would quietly cost you ownership of every chat you made.
+    update chat_rooms r set owner_key = v_new_key where r.owner_key = v_key;
+    update chat_room_members m set name_key = v_new_key where m.name_key = v_key;
     v_key := v_new_key;
   end if;
 
@@ -344,22 +355,27 @@ begin
 end $$;
 
 -- The chats in your switcher: the main room, ones you made, ones you joined.
+-- The return type gains can_clear, and Postgres will not change a function's
+-- return type in place, so the previous signature has to go first.
+drop function if exists public.chat_my_rooms(text, uuid);
 create or replace function public.chat_my_rooms(p_name text, p_token uuid)
-returns table (code text, name text, is_owner boolean)
+returns table (code text, name text, is_owner boolean, can_clear boolean)
 language plpgsql security definer set search_path = public as $$
 declare v_key text := chat_auth(p_name, p_token);
 begin
   -- The dev account sees every chat, joined or not.
   if v_key = lower(chat_dev_name()) then
     return query
-      select r.code, r.name, (r.owner_key = v_key) as is_owner
+      select r.code, r.name, (r.owner_key = v_key) as is_owner,
+             true as can_clear
         from chat_rooms r
        order by (r.code <> 'main'), r.created_at;
     return;
   end if;
 
   return query
-    select r.code, r.name, (r.owner_key = v_key) as is_owner
+    select r.code, r.name, (r.owner_key = v_key) as is_owner,
+           (r.owner_key = v_key or chat_is_staff(v_key)) as can_clear
       from chat_rooms r
      where r.code = 'main'
         or r.owner_key = v_key
@@ -400,6 +416,82 @@ begin
    );
 end $$;
 
+-- Delete one message. You can always delete your own; the chat's owner can
+-- delete anything in their chat, and the built-in accounts can delete anything.
+create or replace function public.chat_delete_message(p_name text, p_token uuid, p_id bigint)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_msg  record;
+        v_mine text;
+begin
+  select m.id, m.channel, m.name into v_msg from messages m where m.id = p_id;
+  if not found then raise exception 'That message is already gone.'; end if;
+
+  select a.name into v_mine from accounts a where a.name_key = v_key;
+
+  if not (v_msg.name = v_mine
+          or chat_is_staff(v_key)
+          or exists (select 1 from chat_rooms r
+                      where r.code = v_msg.channel and r.owner_key = v_key)) then
+    raise exception 'You can only delete your own messages.';
+  end if;
+
+  delete from messages m where m.id = p_id;
+end $$;
+
+-- Empty a whole chat. Only its owner, or a built-in account, may do this; the
+-- Main room has no owner, so only the built-in accounts can clear it.
+create or replace function public.chat_clear_room(p_name text, p_token uuid, p_code text)
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_code text;
+        v_n    integer;
+begin
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+
+  if not (chat_is_staff(v_key)
+          or exists (select 1 from chat_rooms r
+                      where r.code = v_code and r.owner_key = v_key)) then
+    raise exception 'Only the owner of this chat can clear it.';
+  end if;
+
+  delete from messages m where m.channel = v_code;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
+-- Delete a whole chat: its messages, its membership rows and the chat itself.
+-- Same permission as clearing, except the Main room can never be deleted —
+-- it is where everyone lands.
+create or replace function public.chat_delete_room(p_name text, p_token uuid, p_code text)
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_code text;
+        v_n    integer;
+begin
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+  if v_code = 'main' then raise exception 'The Main room cannot be deleted.'; end if;
+
+  if not (chat_is_staff(v_key)
+          or exists (select 1 from chat_rooms r
+                      where r.code = v_code and r.owner_key = v_key)) then
+    raise exception 'Only the owner of this chat can delete it.';
+  end if;
+
+  delete from messages m where m.channel = v_code;
+  get diagnostics v_n = row_count;
+  -- chat_room_members goes with it, via on delete cascade.
+  delete from chat_rooms r where r.code = v_code;
+  return v_n;
+end $$;
+
 -- ---- Seed the dev account ----
 -- Re-running this file re-applies the password defined by chat_dev_password(),
 -- so it is always the one the README documents. Its colour matches the admin
@@ -427,5 +519,8 @@ grant execute on function
   public.chat_create_room(text, uuid, text),
   public.chat_join_room(text, uuid, text),
   public.chat_my_rooms(text, uuid),
+  public.chat_delete_message(text, uuid, bigint),
+  public.chat_clear_room(text, uuid, text),
+  public.chat_delete_room(text, uuid, text),
   public.chat_dev_name()
 to anon, authenticated;

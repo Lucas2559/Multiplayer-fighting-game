@@ -120,6 +120,8 @@ html, body {
 }
 .mini-btn:hover { border-color: var(--accent); }
 .mini-btn.ghost { color: var(--muted); }
+.mini-btn.warn { color: #e6938a; }
+.mini-btn.warn:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
 .color-pick { position: relative; overflow: hidden; }
 .color-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
 .profile-hint { color: var(--faint); font-size: 11px; margin: 8px 0 0; }
@@ -272,7 +274,7 @@ html, body {
   display: flex; flex-direction: column; gap: 2px;
 }
 
-.msg { display: flex; gap: 12px; padding: 8px 8px; border-radius: 10px; }
+.msg { display: flex; gap: 12px; padding: 8px 8px; border-radius: 10px; position: relative; }
 .msg:hover { background: var(--bg-2); }
 .msg.grouped { padding-top: 1px; padding-bottom: 1px; }
 .msg.grouped .avatar { visibility: hidden; height: 0; }
@@ -282,6 +284,19 @@ html, body {
 .msg-name { font-weight: 600; font-size: 14px; }
 .msg-time { color: var(--faint); font-size: 11px; }
 .msg-text { color: var(--text); line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
+
+/* Delete button: only on messages you're allowed to remove, only on hover. */
+.msg-del {
+  position: absolute; top: 4px; right: 6px;
+  width: 24px; height: 24px; padding: 0; line-height: 1;
+  display: none; place-items: center;
+  background: var(--panel-2); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 7px;
+  font-size: 16px; cursor: pointer; font-family: inherit;
+}
+.msg.can-del:hover .msg-del { display: grid; }
+.msg-del:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+.msg-del:disabled { opacity: 0.5; cursor: wait; }
 
 .msg-system {
   text-align: center; color: var(--faint); font-size: 12px;

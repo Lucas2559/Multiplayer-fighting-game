@@ -289,7 +289,9 @@ async function openChat(chat) {
     await sb.removeChannel(state.channel);
     state.channel = null;
   }
-  state.chat = chat;
+  // join/create hand back only { code, name }; the switcher row also carries
+  // is_owner and can_clear, so prefer it when we have it.
+  state.chat = state.rooms.find((r) => r.code === chat.code) || chat;
   state.lastRenderedName = null;
   $("messages").innerHTML = "";
   renderChatHeader();
@@ -302,6 +304,11 @@ async function openChat(chat) {
     .on("postgres_changes",
       { event: "INSERT", schema: "public", table: "messages", filter: "channel=eq." + chat.code },
       (payload) => appendMessage(payload.new))
+    // DELETE carries only the primary key (the table's replica identity), so it
+    // can't be filtered by channel — we just drop that id if this tab shows it.
+    .on("postgres_changes",
+      { event: "DELETE", schema: "public", table: "messages" },
+      (payload) => removeMessage(payload.old && payload.old.id))
     .on("presence", { event: "sync" }, () => { synced = true; renderOnline(room); });
 
   try {
@@ -444,6 +451,10 @@ function renderRoomList() {
 
 function renderChatHeader() {
   renderRoomList();
+  const mayClear = !!(state.chat && state.chat.can_clear);
+  $("clear-btn").hidden = !mayClear;
+  // The Main room is where everyone lands, so it can never be deleted.
+  $("delete-btn").hidden = !(mayClear && state.chat.code !== "main");
   const code = $("room-code");
   // The main room is where everyone starts, so its code isn't worth sharing.
   if (state.chat && state.chat.code !== "main") {
@@ -497,6 +508,21 @@ async function loadHistory() {
   scrollToBottom();
 }
 
+// You can always delete your own messages. Owning the chat (or being one of
+// the built-in accounts) lets you delete anyone's — the database enforces this
+// too, this only decides whether the button is worth showing.
+function canDelete(m) {
+  if (!state.me) return false;
+  if (String(m.name) === state.me.name) return true;
+  return !!(state.chat && state.chat.can_clear);
+}
+
+function removeMessage(id) {
+  if (id == null) return;
+  const el = $("messages").querySelector(`.msg[data-id="${id}"]`);
+  if (el) el.remove();
+}
+
 function appendMessage(m, quiet) {
   const box = $("messages");
   const ts = m.created_at ? new Date(m.created_at).getTime() : Date.now();
@@ -504,7 +530,8 @@ function appendMessage(m, quiet) {
   state.lastRenderedName = m.name;
 
   const el = document.createElement("div");
-  el.className = "msg" + (grouped ? " grouped" : "");
+  el.className = "msg" + (grouped ? " grouped" : "") + (canDelete(m) ? " can-del" : "");
+  el.dataset.id = m.id;
   el.innerHTML = `
     <div class="avatar" data-name="${escapeHtml(m.name)}" data-color="${escapeHtml(m.color)}"></div>
     <div class="msg-body">
@@ -513,7 +540,8 @@ function appendMessage(m, quiet) {
         <span class="msg-time">${fmtTime(ts)}</span>
       </div>
       <div class="msg-text">${escapeHtml(m.body)}</div>
-    </div>`;
+    </div>
+    <button class="msg-del" title="Delete this message" aria-label="Delete">&times;</button>`;
   paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatars.get(String(m.name).toLowerCase()) || null);
   box.appendChild(el);
   while (box.childElementCount > MAX_MESSAGES) box.firstElementChild.remove();
@@ -534,6 +562,57 @@ function renderOnline(room) {
   $("online-count").innerHTML = `<span class="dot"></span>${cids.size} online`;
   refreshAvatars();
 }
+
+/* =================== Deleting =================== */
+$("messages").addEventListener("click", async (e) => {
+  const btn = e.target.closest(".msg-del");
+  if (!btn) return;
+  const el = btn.closest(".msg");
+  const id = Number(el.dataset.id);
+  btn.disabled = true;
+  try {
+    await rpc("chat_delete_message", {
+      p_name: state.me.name, p_token: state.me.token, p_id: id,
+    });
+    el.remove(); // other tabs get the realtime DELETE
+  } catch (ex) {
+    banner("Could not delete: " + ex.message);
+    btn.disabled = false;
+  }
+});
+
+$("clear-btn").addEventListener("click", async () => {
+  if (!state.chat) return;
+  if (!confirm(`Delete every message in "${state.chat.name}"?\n\nThis cannot be undone.`)) return;
+  try {
+    const n = await rpc("chat_clear_room", {
+      p_name: state.me.name, p_token: state.me.token, p_code: state.chat.code,
+    });
+    $("messages").innerHTML = "";
+    state.lastRenderedName = null;
+    banner(n === 1 ? "1 message deleted." : n + " messages deleted.");
+  } catch (ex) {
+    banner("Could not clear the chat: " + ex.message);
+  }
+});
+
+$("delete-btn").addEventListener("click", async () => {
+  if (!state.chat) return;
+  if (!confirm(`Delete the chat "${state.chat.name}" and all its messages?\n\nEveryone in it loses it. This cannot be undone.`)) return;
+  const gone = state.chat.name;
+  try {
+    await rpc("chat_delete_room", {
+      p_name: state.me.name, p_token: state.me.token, p_code: state.chat.code,
+    });
+    await loadRooms();
+    const fallback = state.rooms.find((r) => r.code === "main") || state.rooms[0];
+    state.chat = null;
+    if (fallback) await switchChat(fallback);
+    banner(`Deleted "${gone}".`);
+  } catch (ex) {
+    banner("Could not delete the chat: " + ex.message);
+  }
+});
 
 /* =================== Composer =================== */
 $("composer-form").addEventListener("submit", async (e) => {

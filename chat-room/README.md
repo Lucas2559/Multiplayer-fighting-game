@@ -44,6 +44,12 @@ create chats and share a code so other people can join them.
   name is reserved, so nobody else can register it. The account is created by
   `supabase/schema.sql`, and re-running that file resets its password to
   whatever `chat_dev_password()` says.
+- **Deleting** — hover a message and a small **×** appears on the ones you may
+  remove: always your own, plus everyone's if you own the chat or are using a
+  built-in account. **Clear** empties a chat, **Delete chat** removes it and its
+  messages for everyone. Both buttons only appear if you're allowed, and both
+  ask first. The Main room can be cleared (built-in accounts only) but never
+  deleted. Deletions reach other open tabs live.
 - **Live messages + online count** — new rows are pushed to every open client
   through Supabase Realtime; the online count comes from Realtime Presence.
 
@@ -121,7 +127,7 @@ returns text language sql immutable as $$ select 'your-new-admin-password' $$;
 | `public/style.css`  | Dark Nexus Canvas theme |
 | `public/app.js`     | Supabase client: accounts, realtime messages, presence |
 | `public/config.js`  | Your Supabase URL + anon key |
-| `supabase/schema.sql` | `messages`, `accounts`, `rooms`, `room_members`, RLS, all functions |
+| `supabase/schema.sql` | `messages`, `accounts`, `chat_rooms`, `chat_room_members`, RLS, all functions |
 | `server.js`         | Zero-dependency static file server for local dev |
 
 ## Database API
@@ -139,10 +145,13 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
+| `chat_delete_message(name, token, id)` | Delete one message (yours, or any if you own the chat) |
+| `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |
+| `chat_delete_room(name, token, code)` | Delete a chat and its messages; never the Main room |
 
 ## How private is a chat code?
 
-A code keeps a chat **out of sight, not secret**. `rooms` is locked down so
+A code keeps a chat **out of sight, not secret**. `chat_rooms` is locked down so
 nobody can list the codes that exist, and you can only post to a chat you know
 the code for. But the `messages` table itself stays readable by the public anon
 key — Realtime needs that to push new messages to the browser — so somebody
@@ -160,8 +169,10 @@ chats as separate rooms, not as a safe for secrets.
 - The 500-message trim only runs when a message is posted, so a chat sitting
   idle above the cap (e.g. right after you lower the limit) stays that way until
   the next message arrives.
-- There's no way to leave, rename or delete a chat yet, and the Main room can't
-  be left — say the word and I'll add it.
+- You can delete a chat you own, but there's no way to *leave* one someone else
+  owns, or to rename a chat.
+- Renaming your account carries your chat ownership and memberships across, so
+  you keep the chats you made.
 - The same account can't be in the *same* chat in two tabs at once, but it can
   be in two different chats.
 - To wipe everything — all accounts, all messages, all chats you made — run
