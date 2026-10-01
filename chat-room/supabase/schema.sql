@@ -707,6 +707,29 @@ on conflict (name_key) do update
       pass_hash  = crypt(chat_dev_password(), gen_salt('bf')),
       updated_at = now();
 
+-- ---- Seed Shrijay's account ----
+-- An ordinary account with no special powers: it sees a chat only once somebody
+-- lets it in from the People panel. It is seeded here, rather than reserved with
+-- an invite code, because the password was chosen up front and handed over.
+-- Re-running this file resets that password to the one below.
+create or replace function public.chat_shrijay_name()
+returns text language sql immutable as $$ select 'Shrijay WOF' $$;
+create or replace function public.chat_shrijay_password()
+returns text language sql immutable as $$ select 'qibliqibli' $$;
+revoke all on function public.chat_shrijay_password() from public, anon, authenticated;
+
+insert into public.accounts (name_key, name, pass_hash, color)
+values (lower(chat_shrijay_name()), chat_shrijay_name(),
+        crypt(chat_shrijay_password(), gen_salt('bf')), '#5aa9e6')
+on conflict (name_key) do update
+  set name       = chat_shrijay_name(),
+      pass_hash  = crypt(chat_shrijay_password(), gen_salt('bf')),
+      updated_at = now();
+
+-- The account exists now, so the name is no longer being held for anyone and
+-- the invite code that went with it is spent.
+delete from public.chat_reserved where name_key = lower(chat_shrijay_name());
+
 -- ---- Retire the old Lucaca92 account ----
 -- It used to be created on demand by a password-only login, which no longer
 -- exists. Messages it posted (if any) keep its name, as they do for any rename.

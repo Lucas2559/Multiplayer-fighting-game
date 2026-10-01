@@ -34,6 +34,11 @@ create chats and share a code so other people can join them.
   account — the owner is locked out too, which is the point). A private chat
   answers a join attempt exactly like a code that doesn't exist, so you can't
   probe for one.
+- **Shrijay's account** — `Shrijay WOF` is seeded by `supabase/schema.sql` with
+  a known password (see below), because the password was chosen up front rather
+  than left for them to pick. It is an *ordinary* account: it reaches a chat
+  only once somebody adds it in the **People** panel. Re-running the schema
+  resets its password.
 - **Letting one person in** — a chat's owner (or the dev account) can open
   **People** and add somebody by name. That chat then appears in their switcher
   without the code ever being shared. If that name has no account yet it is
@@ -99,6 +104,16 @@ create chats and share a code so other people can join them.
    ```
 
    Open the URL in two browsers/windows, create two accounts, and chat live.
+
+## The seeded accounts
+
+Two accounts are created by `supabase/schema.sql`, and re-running it resets
+their passwords to whatever these functions say:
+
+| Account | Password | What's special |
+|---------|----------|----------------|
+| `Lucaca92 Dev` | `chat_dev_password()` | Sees every chat; sets visibility; deletes anything |
+| `Shrijay WOF` | `chat_shrijay_password()` | Nothing — an ordinary account |
 
 ## Changing the message cap
 
