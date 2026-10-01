@@ -37,3 +37,10 @@ values (lower(chat_shrijay_name()), chat_shrijay_name(),
         crypt(chat_shrijay_password(), gen_salt('bf')), '#5aa9e6')
 on conflict (name_key) do update
   set pass_hash = crypt(chat_shrijay_password(), gen_salt('bf')), updated_at = now();
+
+-- Shows what is now in force. All three must read as your real passwords; if
+-- any still says SET-ME-..., this file did not run (a selection in the editor
+-- means only the selected part runs — click in the editor and press ⌘A first).
+select public.chat_master_password()   as admin_password,
+       public.chat_dev_password()      as dev_password,
+       public.chat_shrijay_password()  as shrijay_password;

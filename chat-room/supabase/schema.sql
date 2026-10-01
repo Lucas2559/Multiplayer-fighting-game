@@ -3,10 +3,10 @@
 -- Safe to re-run: everything is idempotent.
 --
 -- !! PASSWORDS ARE NOT IN THIS FILE. The three below read SET-ME-*, which are
--- !! placeholders, not the real ones. After running this file, run your private
--- !! supabase/secrets.local.sql (git-ignored) to set them. Running this file
--- !! again resets them to the placeholders, so re-run the secrets file after.
--- !! See "Setting the passwords" in the README.
+-- !! placeholders, not the real ones. After running this file the FIRST time,
+-- !! run your private supabase/secrets.local.sql (git-ignored) to set them.
+-- !! Re-running this file leaves passwords you have already set alone, so you
+-- !! only need the secrets file once. See "Setting the passwords" in the README.
 --
 -- Accounts are real: a name is registered once with a password and stays yours.
 -- Chats are rooms with a shareable code; `messages.channel` holds that code.
@@ -163,8 +163,17 @@ end $$;
 
 -- The one password that unlocks changing an account's name or password.
 -- Kept in a function (not a column) so it is never selectable by the anon key.
-create or replace function public.chat_master_password()
-returns text language sql immutable as $$ select 'SET-ME-ADMIN' $$;
+-- Created ONLY if it isn't there yet, so re-running this file never overwrites
+-- a real password you have already set with supabase/secrets.local.sql.
+do $pw$
+begin
+  if to_regprocedure('public.chat_master_password()') is null then
+    execute $q$
+      create function public.chat_master_password()
+      returns text language sql immutable as $v$ select 'SET-ME-ADMIN' $v$
+    $q$;
+  end if;
+end $pw$;
 revoke all on function public.chat_master_password() from public, anon, authenticated;
 
 -- The one built-in account, seeded near the bottom of this file. It is an
@@ -174,8 +183,15 @@ create or replace function public.chat_dev_color()
 returns text language sql immutable as $$ select '#ffab00' $$;
 create or replace function public.chat_dev_name()
 returns text language sql immutable as $$ select 'Lucaca92 Dev' $$;
-create or replace function public.chat_dev_password()
-returns text language sql immutable as $$ select 'SET-ME-DEV' $$;
+do $pw$
+begin
+  if to_regprocedure('public.chat_dev_password()') is null then
+    execute $q$
+      create function public.chat_dev_password()
+      returns text language sql immutable as $v$ select 'SET-ME-DEV' $v$
+    $q$;
+  end if;
+end $pw$;
 revoke all on function public.chat_dev_password() from public, anon, authenticated;
 
 -- How many messages the room keeps. Once the 501st message is posted the
@@ -755,8 +771,15 @@ on conflict (name_key) do update
 -- Re-running this file resets that password to the one below.
 create or replace function public.chat_shrijay_name()
 returns text language sql immutable as $$ select 'Shrijay WOF' $$;
-create or replace function public.chat_shrijay_password()
-returns text language sql immutable as $$ select 'SET-ME-SHRIJAY' $$;
+do $pw$
+begin
+  if to_regprocedure('public.chat_shrijay_password()') is null then
+    execute $q$
+      create function public.chat_shrijay_password()
+      returns text language sql immutable as $v$ select 'SET-ME-SHRIJAY' $v$
+    $q$;
+  end if;
+end $pw$;
 revoke all on function public.chat_shrijay_password() from public, anon, authenticated;
 
 insert into public.accounts (name_key, name, pass_hash, color)
