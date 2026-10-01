@@ -945,6 +945,7 @@ $("profile-btn").addEventListener("click", () => {
   $("acct-master").value = "";
   $("acct-msg").hidden = true;
   $("profile-modal").hidden = false;
+  renderMembers();
 });
 $("profile-cancel").addEventListener("click", closeProfileModal);
 $("profile-modal").addEventListener("click", (e) => {
@@ -1018,6 +1019,59 @@ $("profile-save").addEventListener("click", async () => {
     btn.textContent = "Save";
   }
 });
+
+/* =================== Everyone (built-in account only) =================== */
+async function renderMembers() {
+  const block = $("members-block");
+  const list = $("members-list");
+  block.hidden = !(state.me && state.me.isStaff);
+  if (block.hidden) return;
+
+  list.innerHTML = "";
+  let rows;
+  try {
+    rows = await rpcRows("chat_accounts", { p_name: state.me.name, p_token: state.me.token });
+  } catch (ex) {
+    return acctMsg(ex.message);
+  }
+
+  for (const r of rows) {
+    const li = document.createElement("li");
+    li.className = "people-row";
+    const who = document.createElement("div");
+    who.className = "people-who";
+    who.textContent = r.name;
+    if (r.is_builtin) {
+      const tag = document.createElement("span");
+      tag.className = "people-tag";
+      tag.textContent = "that's you — can't be deleted";
+      who.appendChild(tag);
+    }
+    li.appendChild(who);
+
+    if (!r.is_builtin) {
+      const del = document.createElement("button");
+      del.className = "mini-btn warn";
+      del.textContent = "Delete";
+      del.addEventListener("click", async () => {
+        if (!confirm(`Delete the account "${r.name}"?\n\nThey lose their login, their permissions and the chats they had joined. Messages they already sent stay. This cannot be undone.`)) return;
+        del.disabled = true;
+        try {
+          await rpc("chat_delete_account", {
+            p_name: state.me.name, p_token: state.me.token, p_who: r.name,
+          });
+          await renderMembers();
+          banner(`Deleted ${r.name}.`);
+        } catch (ex) {
+          acctMsg(ex.message);
+          del.disabled = false;
+        }
+      });
+      li.appendChild(del);
+    }
+    list.appendChild(li);
+  }
+}
 
 /* =================== Account (name / password) =================== */
 function acctMsg(text, ok) {

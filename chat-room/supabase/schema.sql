@@ -671,6 +671,55 @@ begin
   delete from chat_room_members m where m.code = v_code and m.name_key = v_wkey;
 end $$;
 
+-- ---- Managing accounts ----
+
+-- Everyone who has registered. Built-in account only: an ordinary member has no
+-- business enumerating the other people on the server.
+create or replace function public.chat_accounts(p_name text, p_token uuid)
+returns table (name text, created_at timestamptz, is_builtin boolean)
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  if not chat_is_staff(v_key) then
+    raise exception 'Only the % account can see the member list.', chat_dev_name();
+  end if;
+  return query
+    select a.name, a.created_at, (a.name_key = lower(chat_dev_name())) as is_builtin
+      from accounts a
+     order by (a.name_key = lower(chat_dev_name())) desc, a.created_at;
+end $$;
+
+-- Delete somebody's account. Built-in account only, and it cannot delete
+-- itself -- that would leave nobody able to manage anything.
+--
+-- Their messages stay, under the name they were posted with, exactly as they
+-- do after a rename. Deleting the person does not rewrite what the chat saw;
+-- use the message x or Clear for that.
+create or replace function public.chat_delete_account(p_name text, p_token uuid, p_who text)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_wkey text := lower(btrim(coalesce(p_who, '')));
+begin
+  if not chat_is_staff(v_key) then
+    raise exception 'Only the % account can delete people.', chat_dev_name();
+  end if;
+  if v_wkey = lower(chat_dev_name()) then
+    raise exception 'The % account cannot be deleted.', chat_dev_name();
+  end if;
+  if not exists (select 1 from accounts a where a.name_key = v_wkey) then
+    raise exception 'No account with that name.';
+  end if;
+
+  -- Chats they made outlive them; hand those to nobody rather than cascade a
+  -- delete through other people's conversations.
+  update chat_rooms r set owner_key = null where r.owner_key = v_wkey;
+  delete from chat_grants       g where g.name_key   = v_wkey;
+  delete from chat_room_members m where m.name_key   = v_wkey;
+  delete from chat_reserved     res where res.name_key = v_wkey;
+  delete from accounts          a where a.name_key   = v_wkey;
+end $$;
+
 -- Delete one message. You can always delete your own; the chat's owner can
 -- delete anything in their chat, and the built-in accounts can delete anything.
 create or replace function public.chat_delete_message(p_name text, p_token uuid, p_id bigint)
@@ -824,5 +873,7 @@ grant execute on function
   public.chat_delete_message(text, uuid, bigint),
   public.chat_clear_room(text, uuid, text),
   public.chat_delete_room(text, uuid, text),
+  public.chat_accounts(text, uuid),
+  public.chat_delete_account(text, uuid, text),
   public.chat_dev_name()
 to anon, authenticated;

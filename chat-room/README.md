@@ -71,6 +71,12 @@ create chats and share a code so other people can join them.
   used to limit them. Presence carries only a short hash, so other tabs still
   notice when your picture changes. If a picture can't be displayed, the avatar
   falls back to your initials rather than showing an empty box.
+- **Deleting people** — the dev account gets an **Everyone** list in its profile
+  dialog, with a Delete next to each member. Deleting removes their login, their
+  permissions and the chats they had joined; any chat they *owned* is left
+  ownerless rather than deleted out from under the people in it. Messages they
+  already sent stay, under the name they were posted with, the same as after a
+  rename. The dev account can't delete itself.
 - **Live messages + online count** — new rows are pushed to every open client
   through Supabase Realtime; the online count comes from Realtime Presence.
 
@@ -169,6 +175,8 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_delete_message(name, token, id)` | Delete one message (yours, or any if you own the chat) |
 | `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |
 | `chat_delete_room(name, token, code)` | Delete a chat and its messages; never the Main room |
+| `chat_accounts(name, token)` | Everyone who has registered — **dev account only** |
+| `chat_delete_account(name, token, who)` | Delete somebody's account — **dev account only** |
 
 ## What a stranger can get at
 
