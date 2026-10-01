@@ -252,6 +252,13 @@ async function rpc(fn, args) {
   return Array.isArray(data) ? data[0] || null : data;
 }
 
+// Same as rpc(), for the calls that return a set rather than one row.
+async function rpcRows(fn, args) {
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) throw new Error(error.message || "Server error.");
+  return data || [];
+}
+
 // Surface any otherwise-silent async failure.
 window.addEventListener("unhandledrejection", (e) => {
   banner("Error: " + (e.reason?.message || e.reason || "unknown"));
@@ -358,14 +365,16 @@ async function openChat(chat) {
   });
   let synced = false;
   room
-    .on("postgres_changes",
-      { event: "INSERT", schema: "public", table: "messages", filter: "channel=eq." + chat.code },
-      (payload) => appendMessage(payload.new))
-    // DELETE carries only the primary key (the table's replica identity), so it
-    // can't be filtered by channel — we just drop that id if this tab shows it.
-    .on("postgres_changes",
-      { event: "DELETE", schema: "public", table: "messages" },
-      (payload) => removeMessage(payload.old && payload.old.id))
+    // Nothing on this channel carries message text. A "sent" ping says only
+    // that something arrived; each tab then asks chat_history() for it, and
+    // that call checks whether the tab is allowed to see this chat at all.
+    // A deleted id is not secret on its own, so it travels in the ping.
+    .on("broadcast", { event: "sent" }, () => pullNew())
+    .on("broadcast", { event: "gone" }, (m) => {
+      const d = m && m.payload;
+      if (d && d.id != null) removeMessage(d.id);
+      else reloadChat();
+    })
     .on("presence", { event: "sync" }, () => { synced = true; renderOnline(room); });
 
   try {
@@ -562,18 +571,49 @@ $("room-code").addEventListener("click", async () => {
   }
 });
 
+// The id of the newest message this tab has rendered, so it can ask for just
+// what came after it.
+let lastSeenId = 0;
+
 async function loadHistory() {
-  // Newest first so we get the current window, then flip it for rendering.
-  const { data, error } = await sb
-    .from("messages")
-    .select("*")
-    .eq("channel", state.chat.code)
-    .order("id", { ascending: false })
-    .limit(MAX_MESSAGES);
-  if (error) return banner("Could not load history: " + error.message);
-  for (const m of data.slice().reverse()) appendMessage(m, true);
+  let rows;
+  try {
+    rows = await rpcRows("chat_history", {
+      p_name: state.me.name, p_token: state.me.token,
+      p_code: state.chat.code, p_after: 0, p_limit: MAX_MESSAGES,
+    });
+  } catch (ex) {
+    return banner("Could not load history: " + ex.message);
+  }
+  lastSeenId = 0;
+  for (const m of rows) appendMessage(m, true);
   scrollToBottom();
   ensureAvatars(avatarWantsFromDom());
+}
+
+// Fetch whatever has arrived since the last message we rendered.
+let pulling = false;
+async function pullNew() {
+  if (pulling || !state.chat || !state.me) return;
+  pulling = true;
+  try {
+    const rows = await rpcRows("chat_history", {
+      p_name: state.me.name, p_token: state.me.token,
+      p_code: state.chat.code, p_after: lastSeenId, p_limit: MAX_MESSAGES,
+    });
+    for (const m of rows) appendMessage(m);
+  } catch (ex) {
+    console.warn("pull:", ex.message);
+  } finally {
+    pulling = false;
+  }
+}
+
+// A bulk change (a clear) is easiest to take from the top.
+async function reloadChat() {
+  $("messages").innerHTML = "";
+  state.lastRenderedName = null;
+  await loadHistory();
 }
 
 // You can always delete your own messages. Owning the chat (or being one of
@@ -593,6 +633,7 @@ function removeMessage(id) {
 
 function appendMessage(m, quiet) {
   const box = $("messages");
+  if (m.id != null && box.querySelector(`.msg[data-id="${m.id}"]`)) return;
   const ts = m.created_at ? new Date(m.created_at).getTime() : Date.now();
   const grouped = state.lastRenderedName === m.name;
   state.lastRenderedName = m.name;
@@ -611,6 +652,7 @@ function appendMessage(m, quiet) {
     </div>
     <button class="msg-del" title="Delete this message" aria-label="Delete">&times;</button>`;
   paintAvatar(el.querySelector(".avatar"), m.name, m.color, avatarUrl(m.name));
+  if (m.id != null && m.id > lastSeenId) lastSeenId = m.id;
   box.appendChild(el);
   while (box.childElementCount > MAX_MESSAGES) box.firstElementChild.remove();
   const key = String(m.name).toLowerCase();
@@ -771,6 +813,14 @@ for (const radio of document.querySelectorAll('input[name="vis"]')) {
 }
 
 /* =================== Deleting =================== */
+// A nudge to the other tabs in this chat. Carries no message text — see the
+// subscription in openChat() for why.
+function notify(event, payload) {
+  if (!state.channel) return;
+  try { state.channel.send({ type: "broadcast", event, payload: payload || {} }); }
+  catch (e) { console.warn("notify:", e.message); }
+}
+
 $("messages").addEventListener("click", async (e) => {
   const btn = e.target.closest(".msg-del");
   if (!btn) return;
@@ -781,7 +831,8 @@ $("messages").addEventListener("click", async (e) => {
     await rpc("chat_delete_message", {
       p_name: state.me.name, p_token: state.me.token, p_id: id,
     });
-    el.remove(); // other tabs get the realtime DELETE
+    el.remove();
+    notify("gone", { id });
   } catch (ex) {
     banner("Could not delete: " + ex.message);
     btn.disabled = false;
@@ -797,6 +848,8 @@ $("clear-btn").addEventListener("click", async () => {
     });
     $("messages").innerHTML = "";
     state.lastRenderedName = null;
+    lastSeenId = 0;
+    notify("gone");   // no id: everyone reloads the chat from scratch
     banner(n === 1 ? "1 message deleted." : n + " messages deleted.");
   } catch (ex) {
     banner("Could not clear the chat: " + ex.message);
@@ -835,6 +888,8 @@ $("composer-form").addEventListener("submit", async (e) => {
       p_name: state.me.name, p_token: state.me.token,
       p_code: state.chat.code, p_body: body,
     });
+    await pullNew();   // show it here straight away
+    notify("sent");    // and tell the other tabs to fetch it
   } catch (ex) {
     banner("Message failed: " + ex.message);
     input.value = body;

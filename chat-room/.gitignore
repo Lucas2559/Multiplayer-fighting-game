@@ -8,3 +8,6 @@ npm-debug.log*
 
 # Scratch/diagnostic scripts
 _*.mjs
+
+# Real passwords live here, never in the repo
+supabase/secrets.local.sql

@@ -16,7 +16,7 @@ create chats and share a code so other people can join them.
   RLS on with no policies and its grants revoked, so the public anon key can't
   read hashes or session tokens.
 - **Locked name/password changes** — changing your account's name or password
-  requires the **admin password** `hiwelecome1234`. Your own password is *not*
+  requires the **admin password**. Your own password is *not*
   enough. The check happens in the database (`chat_master_password()`), not in
   the browser, so it can't be clicked past with devtools. Colour and photo are
   not locked — you can change those freely.
@@ -52,7 +52,7 @@ create chats and share a code so other people can join them.
 - **One way in** — every login is a name plus that account's own password.
   There is no password-only shortcut: the admin password unlocks name/password
   *changes*, and nothing else.
-- **The dev account** — `Lucaca92 Dev`, password `welecome1234`. It works like
+- **The dev account** — `Lucaca92 Dev`. It works like
   any other account except that its chat switcher lists **every chat that
   exists**, so it can open and read any of them without being given a code. The
   name is reserved, so nobody else can register it. The account is created by
@@ -105,15 +105,25 @@ create chats and share a code so other people can join them.
 
    Open the URL in two browsers/windows, create two accounts, and chat live.
 
-## The seeded accounts
+## Setting the passwords
 
-Two accounts are created by `supabase/schema.sql`, and re-running it resets
-their passwords to whatever these functions say:
+**No password is written anywhere in this repository.** `schema.sql` ships
+placeholders (`SET-ME-ADMIN`, `SET-ME-DEV`, `SET-ME-SHRIJAY`); the real values
+live only in `supabase/secrets.local.sql`, which is git-ignored, and in your
+Supabase database.
 
-| Account | Password | What's special |
-|---------|----------|----------------|
+1. Run `supabase/schema.sql` in the SQL Editor.
+2. Run `supabase/secrets.local.sql` straight afterwards.
+
+Start from [`supabase/secrets.example.sql`](supabase/secrets.example.sql) if you
+need to recreate it. **Re-running `schema.sql` resets the passwords to the
+placeholders, so run the secrets file again each time.**
+
+| Account | Password set by | What's special |
+|---------|-----------------|----------------|
 | `Lucaca92 Dev` | `chat_dev_password()` | Sees every chat; sets visibility; deletes anything |
 | `Shrijay WOF` | `chat_shrijay_password()` | Nothing — an ordinary account |
+| *(the admin password)* | `chat_master_password()` | Unlocks name/password changes |
 
 ## Changing the message cap
 
@@ -123,16 +133,6 @@ Same idea — edit and re-run this one statement (and keep `MAX_MESSAGES` in
 ```sql
 create or replace function public.chat_message_limit()
 returns integer language sql immutable as $$ select 500 $$;
-```
-
-## Changing the admin password
-
-It's one line in [`supabase/schema.sql`](supabase/schema.sql) — edit it and
-re-run that statement in the SQL Editor:
-
-```sql
-create or replace function public.chat_master_password()
-returns text language sql immutable as $$ select 'your-new-admin-password' $$;
 ```
 
 ## Files
@@ -170,17 +170,24 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_clear_room(name, token, code)` | Delete every message in a chat; returns how many |
 | `chat_delete_room(name, token, code)` | Delete a chat and its messages; never the Main room |
 
-## How private is a chat code?
+## What a stranger can get at
 
-> A chat marked **private** is a real wall for joining and posting — those are
-> checked in the database. Reading is the weak part, as below.
+Every table has row level security on with **no policies**, and the grants to
+the public key revoked. So the key in `public/config.js` reads nothing at all by
+itself: not messages, not accounts, not chats, not permissions. Everything goes
+through the `security definer` functions above, and each one checks your session
+token and whether you can see the chat before it answers.
 
-A code keeps a chat **out of sight, not secret**. `chat_rooms` is locked down so
-nobody can list the codes that exist, and you can only post to a chat you know
-the code for. But the `messages` table itself stays readable by the public anon
-key — Realtime needs that to push new messages to the browser — so somebody
-determined, with devtools and a guessed code, could read another chat. Treat
-chats as separate rooms, not as a safe for secrets.
+Realtime deliberately does **not** carry the `messages` table. A Postgres change
+feed ignores those checks, so anyone subscribing to a chat's topic would have
+received every message in it. Clients instead send each other a content-free
+"something changed" ping and then fetch through `chat_history()`, which does
+check. The only things on the wire are that ping, a deleted message's id, and
+presence (names, colours and a picture hash of whoever is in the chat with you).
+
+What this does **not** protect against: anybody you give a chat code to, and
+anybody using an account you handed out. It is a lock on the door, not a secret
+you can keep from the people in the room.
 
 ## Notes
 

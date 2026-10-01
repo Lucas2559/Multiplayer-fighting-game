@@ -2,6 +2,12 @@
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor → New query).
 -- Safe to re-run: everything is idempotent.
 --
+-- !! PASSWORDS ARE NOT IN THIS FILE. The three below read SET-ME-*, which are
+-- !! placeholders, not the real ones. After running this file, run your private
+-- !! supabase/secrets.local.sql (git-ignored) to set them. Running this file
+-- !! again resets them to the placeholders, so re-run the secrets file after.
+-- !! See "Setting the passwords" in the README.
+--
 -- Accounts are real: a name is registered once with a password and stays yours.
 -- Chats are rooms with a shareable code; `messages.channel` holds that code.
 -- Passwords are hashed with bcrypt (pgcrypto) and NEVER leave the database —
@@ -116,13 +122,15 @@ create index if not exists messages_channel_id_idx
 
 -- ============================ Row Level Security ============================
 
--- Messages: world-readable, but nobody may insert directly. Posting goes
--- through chat_post(), which checks your session token first.
+-- Messages: RLS on with NO policies, so the public key cannot read or write a
+-- single row directly. Reading goes through chat_history(), which checks that
+-- you can see the chat; posting goes through chat_post(). This is what stops
+-- somebody opening devtools and dumping every chat, private ones included.
 alter table public.messages enable row level security;
 
 drop policy if exists "messages readable"   on public.messages;
 drop policy if exists "messages insertable" on public.messages;
-create policy "messages readable" on public.messages for select using (true);
+revoke all on table public.messages from anon, authenticated;
 
 -- Accounts: RLS on with NO policies at all, plus the grants revoked. That means
 -- the anon key cannot read password hashes or session tokens, or write anything
@@ -140,11 +148,15 @@ revoke all on table public.chat_rooms, public.chat_room_members,
                    public.chat_grants, public.chat_reserved
   from anon, authenticated;
 
--- Realtime: broadcast new message rows to subscribed clients.
+-- Realtime deliberately does NOT carry the messages table any more. Postgres
+-- change feeds ignore the access checks above, so anyone who guessed a chat's
+-- topic would have received every message in it. Clients now send each other a
+-- content-free "something changed" ping over a broadcast channel and fetch the
+-- rows through chat_history(), which does check.
 do $$
 begin
-  alter publication supabase_realtime add table public.messages;
-exception when duplicate_object then null;
+  alter publication supabase_realtime drop table public.messages;
+exception when undefined_object then null;
 end $$;
 
 -- ============================ Account API ============================
@@ -152,7 +164,7 @@ end $$;
 -- The one password that unlocks changing an account's name or password.
 -- Kept in a function (not a column) so it is never selectable by the anon key.
 create or replace function public.chat_master_password()
-returns text language sql immutable as $$ select 'hiwelecome1234' $$;
+returns text language sql immutable as $$ select 'SET-ME-ADMIN' $$;
 revoke all on function public.chat_master_password() from public, anon, authenticated;
 
 -- The one built-in account, seeded near the bottom of this file. It is an
@@ -163,7 +175,7 @@ returns text language sql immutable as $$ select '#ffab00' $$;
 create or replace function public.chat_dev_name()
 returns text language sql immutable as $$ select 'Lucaca92 Dev' $$;
 create or replace function public.chat_dev_password()
-returns text language sql immutable as $$ select 'welecome1234' $$;
+returns text language sql immutable as $$ select 'SET-ME-DEV' $$;
 revoke all on function public.chat_dev_password() from public, anon, authenticated;
 
 -- How many messages the room keeps. Once the 501st message is posted the
@@ -481,6 +493,35 @@ begin
    );
 end $$;
 
+-- The messages in a chat, newest-window first, but only if you may see it.
+-- `p_after` fetches just what has arrived since an id you already hold, which
+-- is what the ping-then-fetch path uses.
+create or replace function public.chat_history(p_name text, p_token uuid, p_code text,
+                                               p_after bigint default 0,
+                                               p_limit integer default null)
+returns table (id bigint, channel text, name text, color text, body text, created_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+declare v_key  text := chat_auth(p_name, p_token);
+        v_code text;
+        v_lim  integer := least(coalesce(p_limit, chat_message_limit()), chat_message_limit());
+begin
+  select r.code into v_code from chat_rooms r
+   where upper(r.code) = upper(btrim(coalesce(p_code, '')));
+  if v_code is null then raise exception 'That chat no longer exists.'; end if;
+  if not chat_can_see(v_key, v_code) then
+    raise exception 'You do not have access to that chat.';
+  end if;
+
+  return query
+    select * from (
+      select m.id, m.channel, m.name, m.color, m.body, m.created_at
+        from messages m
+       where m.channel = v_code and m.id > coalesce(p_after, 0)
+       order by m.id desc
+       limit v_lim
+    ) q order by q.id;
+end $$;
+
 -- Profile pictures for a set of accounts. Avatars used to ride along in the
 -- realtime presence frame, which caps out around a megabyte; they live here
 -- instead so a big animated GIF is not limited by the websocket.
@@ -715,7 +756,7 @@ on conflict (name_key) do update
 create or replace function public.chat_shrijay_name()
 returns text language sql immutable as $$ select 'Shrijay WOF' $$;
 create or replace function public.chat_shrijay_password()
-returns text language sql immutable as $$ select 'qibliqibli' $$;
+returns text language sql immutable as $$ select 'SET-ME-SHRIJAY' $$;
 revoke all on function public.chat_shrijay_password() from public, anon, authenticated;
 
 insert into public.accounts (name_key, name, pass_hash, color)
@@ -752,6 +793,7 @@ grant execute on function
   public.chat_join_room(text, uuid, text),
   public.chat_my_rooms(text, uuid),
   public.chat_avatars(text, uuid, text[]),
+  public.chat_history(text, uuid, text, bigint, integer),
   public.chat_set_visibility(text, uuid, text, text),
   public.chat_room_people(text, uuid, text),
   public.chat_grant(text, uuid, text, text, text),
