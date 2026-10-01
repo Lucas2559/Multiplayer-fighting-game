@@ -38,7 +38,7 @@ create chats and share a code so other people can join them.
   stored hash is a throwaway random value), so the admin password is the only
   way in. Every admin login re-pins the name and colour, so if you recolour
   Lucaca92 in the profile editor it goes back to `#ffab00` next time you log in.
-- **The dev account** — `Lucaca92 (Dev)`, password `welecome1234`. It works like
+- **The dev account** — `Lucaca92 Dev`, password `welecome1234`. It works like
   any other account except that its chat switcher lists **every chat that
   exists**, so it can open and read any of them without being given a code. The
   name is reserved, so nobody else can register it. The account is created by

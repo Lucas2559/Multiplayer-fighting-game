@@ -123,7 +123,7 @@ returns text language sql immutable as $$ select '#ffab00' $$;
 -- but its chat switcher lists EVERY chat that exists, so it can read any of
 -- them without being given a code.
 create or replace function public.chat_dev_name()
-returns text language sql immutable as $$ select 'Lucaca92 (Dev)' $$;
+returns text language sql immutable as $$ select 'Lucaca92 Dev' $$;
 create or replace function public.chat_dev_password()
 returns text language sql immutable as $$ select 'welecome1234' $$;
 revoke all on function public.chat_dev_password() from public, anon, authenticated;
