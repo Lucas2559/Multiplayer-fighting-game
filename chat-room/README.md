@@ -59,10 +59,10 @@ create chats and share a code so other people can join them.
 - **Photos and GIFs in messages** — the 📷 button beside the composer stages a
   picture; send it on its own or with a caption. GIFs keep every frame (up to
   5 MB); photos are scaled to 1280px first, which usually takes a phone picture
-  down to a few hundred KB. Pictures are **not** returned with the history —
-  500 of them would be a reply hundreds of megabytes long — so `chat_history()`
-  reports `has_image` and each picture is fetched separately by
-  `chat_image()`, which checks you can see that chat.
+  down to a few hundred KB. The file goes straight to **Cloudflare R2**; the
+  message row keeps only an `r2:msg/<uuid>.<ext>` reference. `chat_history()`
+  reports `has_image`, and the page asks `/api/view` for a signed link to each
+  picture — see **Where pictures live** below.
 - **Each chat keeps its own last 500 messages.** When the 501st message is
   posted to a chat, that chat's oldest message is deleted; other chats are
   untouched. The trim runs inside `chat_post()`, so it holds however the message
@@ -83,12 +83,11 @@ create chats and share a code so other people can join them.
   ask first. The Main room can be cleared (built-in accounts only) but never
   deleted. Deletions reach other open tabs live.
 - **Profile pictures** — a colour, or a photo/GIF up to **5 MB**. GIFs keep
-  every frame; other images are cropped to a small square. Pictures live in the
-  `accounts` table and are fetched with `chat_avatars()`, *not* sent over
-  realtime presence — presence frames cap out around a megabyte, which is what
-  used to limit them. Presence carries only a short hash, so other tabs still
-  notice when your picture changes. If a picture can't be displayed, the avatar
-  falls back to your initials rather than showing an empty box.
+  every frame; other images are cropped to a small square. The file lives in
+  **R2**, the account row holds an `r2:avatar/<uuid>.<ext>` reference, and
+  presence carries only a short hash of that reference, so other tabs notice a
+  change without the picture crossing the websocket. If a picture can't be
+  displayed, the avatar falls back to your initials rather than an empty box.
 - **Admins** — the owner account (`Lucaca92 Dev`) can tick **admin** next to
   anyone in its Everyone list. An admin can do everything the owner can *inside
   the chats*: reach every chat, set visibility, delete any message, clear or
@@ -167,6 +166,26 @@ create or replace function public.chat_message_limit()
 returns integer language sql immutable as $$ select 500 $$;
 ```
 
+## Where pictures live
+
+In a **private Cloudflare R2 bucket**, uploaded by the browser directly — never
+through the database or Vercel. Two small functions in the repo's top-level
+`api/` folder, deployed on Vercel, hold the R2 keys:
+
+- **`/api/upload`** checks your session, picks the storage key itself (so nobody
+  can overwrite someone else's picture), and returns a link that accepts exactly
+  one PUT of exactly your file — its size and type are signed in — for 5 minutes.
+- **`/api/view`** is given message ids and account names, *never* storage keys.
+  It asks the database — as you — for the pictures you're allowed to see
+  (`chat_images()` / `chat_avatars()`), and signs one-hour viewing links for
+  only those. A picture in a chat you were never in is never signed, and a key
+  saved from before you were removed is useless without a fresh link.
+
+Pictures stored before the move are still `data:` URLs in the row. They keep
+displaying, and `scripts/migrate-images-to-r2.mjs` moves them across. Setup,
+the cutover order and the clean-up script are in the repo's
+[`DEPLOY.md`](../DEPLOY.md).
+
 ## Files
 
 | File | Purpose |
@@ -191,7 +210,10 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_update_profile(name, token, color, avatar)` | Change colour / photo |
 | `chat_avatars(name, token, names[])` | Fetch profile pictures for a set of accounts |
 | `chat_post(name, token, code, body, image)` | Send a message and/or a picture, then trim that chat to 500 |
-| `chat_image(name, token, id)` | One message's picture, if you can see its chat |
+| `chat_image(name, token, id)` | One message's stored picture, if you can see its chat |
+| `chat_images(name, token, ids[])` | Several at once — what `/api/view` calls, as the user |
+| `chat_swap_image(…)` / `chat_swap_avatar(…)` | Migration: replace an inline picture with its R2 reference — **owner only** |
+| `chat_r2_keys(name, token)` | Every R2 key still referenced, for the clean-up script — **owner only** |
 | `chat_create_room(name, token, chat_name)` | Create a chat; returns its code — **owner account only** |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
@@ -227,9 +249,10 @@ you can keep from the people in the room.
 
 ## Notes
 
-- A 5 MB GIF is about 6.7 MB once base64-encoded, and that is what gets stored
-  and sent to each person who sees your messages. A handful of large avatars is
-  fine; dozens would make the chat slow to load.
+- Pictures no longer count against the Supabase database size. R2 charges
+  nothing for bandwidth, so a big GIF costs no more to show than a small one.
+- Deleting a message (or the 500 trim, Clear, an avatar change) leaves its file
+  in R2, unreachable. `npm run sweep-r2` in the repo root clears them out.
 
 - A name change only moves the account. Messages already sent keep the name they
   were posted under.

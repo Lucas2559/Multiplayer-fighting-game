@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+.DS_Store
+
+# Credentials: R2 keys and the owner login live here, never in the repo.
+.env
+.env.*
+!.env.example

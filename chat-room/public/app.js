@@ -29,8 +29,10 @@ function loadProfile() {
   try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; }
   catch { return {}; }
 }
+// Remembers your name and colour for the sign-in form. Not the picture: that
+// lives in R2 now and a stored reference to it means nothing to a fresh form.
 function saveProfile(p) {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: p.name, color: p.color })); } catch {}
 }
 
 // Your logged-in account: { name, token }. The token is the session secret the
@@ -47,14 +49,35 @@ function saveSession(s) {
   } catch {}
 }
 
-// name(lowercased) -> { h, url }. `h` is a cheap hash of the picture, so a tab
-// can tell someone's avatar changed without shipping the picture itself over
-// presence. Filled by ensureAvatars() from the database.
+// name(lowercased) -> { h, url }. `h` is a cheap hash of the STORED picture
+// value, so a tab can tell someone's avatar changed without shipping it over
+// presence; `url` is what actually goes in <img src>. Filled by setAvatar().
 const avatars = new Map();
 const avatarUrl = (name) => {
   const e = avatars.get(String(name).toLowerCase());
   return (e && e.url) || null;
 };
+
+// Record somebody's picture. A stored value is one of:
+//   r2:<key>   in Cloudflare R2 -- shown through a signed link from /api/view
+//   data:...   an old inline picture from before R2 -- shown as it is
+//   null       no picture -- coloured initials
+// `instant` is a link we already hold (a file just picked), to skip the wait.
+function setAvatar(nameKey, stored, instant) {
+  const prev = avatars.get(nameKey);
+  const entry = {
+    h: hashAvatar(stored),
+    url: instant || (stored && stored.startsWith("data:") ? stored : null),
+  };
+  // A changed picture must not keep showing the old one's cached link.
+  if (prev && prev.h !== entry.h) links.delete("a:" + nameKey);
+  avatars.set(nameKey, entry);
+  if (!entry.url && stored && stored.startsWith("r2:")) {
+    signedLink("a", nameKey).then((url) => {
+      if (url && avatars.get(nameKey) === entry) { entry.url = url; refreshAvatars(); }
+    });
+  }
+}
 
 function hashAvatar(url) {
   if (!url) return "";
@@ -85,7 +108,7 @@ async function ensureAvatars(wants) {
       for (const row of data || []) {
         const key = String(row.name).toLowerCase();
         seen.add(key);
-        avatars.set(key, { h: hashAvatar(row.avatar), url: row.avatar || null });
+        setAvatar(key, row.avatar || null);
       }
       // Remember the misses too, so we don't ask again every render.
       for (const key of need) if (!seen.has(key)) avatars.set(key, { h: "", url: null });
@@ -135,45 +158,56 @@ function refreshAvatars() {
     paintAvatar(el, name, el.dataset.color, avatarUrl(name));
   }
   const me = document.getElementById("me-avatar");
-  if (state.me && me) paintAvatar(me, state.me.name, state.me.color, state.me.avatar || null);
+  if (state.me && me) paintAvatar(me, state.me.name, state.me.color, avatarUrl(state.me.name));
 }
 
-// Turn a chosen file into a data URL. GIFs pass through untouched so they keep
-// animating; other images are centre-cropped to a small square to shrink the
-// payload. Rejects non-images and anything over the size cap.
-function processImageFile(file) {
+// Load a picked file as an <img> so a canvas can redraw it.
+function loadImage(file) {
   return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) return reject(new Error("Please choose an image file."));
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      if (file.type === "image/gif") {
-        if (file.size > MAX_UPLOAD_BYTES)
-          return reject(new Error("That GIF is too big (max 5 MB). Try a smaller one."));
-        return resolve(dataUrl); // keep every frame — never run a GIF through a canvas
-      }
-      const img = new Image();
-      img.onload = () => {
-        const size = 128;
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = size;
-        const c = canvas.getContext("2d");
-        const side = Math.min(img.width, img.height);
-        c.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/webp", 0.85));
-      };
-      img.onerror = () => reject(new Error("That image could not be loaded."));
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That image could not be loaded.")); };
+    img.src = url;
   });
+}
+
+// Canvas -> Blob. Browsers that can't encode WebP hand back a PNG instead,
+// which R2 takes just as happily.
+function canvasBlob(canvas) {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not prepare that picture."))),
+      "image/webp", 0.85));
+}
+
+// Turn a chosen file into the Blob to upload. GIFs pass through untouched so
+// they keep animating; other images are centre-cropped to a small square.
+// Rejects non-images and anything over the size cap.
+async function processImageFile(file) {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (file.type === "image/gif") {
+    if (file.size > MAX_UPLOAD_BYTES)
+      throw new Error("That GIF is too big (max 5 MB). Try a smaller one.");
+    return file; // keep every frame — never run a GIF through a canvas
+  }
+  const img = await loadImage(file);
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const side = Math.min(img.width, img.height);
+  canvas.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2,
+    side, side, 0, 0, size, size);
+  return canvasBlob(canvas);
 }
 
 // Reusable colour/photo editor wired over a set of elements. `nameFn` supplies
 // the current name for the initials fallback and the auto colour.
+//   stored  the value already saved (r2:/data:/null), kept if nothing changes
+//   blob    a newly picked file, uploaded on save
+//   url     what the preview shows
 function makeEditor({ preview, swatches, colorInput, uploadBtn, fileInput, clearBtn, nameFn }) {
-  const ed = { color: null, avatar: null };
+  const ed = { color: null, stored: null, blob: null, url: null };
+  const dropLocal = () => { if (ed.blob && ed.url) URL.revokeObjectURL(ed.url); };
 
   for (const col of COLORS) {
     const b = document.createElement("button");
@@ -189,24 +223,43 @@ function makeEditor({ preview, swatches, colorInput, uploadBtn, fileInput, clear
     const f = fileInput.files[0];
     fileInput.value = "";
     if (!f) return;
-    try { ed.avatar = await processImageFile(f); render(); }
-    catch (e) { banner(e.message); }
+    try {
+      const blob = await processImageFile(f);
+      dropLocal();
+      ed.blob = blob;
+      ed.url = URL.createObjectURL(blob);
+      render();
+    } catch (e) { banner(e.message); }
   });
-  clearBtn.addEventListener("click", () => { ed.avatar = null; render(); });
+  clearBtn.addEventListener("click", () => {
+    dropLocal();
+    ed.stored = null; ed.blob = null; ed.url = null;
+    render();
+  });
 
   function render() {
     const name = nameFn() || "?";
     const color = ed.color || colorFor(name);
-    paintAvatar(preview, name, color, ed.avatar);
-    clearBtn.hidden = !ed.avatar;
+    paintAvatar(preview, name, color, ed.url);
+    clearBtn.hidden = !ed.url;
     [...swatches.children].forEach((b, i) => b.classList.toggle("sel", ed.color === COLORS[i]));
     if (ed.color) colorInput.value = ed.color;
   }
 
   return {
     render,
-    set(v) { ed.color = v.color || null; ed.avatar = v.avatar || null; render(); },
-    values(name) { return { color: ed.color || colorFor(name), avatar: ed.avatar }; },
+    set(v) {
+      dropLocal();
+      ed.color = v.color || null;
+      ed.stored = v.stored || null;
+      ed.blob = null;
+      ed.url = v.url || null;
+      render();
+    },
+    values(name) {
+      return { color: ed.color || colorFor(name), stored: ed.blob ? null : ed.stored,
+               blob: ed.blob, url: ed.url };
+    },
   };
 }
 
@@ -261,6 +314,83 @@ async function rpcRows(fn, args) {
   const { data, error } = await sb.rpc(fn, args);
   if (error) throw rpcError(error);
   return data || [];
+}
+
+// ---- Pictures in Cloudflare R2, through the site's own /api functions ----
+// The R2 keys can't live in the browser, so two small server functions on the
+// same site do the R2 side: /api/upload hands out a link to PUT one picture,
+// /api/view hands out links to look at pictures. Both act as the logged-in
+// user and re-check access in the database before answering.
+const API = (cfg.apiBase || "") + "/api";
+
+async function api(path, body) {
+  let res;
+  try {
+    res = await fetch(API + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: state.me.name, token: state.me.token, ...body }),
+    });
+  } catch {
+    throw new Error("Couldn't reach the picture service.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Picture service error (${res.status}).`);
+  return data;
+}
+
+// Upload one picture and return what to store for it: "r2:<key>".
+async function uploadPicture(blob, kind) {
+  const { url, ref } = await api("/upload", { kind, type: blob.type, size: blob.size });
+  let put;
+  try {
+    put = await fetch(url, { method: "PUT", headers: { "Content-Type": blob.type }, body: blob });
+  } catch {
+    throw new Error("The picture upload was blocked — the R2 bucket's CORS settings may be missing.");
+  }
+  if (!put.ok) throw new Error(`The picture upload failed (${put.status}).`);
+  return ref;
+}
+
+// Signed viewing links last an hour; reuse one for 50 minutes, then ask again.
+const LINK_MS = 50 * 60 * 1000;
+const links = new Map(); // "m:<message id>" | "a:<lowercased name>" -> { url, at }
+let linkBatch = null;
+
+// Ask for a viewing link. Everything requested in the same tick goes out as
+// one /api/view call, so a screen full of pictures is a single round trip.
+// Resolves to null for anything not in R2 (or not visible to us).
+function signedLink(kind, id) {
+  const ck = kind + ":" + id;
+  const hit = links.get(ck);
+  if (hit && Date.now() - hit.at < LINK_MS) return Promise.resolve(hit.url);
+  if (!linkBatch) {
+    linkBatch = { messages: new Set(), avatars: new Set(), waiters: [] };
+    setTimeout(flushLinks, 0);
+  }
+  (kind === "m" ? linkBatch.messages : linkBatch.avatars).add(id);
+  return new Promise((resolve) => linkBatch.waiters.push({ ck, resolve }));
+}
+
+async function flushLinks() {
+  const b = linkBatch;
+  linkBatch = null;
+  const msgIds = [...b.messages];
+  const names = [...b.avatars];
+  // The server takes at most 100 of each per call.
+  for (let i = 0; i < Math.max(msgIds.length, names.length); i += 100) {
+    try {
+      const out = await api("/view", {
+        messages: msgIds.slice(i, i + 100), avatars: names.slice(i, i + 100),
+      });
+      const now = Date.now();
+      for (const [id, url] of Object.entries(out.messages || {})) links.set("m:" + id, { url, at: now });
+      for (const [n, url] of Object.entries(out.avatars || {})) links.set("a:" + n, { url, at: now });
+    } catch (e) {
+      console.warn("pictures:", e.message);
+    }
+  }
+  for (const w of b.waiters) w.resolve((links.get(w.ck) || {}).url || null);
 }
 
 // Surface any otherwise-silent async failure.
@@ -345,7 +475,7 @@ async function joinRoom(acct) {
   };
   state.me = me;
   saveSession({ name: me.name, token: me.token });
-  saveProfile({ name: me.name, color: me.color, avatar: me.avatar });
+  saveProfile({ name: me.name, color: me.color });
   await enterApp();
 }
 
@@ -434,10 +564,16 @@ $("gate-form").addEventListener("submit", async (e) => {
 
   try {
     let acct;
+    let pickedBlob = null;
+    let pickedColor = null;
     if (gateMode === "signup") {
-      const { color, avatar } = gateEditor.values(name);
+      // Uploading needs a session, which doesn't exist until the account does,
+      // so the picture goes up straight after signing up rather than with it.
+      const picked = gateEditor.values(name);
+      pickedBlob = picked.blob;
+      pickedColor = picked.color;
       acct = await rpc("chat_signup", {
-        p_name: name, p_password: pass, p_color: color, p_avatar: avatar,
+        p_name: name, p_password: pass, p_color: picked.color, p_avatar: null,
         p_claim: $("claim-input").value.trim() || null,
       });
     } else {
@@ -449,6 +585,25 @@ $("gate-form").addEventListener("submit", async (e) => {
     $("claim-input").value = "";
     await joinRoom(acct);
     if (renamed) banner("Signed in as @" + acct.name + ".");
+    if (pickedBlob) {
+      try {
+        const ref = await uploadPicture(pickedBlob, "avatar");
+        await rpc("chat_update_profile", {
+          p_name: state.me.name, p_token: state.me.token, p_color: pickedColor, p_avatar: ref,
+        });
+        state.me.avatar = ref;
+        state.me.avh = hashAvatar(ref);
+        setAvatar(state.me.name.toLowerCase(), ref);
+        refreshAvatars();
+        if (state.channel) {
+          await state.channel.track({
+            name: state.me.name, color: state.me.color, avh: state.me.avh, cid: CID,
+          });
+        }
+      } catch (ex) {
+        banner("Your account is ready, but the picture couldn't be saved: " + ex.message);
+      }
+    }
   } catch (ex) {
     showError(ex?.message || "Network error.");
   }
@@ -492,7 +647,7 @@ async function enterApp() {
 
   // Show your own avatar right away, before anyone else's has been fetched.
   state.me.avh = hashAvatar(state.me.avatar);
-  avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: state.me.avatar || null });
+  setAvatar(state.me.name.toLowerCase(), state.me.avatar || null);
   refreshAvatars();
 
   await loadRooms();
@@ -934,48 +1089,36 @@ $("delete-btn").addEventListener("click", async () => {
 /* =================== Pictures in messages =================== */
 // Bigger than an avatar, since these are looked at rather than glanced at.
 const MAX_IMAGE_PX = 1280;
-let pending = null; // the data URL staged for the next message
+let pending = null; // { blob, url } staged for the next message
 
 // GIFs go through untouched so they keep animating; a still photo is scaled
 // down, which usually takes a phone picture from several MB to a couple of
 // hundred KB.
-function processMessageImage(file) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) return reject(new Error("Please choose an image."));
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      if (file.type === "image/gif") {
-        if (file.size > MAX_UPLOAD_BYTES)
-          return reject(new Error("That GIF is too big (max 5 MB). Try a smaller one."));
-        return resolve(dataUrl);
-      }
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, MAX_IMAGE_PX / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        const out = canvas.toDataURL("image/webp", 0.85);
-        if (out.length > MAX_UPLOAD_BYTES * 1.4)
-          return reject(new Error("That picture is too big even after shrinking."));
-        resolve(out);
-      };
-      img.onerror = () => reject(new Error("That image could not be loaded."));
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  });
+async function processMessageImage(file) {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image.");
+  if (file.type === "image/gif") {
+    if (file.size > MAX_UPLOAD_BYTES)
+      throw new Error("That GIF is too big (max 5 MB). Try a smaller one.");
+    return file;
+  }
+  const img = await loadImage(file);
+  const scale = Math.min(1, MAX_IMAGE_PX / Math.max(img.width, img.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+  const blob = await canvasBlob(canvas);
+  if (blob.size > MAX_UPLOAD_BYTES) throw new Error("That picture is too big even after shrinking.");
+  return blob;
 }
 
-function showPending(url) {
-  pending = url;
-  $("attach-preview").hidden = !url;
-  if (url) {
-    $("attach-thumb").src = url;
-    $("attach-note").textContent = Math.round((url.length * 0.75) / 1024) + " KB";
+function showPending(blob) {
+  if (pending) URL.revokeObjectURL(pending.url);
+  pending = blob ? { blob, url: URL.createObjectURL(blob) } : null;
+  $("attach-preview").hidden = !pending;
+  if (pending) {
+    $("attach-thumb").src = pending.url;
+    $("attach-note").textContent = Math.max(1, Math.round(blob.size / 1024)) + " KB";
   }
 }
 
@@ -989,21 +1132,32 @@ $("attach-file").addEventListener("change", async () => {
   catch (e) { banner(e.message); }
 });
 
-// Pictures arrive one at a time, after the text of the screen is already up.
-const imageCache = new Map(); // message id -> data URL
+// Pictures arrive after the text of the screen is already up. A picture in R2
+// comes back as a signed link from /api/view; one from before the move is
+// still stored inline, so ask the database for it directly.
+const inlineCache = new Map(); // message id -> data: URL
+async function pictureFor(id) {
+  const linked = await signedLink("m", id);
+  if (linked) return linked;
+  if (inlineCache.has(id)) return inlineCache.get(id);
+  const stored = await rpc("chat_image", {
+    p_name: state.me.name, p_token: state.me.token, p_id: id,
+  });
+  const url = stored && stored.startsWith("data:") ? stored : null;
+  inlineCache.set(id, url);
+  return url;
+}
+
 async function fillImage(el, id) {
   try {
-    let url = imageCache.get(id);
-    if (url === undefined) {
-      url = await rpc("chat_image", {
-        p_name: state.me.name, p_token: state.me.token, p_id: id,
-      });
-      imageCache.set(id, url);
+    const url = await pictureFor(id);
+    if (!url) {
+      el.textContent = "Picture could not be loaded.";
+      return;
     }
-    if (!url) return el.remove();
     const img = document.createElement("img");
     img.alt = "";
-    img.addEventListener("error", () => el.remove());
+    img.addEventListener("error", () => { el.textContent = "Picture could not be loaded."; });
     img.src = url;
     el.textContent = "";
     el.appendChild(img);
@@ -1016,24 +1170,42 @@ async function fillImage(el, id) {
 $("composer-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = $("composer-input");
+  const send = $("send-btn");
   const body = input.value.trim();
-  const image = pending;
-  if (!body && !image) return;
+  const staged = pending;
+  if (!body && !staged) return;
+  if (send.disabled) return; // a picture is still going up
   input.value = "";
-  showPending(null);
+  // Hand the staged picture over without revoking its local preview link.
+  pending = null;
+  $("attach-preview").hidden = true;
+
   // chat_post checks the session token and posts under the account's stored
   // name + colour, so nobody can speak as somebody else.
   try {
+    let image = null;
+    if (staged) {
+      send.disabled = true;
+      send.textContent = "Sending…";
+      image = await uploadPicture(staged.blob, "msg");
+    }
     await rpc("chat_post", {
       p_name: state.me.name, p_token: state.me.token,
-      p_code: state.chat.code, p_body: body, p_image: image || null,
+      p_code: state.chat.code, p_body: body, p_image: image,
     });
+    if (staged) URL.revokeObjectURL(staged.url);
     await pullNew();   // show it here straight away
     notify("sent");    // and tell the other tabs to fetch it
   } catch (ex) {
     banner("Message failed: " + ex.message);
     input.value = body;
-    if (image) showPending(image);
+    if (staged) {
+      pending = staged;
+      $("attach-preview").hidden = false;
+    }
+  } finally {
+    send.disabled = false;
+    send.textContent = "Send ▷";
   }
 });
 
@@ -1064,7 +1236,7 @@ const gateEditor = makeEditor({
   nameFn: () => $("name-input").value.trim().replace(/^@+/, ""),
 });
 if (saved.name) $("name-input").value = saved.name;
-gateEditor.set({ color: saved.color, avatar: saved.avatar });
+gateEditor.set({ color: saved.color });
 $("name-input").addEventListener("input", () => gateEditor.render());
 
 // In-app editor — change your colour/photo live from the top bar.
@@ -1080,7 +1252,9 @@ const modalEditor = makeEditor({
 
 function closeProfileModal() { $("profile-modal").hidden = true; }
 $("profile-btn").addEventListener("click", () => {
-  modalEditor.set({ color: state.me.color, avatar: state.me.avatar });
+  modalEditor.set({
+    color: state.me.color, stored: state.me.avatar, url: avatarUrl(state.me.name),
+  });
   $("acct-name").value = "";
   $("acct-pass").value = "";
   $("acct-master").value = "";
@@ -1097,7 +1271,7 @@ $("profile-modal").addEventListener("click", (e) => {
 // needs the admin password.
 $("profile-save").addEventListener("click", async () => {
   $("acct-msg").hidden = true;
-  const { color, avatar } = modalEditor.values(state.me.name);
+  const { color, stored, blob, url: pickedUrl } = modalEditor.values(state.me.name);
   const newName = $("acct-name").value.trim().replace(/^@+/, "").slice(0, 24);
   const newPass = $("acct-pass").value;
   const master = $("acct-master").value;
@@ -1110,16 +1284,21 @@ $("profile-save").addEventListener("click", async () => {
   btn.disabled = true;
   btn.textContent = "Saving…";
   try {
-    // Picture and colour first: chat_update_profile is keyed on the current
-    // name, which a rename below would change out from under it.
+    // A newly picked picture goes to R2 first; otherwise keep whatever is
+    // already stored (or nothing, if it was removed).
+    const avatar = blob ? await uploadPicture(blob, "avatar") : stored;
+
+    // Picture and colour before any rename: chat_update_profile is keyed on
+    // the current name, which a rename below would change out from under it.
     await rpc("chat_update_profile", {
       p_name: state.me.name, p_token: state.me.token, p_color: color, p_avatar: avatar,
     });
     state.me.color = color;
     state.me.avatar = avatar;
     state.me.avh = hashAvatar(avatar);
-    avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
-    saveProfile({ name: state.me.name, color, avatar });
+    // A file just picked can be shown from its local copy, no round trip.
+    setAvatar(state.me.name.toLowerCase(), avatar, blob ? pickedUrl : null);
+    saveProfile({ name: state.me.name, color });
 
     if (changingAccount) {
       const acct = await rpc("chat_update_account", {
@@ -1132,10 +1311,12 @@ $("profile-save").addEventListener("click", async () => {
       state.me.name = acct.name;
       state.me.token = acct.token; // a password change rotates it
       saveSession({ name: state.me.name, token: state.me.token });
-      saveProfile({ name: state.me.name, color, avatar });
+      saveProfile({ name: state.me.name, color });
       $("composer-handle").textContent = "@" + state.me.name;
+      const shown = avatarUrl(oldKey);
       avatars.delete(oldKey);
-      avatars.set(state.me.name.toLowerCase(), { h: state.me.avh, url: avatar || null });
+      links.delete("a:" + oldKey);
+      setAvatar(state.me.name.toLowerCase(), avatar, shown);
     }
 
     refreshAvatars();

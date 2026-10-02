@@ -291,6 +291,21 @@ begin
 end $$;
 revoke all on function public.chat_can_see(text, text) from public, anon, authenticated;
 
+-- What may be stored as a picture. New pictures live in Cloudflare R2 and the
+-- row holds only `r2:<kind>/<uuid>.<ext>`; the bytes never touch the database.
+-- `data:image/...` is the old inline form, still accepted so nothing breaks
+-- between deploying this and running scripts/migrate-images-to-r2.mjs --
+-- delete that branch once the migration has run.
+-- `kind` keeps the two namespaces apart: an avatar must be an avatar/ key and a
+-- message picture a msg/ key.
+create or replace function public.chat_image_ok(p_value text, p_kind text)
+returns boolean language sql immutable as $$
+  select p_value is null
+      or p_value like 'data:image/%'
+      or p_value ~ ('^r2:' || p_kind || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(gif|webp|png|jpg)$')
+$$;
+revoke all on function public.chat_image_ok(text, text) from public, anon, authenticated;
+
 -- Shared validation for a display name.
 create or replace function public.chat_check_name(p_name text)
 returns text language plpgsql as $$
@@ -320,6 +335,9 @@ declare v_name text := chat_check_name(p_name);
 begin
   if char_length(coalesce(p_password, '')) < 4 then
     raise exception 'Your password needs at least 4 characters.';
+  end if;
+  if not chat_image_ok(p_avatar, 'avatar') then
+    raise exception 'That picture reference is not valid.';
   end if;
   if v_key = lower(chat_dev_name()) then
     raise exception 'That name is reserved.';
@@ -431,6 +449,9 @@ create or replace function public.chat_update_profile(
 language plpgsql security definer set search_path = public as $$
 declare v_key text := lower(btrim(coalesce(p_name, '')));
 begin
+  if not chat_image_ok(p_avatar, 'avatar') then
+    raise exception 'That picture reference is not valid.';
+  end if;
   update accounts a
      set color = coalesce(nullif(p_color, ''), a.color), avatar = p_avatar, updated_at = now()
    where a.name_key = v_key and a.token = p_token;
@@ -545,6 +566,9 @@ begin
   if v_body = '' and p_image is null then
     raise exception 'Type something or choose a picture.';
   end if;
+  if not chat_image_ok(p_image, 'msg') then
+    raise exception 'That picture reference is not valid.';
+  end if;
   if char_length(v_body) > 2000 then
     raise exception 'Messages can be at most 2000 characters.';
   end if;
@@ -617,6 +641,78 @@ begin
     raise exception 'You do not have access to that chat.';
   end if;
   return v_img;
+end $$;
+
+-- The stored picture value for several messages at once, skipping any in a
+-- chat the caller can't see. This is what the Vercel /api/view function calls,
+-- AS the user, before it will sign an R2 link -- so the link is only ever
+-- handed to somebody the database already agreed may see the picture.
+create or replace function public.chat_images(p_name text, p_token uuid, p_ids bigint[])
+returns table (id bigint, image text)
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  return query
+    select m.id, m.image
+      from messages m
+     where m.id = any (p_ids)
+       and m.image is not null
+       and chat_can_see(v_key, m.channel)
+     limit 100;
+end $$;
+
+-- Migration: swap one stored picture for its R2 key, but only if it is still
+-- exactly the value that was uploaded (compare-and-set on its md5), so a
+-- picture changed mid-migration is left alone rather than overwritten.
+-- Owner account only.
+create or replace function public.chat_swap_image(p_name text, p_token uuid, p_id bigint,
+                                                  p_old_md5 text, p_new text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  if not chat_is_super(v_key) then
+    raise exception 'Only the % account can migrate pictures.', chat_dev_name();
+  end if;
+  if not chat_image_ok(p_new, 'msg') or p_new not like 'r2:%' then
+    raise exception 'Not an R2 message picture key.';
+  end if;
+  update messages m set image = p_new where m.id = p_id and md5(m.image) = p_old_md5;
+  return found;
+end $$;
+
+create or replace function public.chat_swap_avatar(p_name text, p_token uuid, p_who text,
+                                                   p_old_md5 text, p_new text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  if not chat_is_super(v_key) then
+    raise exception 'Only the % account can migrate pictures.', chat_dev_name();
+  end if;
+  if not chat_image_ok(p_new, 'avatar') or p_new not like 'r2:%' then
+    raise exception 'Not an R2 avatar key.';
+  end if;
+  update accounts a set avatar = p_new
+   where a.name_key = lower(btrim(p_who)) and md5(a.avatar) = p_old_md5;
+  return found;
+end $$;
+
+-- Every R2 key the database still points at. scripts/sweep-r2.mjs deletes
+-- whatever is in the bucket but not in here: pictures whose message was
+-- deleted, trimmed by the 500 cap, or replaced. Owner account only.
+create or replace function public.chat_r2_keys(p_name text, p_token uuid)
+returns table (key text)
+language plpgsql security definer set search_path = public as $$
+declare v_key text := chat_auth(p_name, p_token);
+begin
+  if not chat_is_super(v_key) then
+    raise exception 'Only the % account can list stored pictures.', chat_dev_name();
+  end if;
+  return query
+    select substr(m.image, 4) from messages m where m.image like 'r2:%'
+    union
+    select substr(a.avatar, 4) from accounts a where a.avatar like 'r2:%';
 end $$;
 
 -- Profile pictures for a set of accounts. Avatars used to ride along in the
@@ -1015,6 +1111,10 @@ grant execute on function
   public.chat_avatars(text, uuid, text[]),
   public.chat_history(text, uuid, text, bigint, integer),
   public.chat_image(text, uuid, bigint),
+  public.chat_images(text, uuid, bigint[]),
+  public.chat_swap_image(text, uuid, bigint, text, text),
+  public.chat_swap_avatar(text, uuid, text, text, text),
+  public.chat_r2_keys(text, uuid),
   public.chat_set_visibility(text, uuid, text, text),
   public.chat_room_people(text, uuid, text),
   public.chat_grant(text, uuid, text, text, text),
