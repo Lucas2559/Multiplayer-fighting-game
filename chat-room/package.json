@@ -1,16 +1,16 @@
 {
-  "name": "020_chat_room",
+  "name": "nexus-canvas-chat",
   "version": "1.0.0",
-  "description": "Nexus Canvas — a Supabase-backed chat room; pick a name, unique among online users",
-  "main": "server.js",
+  "private": true,
+  "description": "Nexus Canvas — a Supabase-backed chat room, with pictures stored in Cloudflare R2 through Vercel functions",
+  "type": "module",
+  "engines": { "node": ">=20" },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.cjs",
+    "migrate-images": "node --env-file=.env.local scripts/migrate-images-to-r2.mjs",
+    "sweep-r2": "node --env-file=.env.local scripts/sweep-r2.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@supabase/supabase-js": "^2.116.0"
+    "aws4fetch": "^1.0.20"
   }
 }

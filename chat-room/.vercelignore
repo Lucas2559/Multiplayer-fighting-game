@@ -1,0 +1,8 @@
+# Deploying straight from this folder with the Vercel CLI uploads everything
+# not listed here. Keep credentials and maintenance-only files off Vercel:
+# supabase/ holds secrets.local.sql (the real passwords).
+.env
+.env.*
+supabase/
+scripts/
+node_modules/

@@ -1,5 +1,5 @@
 // Minimal static file server for local dev. No dependencies.
-// Run: npm start   →   http://localhost:3000
+// Run: npm start   →   http://localhost:3000   (only the page; /api needs `npx vercel dev`)
 const http = require("http");
 const fs = require("fs");
 const path = require("path");

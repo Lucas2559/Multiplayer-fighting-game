@@ -169,8 +169,8 @@ returns integer language sql immutable as $$ select 500 $$;
 ## Where pictures live
 
 In a **private Cloudflare R2 bucket**, uploaded by the browser directly — never
-through the database or Vercel. Two small functions in the repo's top-level
-`api/` folder, deployed on Vercel, hold the R2 keys:
+through the database or Vercel. Two small functions in this folder's `api/`,
+deployed with the chat on Vercel, hold the R2 keys:
 
 - **`/api/upload`** checks your session, picks the storage key itself (so nobody
   can overwrite someone else's picture), and returns a link that accepts exactly
@@ -183,8 +183,7 @@ through the database or Vercel. Two small functions in the repo's top-level
 
 Pictures stored before the move are still `data:` URLs in the row. They keep
 displaying, and `scripts/migrate-images-to-r2.mjs` moves them across. Setup,
-the cutover order and the clean-up script are in the repo's
-[`DEPLOY.md`](../DEPLOY.md).
+the cutover order and the clean-up script are in [`DEPLOY.md`](DEPLOY.md).
 
 ## Files
 
@@ -195,7 +194,11 @@ the cutover order and the clean-up script are in the repo's
 | `public/app.js`     | Supabase client: accounts, realtime messages, presence |
 | `public/config.js`  | Your Supabase URL + anon key |
 | `supabase/schema.sql` | `messages`, `accounts`, `chat_rooms`, `chat_room_members`, `chat_grants`, `chat_reserved`, RLS, all functions |
-| `server.js`         | Zero-dependency static file server for local dev |
+| `server.cjs`        | Zero-dependency static server for trying the page locally (no `/api`) |
+| `api/`              | The two Vercel functions that hand out R2 upload and viewing links |
+| `scripts/`          | One-off picture migration and the occasional R2 clean-up |
+| `vercel.json`       | Pins the Vercel preset to *Other*, serving `public/` |
+| `DEPLOY.md`         | Cloudflare R2 + Vercel setup, in order |
 
 ## Database API
 
@@ -252,7 +255,7 @@ you can keep from the people in the room.
 - Pictures no longer count against the Supabase database size. R2 charges
   nothing for bandwidth, so a big GIF costs no more to show than a small one.
 - Deleting a message (or the 500 trim, Clear, an avatar change) leaves its file
-  in R2, unreachable. `npm run sweep-r2` in the repo root clears them out.
+  in R2, unreachable. `npm run sweep-r2` in this folder clears them out.
 
 - A name change only moves the account. Messages already sent keep the name they
   were posted under.

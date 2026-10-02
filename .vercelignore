@@ -1,6 +1,0 @@
-# The Vercel CLI uploads the working folder when you deploy from it directly;
-# make sure local credentials can never ride along.
-.env
-.env.*
-node_modules/
-scripts/
