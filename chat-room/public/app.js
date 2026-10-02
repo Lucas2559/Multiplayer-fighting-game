@@ -540,6 +540,8 @@ function renderRoomList() {
 function renderChatHeader() {
   renderRoomList();
   const mayClear = !!(state.chat && state.chat.can_clear);
+  // Only the owner account can open a new chat, so only it gets the button.
+  $("new-btn").hidden = !(state.me && state.me.isSuper);
   $("people-btn").hidden = !(state.chat && state.chat.can_manage);
   $("clear-btn").hidden = !mayClear;
   // The Main room is where everyone lands, so it can never be deleted.

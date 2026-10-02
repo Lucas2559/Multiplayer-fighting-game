@@ -23,7 +23,13 @@ create chats and share a code so other people can join them.
 - **Messages are posted on your behalf** by `chat_post()`, which verifies your
   session token and uses the name/colour stored on your account. Nobody can post
   under someone else's name, and direct inserts into `messages` are rejected.
-- **Chats** — everyone starts in the **Main room**. Hit **+ New chat**, name it,
+- **Only the owner account opens new chats.** Everyone else gets into a chat
+  through its code, or because somebody let them in. The **+ New chat** button
+  is hidden for them and `chat_create_room()` refuses the call, so it cannot be
+  clicked past with devtools. Admins run the chats that exist; making more is
+  deliberately not part of being an admin.
+- **Chats** — everyone starts in the **Main room**. As the owner, hit
+  **+ New chat**, name it,
   and you get a 6-character code (no `0`/`O` or `1`/`I`, so it can be read out
   loud). Anyone who enters that code in the **Join code** popup lands in the
   chat and it appears in their switcher from then on. Codes are matched
@@ -186,7 +192,7 @@ Everything the browser is allowed to do (all `security definer`, granted to `ano
 | `chat_avatars(name, token, names[])` | Fetch profile pictures for a set of accounts |
 | `chat_post(name, token, code, body, image)` | Send a message and/or a picture, then trim that chat to 500 |
 | `chat_image(name, token, id)` | One message's picture, if you can see its chat |
-| `chat_create_room(name, token, chat_name)` | Create a chat; returns its code (20 per account) |
+| `chat_create_room(name, token, chat_name)` | Create a chat; returns its code — **owner account only** |
 | `chat_join_room(name, token, code)` | Join a chat by code; returns its code + name |
 | `chat_my_rooms(name, token)` | The chats in your switcher — every chat, for the dev account |
 | `chat_set_visibility(name, token, code, visibility)` | public / hidden / private — **dev account only** |

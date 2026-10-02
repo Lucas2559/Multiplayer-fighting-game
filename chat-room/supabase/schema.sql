@@ -466,6 +466,11 @@ declare v_key  text := chat_auth(p_name, p_token);
         v_room text := btrim(coalesce(p_room_name, ''));
         v_code text;
 begin
+  -- Only the owner account opens new chats. Admins run the chats that exist;
+  -- making more is deliberately not part of that.
+  if not chat_is_super(v_key) then
+    raise exception 'Only the % account can make new chats.', chat_dev_name();
+  end if;
   if v_room = '' then raise exception 'Give your chat a name.'; end if;
   if char_length(v_room) > 40 then raise exception 'Chat names can be at most 40 characters.'; end if;
   if (select count(*) from chat_rooms r where r.owner_key = v_key) >= 20 then
