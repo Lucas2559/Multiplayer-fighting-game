@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .toolbar {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4a4a6a;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #5a5a7a;
+        }
+        button.active {
+            background: #7a7aff;
+        }
+        #playBtn {
+            background: #2a8a2a;
+        }
+        #playBtn:hover {
+            background: #3a9a3a;
+        }
+        #playBtn.playing {
+            background: #8a2a2a;
+        }
+        #playBtn.playing:hover {
+            background: #9a3a3a;
+        }
+        canvas {
+            border: 2px solid #4a4a6a;
+            cursor: crosshair;
+        }
+        canvas.playing {
+            cursor: default;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        .speed-control input[type="range"] {
+            width: 150px;
+            cursor: pointer;
+        }
+        .speed-control .speed-value {
+            min-width: 45px;
+            color: white;
+        }
+        .instructions {
+            margin-top: 10px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Level Editor</h1>
+    <div class="toolbar">
+        <button id="playBtn">Play</button>
+        <button id="drawBtn" class="active">Block</button>
+        <button id="spikeBtn">Spike</button>
+        <button id="triggerBlockBtn">T-Block</button>
+        <button id="triggerSpikeBtn">T-Spike</button>
+        <button id="goalBtn">Goal</button>
+        <button id="wingBtn">Wing</button>
+        <button id="signBtn">Sign</button>
+        <button id="eraseBtn">Erase</button>
+        <button id="clearBtn">Clear All</button>
+        <button id="exportBtn">Export</button>
+        <button id="importBtn">Import</button>
+        <button id="floatBtn">Float: Off</button>
+        <button id="realFloatBtn">Real Float: Off</button>
+    </div>
+    <div class="speed-control">
+        <label for="speedSlider">Game Speed:</label>
+        <input type="range" id="speedSlider" min="0.25" max="3" step="0.25" value="1">
+        <span class="speed-value" id="speedValue">1.0x</span>
+    </div>
+    <canvas id="canvas"></canvas>
+    <p class="instructions" id="instructions">Click or drag to place/remove squares</p>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const instructions = document.getElementById('instructions');
+
+        // Grid settings
+        const GRID_SIZE = 32;
+        const COLS = 25;
+        const ROWS = 18;
+
+        canvas.width = COLS * GRID_SIZE;
+        canvas.height = ROWS * GRID_SIZE;
+
+        // Level data: 2D array (0 = empty, 1 = solid, 2 = spike, 3 = trigger-block, 4 = trigger-spike, 5 = goal, 6 = sign, 7 = wing)
+        const level = [];
+        let savedLevel = []; // For resetting triggers
+        const signTexts = {}; // Store sign text by "x,y" key
+        for (let y = 0; y < ROWS; y++) {
+            level[y] = [];
+            for (let x = 0; x < COLS; x++) {
+                level[y][x] = 0;
+            }
+        }
+
+        // Save level state (for resetting triggers)
+        function saveLevel() {
+            savedLevel = level.map(row => [...row]);
+        }
+
+        // Restore level state
+        function restoreLevel() {
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    level[y][x] = savedLevel[y][x];
+                }
+            }
+        }
+
+        // Tile code mappings
+        const TILE_TO_CODE = {
+            0: 'E',   // Empty
+            1: 'B',   // Block
+            2: 'S',   // Spike
+            3: 'TB',  // Trigger Block
+            4: 'TS',  // Trigger Spike
+            5: 'G',   // Goal
+            6: 'SN',  // Sign
+            7: 'W'    // Wing
+        };
+
+        const CODE_TO_TILE = {
+            'E': 0,   // Empty
+            'B': 1,   // Block
+            'S': 2,   // Spike
+            'TB': 3,  // Trigger Block
+            'TS': 4,  // Trigger Spike
+            'G': 5,   // Goal
+            'SN': 6,  // Sign
+            'W': 7    // Wing
+        };
+
+        // Convert level to code string
+        function levelToCode() {
+            const rows = [];
+            for (let y = 0; y < ROWS; y++) {
+                const codes = [];
+                for (let x = 0; x < COLS; x++) {
+                    codes.push(TILE_TO_CODE[level[y][x]]);
+                }
+                rows.push(codes.join(','));
+            }
+            let result = rows.join('\n');
+            // Add sign texts if any exist
+            if (Object.keys(signTexts).length > 0) {
+                result += '\n---SIGNS---\n' + JSON.stringify(signTexts);
+            }
+            return result;
+        }
+
+        // Convert code string to level
+        function codeToLevel(codeStr) {
+            // Split level data from sign data
+            const parts = codeStr.trim().split('---SIGNS---');
+            const levelData = parts[0].trim();
+
+            // Clear existing signs
+            for (const key in signTexts) {
+                delete signTexts[key];
+            }
+
+            // Parse sign texts if present
+            if (parts[1]) {
+                try {
+                    const loadedSigns = JSON.parse(parts[1].trim());
+                    Object.assign(signTexts, loadedSigns);
+                } catch (e) {
+                    console.error('Failed to parse sign data');
+                }
+            }
+
+            const rows = levelData.split('\n');
+            for (let y = 0; y < ROWS && y < rows.length; y++) {
+                const codes = rows[y].split(',').map(c => c.trim());
+                for (let x = 0; x < COLS && x < codes.length; x++) {
+                    const code = codes[x].toUpperCase();
+                    if (CODE_TO_TILE.hasOwnProperty(code)) {
+                        level[y][x] = CODE_TO_TILE[code];
+                    } else {
+                        level[y][x] = 0; // Default to empty for unknown codes
+                    }
+                }
+            }
+        }
+
+        // Current tool and mode
+        let currentTool = 'draw';
+        let isMouseDown = false;
+        let isPlaying = false;
+        let floatMode = false;
+        let realFloatMode = false;  // Enables proper ground detection (fixes floating glitch)
+
+        // Game speed
+        let gameSpeed = 1.0;
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+
+        speedSlider.addEventListener('input', () => {
+            gameSpeed = parseFloat(speedSlider.value);
+            speedValue.textContent = gameSpeed.toFixed(2) + 'x';
+        });
+
+        // Player settings
+        const PLAYER_SIZE = 20;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -13;  // Enough to jump 4 blocks high
+        const JUMP_CUT_MULTIPLIER = 0.4;  // Velocity multiplier when releasing jump early
+        const MOVE_SPEED = 3.5;
+
+        // Player state
+        let player = {
+            x: 2,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            onGround: false,
+            isJumping: false,  // Track if currently in a jump (for variable height)
+            hasDoubleJump: false,  // Track if player has collected a wing token
+            jumpReleased: true,  // Track if jump key was released (for double jump input)
+            hasJumpedFromGround: false,  // Track if player performed a real first jump
+            hasRisen: false  // Track if player has actually risen (vy was negative) - prevents double jump when falling off edges
+        };
+
+        // Input state
+        const keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            jump: false
+        };
+
+        // Track triggers player is currently touching
+        let activeTriggers = new Set();
+
+        // Tool buttons
+        const playBtn = document.getElementById('playBtn');
+        const drawBtn = document.getElementById('drawBtn');
+        const spikeBtn = document.getElementById('spikeBtn');
+        const triggerBlockBtn = document.getElementById('triggerBlockBtn');
+        const triggerSpikeBtn = document.getElementById('triggerSpikeBtn');
+        const goalBtn = document.getElementById('goalBtn');
+        const wingBtn = document.getElementById('wingBtn');
+        const signBtn = document.getElementById('signBtn');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const floatBtn = document.getElementById('floatBtn');
+        const realFloatBtn = document.getElementById('realFloatBtn');
+
+        floatBtn.addEventListener('click', () => {
+            floatMode = !floatMode;
+            floatBtn.textContent = floatMode ? 'Float: On' : 'Float: Off';
+            floatBtn.classList.toggle('active', floatMode);
+        });
+
+        realFloatBtn.addEventListener('click', () => {
+            realFloatMode = !realFloatMode;
+            realFloatBtn.textContent = realFloatMode ? 'Real Float: On' : 'Real Float: Off';
+            realFloatBtn.classList.toggle('active', realFloatMode);
+        });
+
+        playBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                startPlay();
+            } else {
+                stopPlay();
+            }
+        });
+
+        function startPlay() {
+            playBtn.textContent = 'Stop';
+            playBtn.classList.add('playing');
+            canvas.classList.add('playing');
+            instructions.textContent = 'Arrow keys or WASD to move, Up/W to jump';
+
+            // Save level state for resetting triggers
+            saveLevel();
+
+            // Reset player to bottom left
+            player.x = 2;
+            player.y = (ROWS - 2) * GRID_SIZE;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = false;
+            player.isJumping = false;
+            player.hasDoubleJump = false;
+            player.jumpReleased = true;
+            player.hasJumpedFromGround = false;
+            player.hasRisen = false;
+            activeTriggers = new Set();
+
+            gameLoop();
+        }
+
+        function stopPlay() {
+            playBtn.textContent = 'Play';
+            playBtn.classList.remove('playing');
+            canvas.classList.remove('playing');
+            instructions.textContent = 'Click or drag to place/remove squares';
+
+            // Restore level to reset triggers
+            restoreLevel();
+
+            render();
+        }
+
+        function clearToolButtons() {
+            drawBtn.classList.remove('active');
+            spikeBtn.classList.remove('active');
+            triggerBlockBtn.classList.remove('active');
+            triggerSpikeBtn.classList.remove('active');
+            goalBtn.classList.remove('active');
+            wingBtn.classList.remove('active');
+            signBtn.classList.remove('active');
+            eraseBtn.classList.remove('active');
+        }
+
+        drawBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'draw';
+            clearToolButtons();
+            drawBtn.classList.add('active');
+        });
+
+        spikeBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'spike';
+            clearToolButtons();
+            spikeBtn.classList.add('active');
+        });
+
+        triggerBlockBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'triggerBlock';
+            clearToolButtons();
+            triggerBlockBtn.classList.add('active');
+        });
+
+        triggerSpikeBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'triggerSpike';
+            clearToolButtons();
+            triggerSpikeBtn.classList.add('active');
+        });
+
+        goalBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'goal';
+            clearToolButtons();
+            goalBtn.classList.add('active');
+        });
+
+        wingBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'wing';
+            clearToolButtons();
+            wingBtn.classList.add('active');
+        });
+
+        signBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'sign';
+            clearToolButtons();
+            signBtn.classList.add('active');
+        });
+
+        eraseBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            currentTool = 'erase';
+            clearToolButtons();
+            eraseBtn.classList.add('active');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    level[y][x] = 0;
+                }
+            }
+            // Clear all sign texts
+            for (const key in signTexts) {
+                delete signTexts[key];
+            }
+            render();
+        });
+
+        exportBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            const code = levelToCode();
+            navigator.clipboard.writeText(code).then(() => {
+                instructions.textContent = 'Level code copied to clipboard!';
+                setTimeout(() => {
+                    instructions.textContent = 'Click or drag to place/remove squares';
+                }, 2000);
+            }).catch(() => {
+                // Fallback: show in prompt
+                prompt('Copy this level code:', code);
+            });
+        });
+
+        importBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            const code = prompt('Paste level code:');
+            if (code) {
+                codeToLevel(code);
+                render();
+                instructions.textContent = 'Level imported!';
+                setTimeout(() => {
+                    instructions.textContent = 'Click or drag to place/remove squares';
+                }, 2000);
+            }
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = true;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = true;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                keys.up = true;
+                keys.jump = true;
+            }
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                keys.down = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = false;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                keys.up = false;
+                keys.jump = false;
+                // Variable jump height: cut velocity when releasing jump early
+                if (player.isJumping && player.vy < 0) {
+                    player.vy *= JUMP_CUT_MULTIPLIER;
+                }
+                player.isJumping = false;
+            }
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                keys.down = false;
+            }
+        });
+
+        // Get grid position from mouse event
+        function getGridPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / GRID_SIZE);
+            const y = Math.floor((e.clientY - rect.top) / GRID_SIZE);
+            return { x: Math.max(0, Math.min(x, COLS - 1)), y: Math.max(0, Math.min(y, ROWS - 1)) };
+        }
+
+        // Handle drawing/erasing
+        function handleDraw(e, isClick = false) {
+            if (isPlaying) return;
+            const pos = getGridPos(e);
+            if (currentTool === 'draw') {
+                level[pos.y][pos.x] = 1;
+            } else if (currentTool === 'spike') {
+                level[pos.y][pos.x] = 2;
+            } else if (currentTool === 'triggerBlock') {
+                level[pos.y][pos.x] = 3;
+            } else if (currentTool === 'triggerSpike') {
+                level[pos.y][pos.x] = 4;
+            } else if (currentTool === 'goal') {
+                level[pos.y][pos.x] = 5;
+            } else if (currentTool === 'wing') {
+                level[pos.y][pos.x] = 7;
+            } else if (currentTool === 'sign' && isClick) {
+                const text = prompt('Enter sign text:');
+                if (text !== null) {
+                    level[pos.y][pos.x] = 6;
+                    signTexts[`${pos.x},${pos.y}`] = text;
+                }
+            } else if (currentTool === 'erase') {
+                // Remove sign text if erasing a sign
+                if (level[pos.y][pos.x] === 6) {
+                    delete signTexts[`${pos.x},${pos.y}`];
+                }
+                level[pos.y][pos.x] = 0;
+            }
+            render();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            handleDraw(e, true);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isMouseDown) {
+                handleDraw(e);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isMouseDown = false;
+        });
+
+        // Check if a point collides with a solid tile
+        function isSolid(px, py) {
+            const gridX = Math.floor(px / GRID_SIZE);
+            const gridY = Math.floor(py / GRID_SIZE);
+            if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
+                return gridY >= ROWS || gridY < 0; // Bottom and ceiling are solid, sides are not
+            }
+            return level[gridY][gridX] === 1;
+        }
+
+        // Check collision for a rectangle
+        function checkCollision(x, y, width, height) {
+            // Check all four corners and midpoints
+            return isSolid(x, y) ||
+                   isSolid(x + width - 1, y) ||
+                   isSolid(x, y + height - 1) ||
+                   isSolid(x + width - 1, y + height - 1) ||
+                   isSolid(x + width / 2, y) ||
+                   isSolid(x + width / 2, y + height - 1);
+        }
+
+        // Point in triangle test using barycentric coordinates
+        function pointInTriangle(px, py, x1, y1, x2, y2, x3, y3) {
+            const dX = px - x3;
+            const dY = py - y3;
+            const dX21 = x3 - x2;
+            const dY12 = y2 - y3;
+            const D = dY12 * (x1 - x3) + dX21 * (y1 - y3);
+            const s = dY12 * dX + dX21 * dY;
+            const t = (y3 - y1) * dX + (x1 - x3) * dY;
+            if (D < 0) return s <= 0 && t <= 0 && s + t >= D;
+            return s >= 0 && t >= 0 && s + t <= D;
+        }
+
+        // Check if player is touching a spike (triangular hitbox)
+        function checkSpike(x, y, width, height) {
+            // Check all grid cells the player overlaps
+            const startGX = Math.floor(x / GRID_SIZE);
+            const endGX = Math.floor((x + width - 1) / GRID_SIZE);
+            const startGY = Math.floor(y / GRID_SIZE);
+            const endGY = Math.floor((y + height - 1) / GRID_SIZE);
+
+            for (let gridY = startGY; gridY <= endGY; gridY++) {
+                for (let gridX = startGX; gridX <= endGX; gridX++) {
+                    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                        if (level[gridY][gridX] === 2) {
+                            // Spike triangle vertices (matching the drawn spike)
+                            const spikeX1 = gridX * GRID_SIZE + GRID_SIZE / 2; // top center
+                            const spikeY1 = gridY * GRID_SIZE + 4;
+                            const spikeX2 = gridX * GRID_SIZE + 4; // bottom left
+                            const spikeY2 = gridY * GRID_SIZE + GRID_SIZE - 2;
+                            const spikeX3 = gridX * GRID_SIZE + GRID_SIZE - 4; // bottom right
+                            const spikeY3 = gridY * GRID_SIZE + GRID_SIZE - 2;
+
+                            // Check player corner and edge points against spike triangle
+                            const playerPoints = [
+                                [x, y], [x + width, y],
+                                [x, y + height], [x + width, y + height],
+                                [x + width / 2, y + height], // bottom center
+                                [x, y + height / 2], [x + width, y + height / 2] // side centers
+                            ];
+
+                            for (const [px, py] of playerPoints) {
+                                if (pointInTriangle(px, py, spikeX1, spikeY1, spikeX2, spikeY2, spikeX3, spikeY3)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Check if player is touching a goal
+        function checkGoal(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height / 2]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 5) return true;
+                }
+            }
+            return false;
+        }
+
+        // Check if player is touching a wing token and collect it
+        function checkWing(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height / 2]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 7) {
+                        // Collect the wing - remove it and grant double jump
+                        level[gridY][gridX] = 0;
+                        player.hasDoubleJump = true;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Current sign text being displayed
+        let currentSignText = '';
+
+        // Get sign text if player is touching a sign
+        function getSignText(x, y, width, height) {
+            const points = [
+                [x, y], [x + width - 1, y],
+                [x, y + height - 1], [x + width - 1, y + height - 1],
+                [x + width / 2, y + height / 2]
+            ];
+            for (const [px, py] of points) {
+                const gridX = Math.floor(px / GRID_SIZE);
+                const gridY = Math.floor(py / GRID_SIZE);
+                if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                    if (level[gridY][gridX] === 6) {
+                        const key = `${gridX},${gridY}`;
+                        return signTexts[key] || '';
+                    }
+                }
+            }
+            return '';
+        }
+
+        // Win the level
+        function winLevel() {
+            isPlaying = false;
+            playBtn.textContent = 'Play';
+            playBtn.classList.remove('playing');
+            canvas.classList.remove('playing');
+            instructions.textContent = 'You Win! Click Play to try again.';
+            player.hasDoubleJump = false;
+            restoreLevel();
+            render();
+        }
+
+        // Reset player to start
+        function resetPlayer() {
+            player.x = 2;
+            player.y = (ROWS - 2) * GRID_SIZE;
+            player.vx = 0;
+            player.vy = 0;
+            player.onGround = false;
+            player.isJumping = false;
+            player.hasDoubleJump = false;
+            player.jumpReleased = true;
+            player.hasJumpedFromGround = false;
+            player.hasRisen = false;
+            activeTriggers = new Set();
+
+            // Reset triggers to original state
+            restoreLevel();
+        }
+
+        // Get all trigger cells the player is overlapping
+        function getOverlappingTriggers(x, y, width, height) {
+            const triggers = new Set();
+            // Check all grid cells the player overlaps
+            const startX = Math.floor(x / GRID_SIZE);
+            const endX = Math.floor((x + width - 1) / GRID_SIZE);
+            const startY = Math.floor(y / GRID_SIZE);
+            const endY = Math.floor((y + height - 1) / GRID_SIZE);
+
+            for (let gy = startY; gy <= endY; gy++) {
+                for (let gx = startX; gx <= endX; gx++) {
+                    if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
+                        if (level[gy][gx] === 3 || level[gy][gx] === 4) {
+                            triggers.add(`${gx},${gy}`);
+                        }
+                    }
+                }
+            }
+            return triggers;
+        }
+
+        // Check and activate triggers (only when player leaves them)
+        function checkTriggers(x, y, width, height) {
+            const currentTriggers = getOverlappingTriggers(x, y, width, height);
+
+            // Check which triggers we've left
+            for (const key of activeTriggers) {
+                if (!currentTriggers.has(key)) {
+                    // Player left this trigger - activate it
+                    const [gx, gy] = key.split(',').map(Number);
+                    if (level[gy][gx] === 3) {
+                        level[gy][gx] = 1; // Transform to block
+                    } else if (level[gy][gx] === 4) {
+                        level[gy][gx] = 2; // Transform to spike
+                    }
+                }
+            }
+
+            // Update active triggers
+            activeTriggers = currentTriggers;
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            // Real Float mode - free movement, no gravity, with collisions
+            if (realFloatMode) {
+                // Horizontal movement with collision
+                let newX = player.x;
+                if (keys.left) newX -= MOVE_SPEED * gameSpeed;
+                if (keys.right) newX += MOVE_SPEED * gameSpeed;
+                if (!checkCollision(newX, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                    player.x = newX;
+                }
+
+                // Vertical movement with collision
+                let newY = player.y;
+                if (keys.up) newY -= MOVE_SPEED * gameSpeed;
+                if (keys.down) newY += MOVE_SPEED * gameSpeed;
+                if (!checkCollision(player.x, newY, PLAYER_SIZE, PLAYER_SIZE)) {
+                    player.y = newY;
+                }
+
+                // Keep player in bounds
+                player.x = Math.max(0, Math.min(player.x, canvas.width - PLAYER_SIZE));
+                player.y = Math.max(0, Math.min(player.y, canvas.height - PLAYER_SIZE));
+
+                // Check triggers, wings, goals, and spikes
+                checkTriggers(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+                checkWing(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+                if (checkSpike(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                    resetPlayer();
+                }
+                if (checkGoal(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                    winLevel();
+                    return;
+                }
+                currentSignText = getSignText(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+                renderGame();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // Normal mode - Handle input
+            if (keys.left) {
+                player.vx = -MOVE_SPEED;
+            } else if (keys.right) {
+                player.vx = MOVE_SPEED;
+            } else {
+                player.vx = 0;
+            }
+
+            if (keys.jump && player.onGround && player.jumpReleased) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+                player.isJumping = true;
+                player.jumpReleased = false;
+                player.hasJumpedFromGround = true;
+                player.hasRisen = false;  // Will be set true once we actually move up
+            } else if (keys.jump && !player.onGround && player.hasDoubleJump && player.jumpReleased && player.vy > 0 && player.hasJumpedFromGround && player.hasRisen) {
+                // Double jump - only after a real first jump that went UP, when falling
+                player.vy = JUMP_FORCE;
+                player.hasDoubleJump = false;
+                player.isJumping = true;
+                player.jumpReleased = false;
+                player.hasRisen = false;
+            }
+
+            // Track jump key release
+            if (!keys.jump) {
+                player.jumpReleased = true;
+            }
+
+            // Track if player has risen (to prevent double jump when just falling off edge)
+            if (player.vy < 0) {
+                player.hasRisen = true;
+            }
+
+            // Move horizontally (scaled by game speed)
+            let newX = player.x + player.vx * gameSpeed;
+            if (!checkCollision(newX, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                player.x = newX;
+            } else {
+                // Find the exact position to stop at
+                if (player.vx > 0) {
+                    // Moving right - find the left edge of the block we hit
+                    const blockX = Math.floor((newX + PLAYER_SIZE) / GRID_SIZE) * GRID_SIZE;
+                    player.x = blockX - PLAYER_SIZE;
+                } else if (player.vx < 0) {
+                    // Moving left - find the right edge of the block we hit
+                    const blockX = Math.floor(newX / GRID_SIZE) * GRID_SIZE + GRID_SIZE;
+                    player.x = blockX;
+                }
+            }
+
+            // Move vertically with sub-stepping to prevent tunneling at high speeds
+            let remainingMove = player.vy * gameSpeed;
+            const STEP_SIZE = GRID_SIZE / 2;  // Check collisions every 16 pixels
+
+            while (Math.abs(remainingMove) > 0.1) {
+                const step = Math.abs(remainingMove) > STEP_SIZE
+                    ? Math.sign(remainingMove) * STEP_SIZE
+                    : remainingMove;
+                remainingMove -= step;
+
+                let newY = player.y + step;
+
+                // Check floor boundary first
+                if (newY >= canvas.height - PLAYER_SIZE) {
+                    player.y = canvas.height - PLAYER_SIZE;
+                    player.vy = 0;
+                    player.onGround = true;
+                    player.hasJumpedFromGround = false;
+                    player.hasRisen = false;
+                    break;
+                } else if (!checkCollision(player.x, newY, PLAYER_SIZE, PLAYER_SIZE)) {
+                    player.y = newY;
+                    player.onGround = false;
+                } else {
+                    if (player.vy > 0) {
+                        // Landing on a block - snap to top of the block
+                        player.y = Math.floor((newY + PLAYER_SIZE) / GRID_SIZE) * GRID_SIZE - PLAYER_SIZE;
+                        player.onGround = true;
+                        player.hasJumpedFromGround = false;
+                        player.hasRisen = false;
+                    } else {
+                        // Hit ceiling
+                        player.y = Math.ceil(newY / GRID_SIZE) * GRID_SIZE;
+                    }
+                    player.vy = 0;
+                    break;
+                }
+            }
+
+            // Check if player is still on ground (handles walking off edges)
+            // Disabled when Float mode is on (allows floating glitch)
+            if (!floatMode && player.onGround && player.vy >= 0) {
+                // Check if there's still ground below us
+                const testY = player.y + 1;  // Check 1 pixel below
+                if (!checkCollision(player.x, testY, PLAYER_SIZE, PLAYER_SIZE) &&
+                    testY < canvas.height - PLAYER_SIZE) {
+                    player.onGround = false;  // Walked off edge
+                }
+            }
+
+            // Apply gravity AFTER movement (only when not on ground to prevent bouncing)
+            if (!player.onGround) {
+                player.vy += GRAVITY * gameSpeed;
+            }
+
+            // Keep player in horizontal bounds
+            player.x = Math.max(0, Math.min(player.x, canvas.width - PLAYER_SIZE));
+
+            // Check triggers
+            checkTriggers(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            // Check wing collection
+            checkWing(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            // Check spike collision
+            if (checkSpike(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                resetPlayer();
+            }
+
+            // Check goal collision
+            if (checkGoal(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)) {
+                winLevel();
+                return;
+            }
+
+            // Check sign collision
+            currentSignText = getSignText(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            // Render
+            renderGame();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Render during play mode
+        function renderGame() {
+            // Clear canvas
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines (faded)
+            ctx.strokeStyle = '#3a3a5a';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * GRID_SIZE, 0);
+                ctx.lineTo(x * GRID_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * GRID_SIZE);
+                ctx.lineTo(canvas.width, y * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw placed squares, spikes, and triggers
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (level[y][x] === 1) {
+                        ctx.fillStyle = '#6a6aff';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 2) {
+                        // Draw spike as triangle
+                        ctx.fillStyle = '#ff4444';
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (level[y][x] === 3) {
+                        // Trigger block - dashed outline blue square
+                        ctx.strokeStyle = '#6a6aff';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8);
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 4) {
+                        // Trigger spike - dashed outline red triangle
+                        ctx.strokeStyle = '#ff4444';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 5) {
+                        // Goal - green square
+                        ctx.fillStyle = '#44ff44';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 6) {
+                        // Sign - brown square with post
+                        ctx.fillStyle = '#8B4513';
+                        ctx.fillRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 12);
+                        ctx.fillRect(x * GRID_SIZE + GRID_SIZE / 2 - 2, y * GRID_SIZE + GRID_SIZE - 10, 4, 8);
+                    } else if (level[y][x] === 7) {
+                        // Wing token - golden wing shape
+                        const cx = x * GRID_SIZE + GRID_SIZE / 2;
+                        const cy = y * GRID_SIZE + GRID_SIZE / 2;
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        // Left wing
+                        ctx.moveTo(cx, cy);
+                        ctx.quadraticCurveTo(cx - 12, cy - 8, cx - 14, cy - 2);
+                        ctx.quadraticCurveTo(cx - 10, cy + 4, cx, cy);
+                        // Right wing
+                        ctx.moveTo(cx, cy);
+                        ctx.quadraticCurveTo(cx + 12, cy - 8, cx + 14, cy - 2);
+                        ctx.quadraticCurveTo(cx + 10, cy + 4, cx, cy);
+                        ctx.fill();
+                        // Center circle
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Draw player
+            ctx.fillStyle = '#ff6a6a';
+            ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
+
+            // Draw wing indicator if player has double jump
+            if (player.hasDoubleJump) {
+                const px = player.x + PLAYER_SIZE / 2;
+                const py = player.y + PLAYER_SIZE / 2;
+                ctx.fillStyle = '#FFD700';
+                ctx.globalAlpha = 0.8;
+                // Small wings on player
+                ctx.beginPath();
+                ctx.moveTo(px - 2, py);
+                ctx.quadraticCurveTo(px - 10, py - 6, px - 12, py);
+                ctx.quadraticCurveTo(px - 8, py + 3, px - 2, py);
+                ctx.moveTo(px + 2, py);
+                ctx.quadraticCurveTo(px + 10, py - 6, px + 12, py);
+                ctx.quadraticCurveTo(px + 8, py + 3, px + 2, py);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw sign text if touching a sign
+            if (currentSignText) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(10, 10, canvas.width - 20, 40);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(currentSignText, canvas.width / 2, 35);
+            }
+        }
+
+        // Render the grid (editor mode)
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#3a3a5a';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * GRID_SIZE, 0);
+                ctx.lineTo(x * GRID_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * GRID_SIZE);
+                ctx.lineTo(canvas.width, y * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw placed squares, spikes, and triggers
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (level[y][x] === 1) {
+                        ctx.fillStyle = '#6a6aff';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 2) {
+                        // Draw spike as triangle
+                        ctx.fillStyle = '#ff4444';
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (level[y][x] === 3) {
+                        // Trigger block - dashed outline blue square
+                        ctx.strokeStyle = '#6a6aff';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8);
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 4) {
+                        // Trigger spike - dashed outline red triangle
+                        ctx.strokeStyle = '#ff4444';
+                        ctx.setLineDash([4, 4]);
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(x * GRID_SIZE + GRID_SIZE / 2, y * GRID_SIZE + 4);
+                        ctx.lineTo(x * GRID_SIZE + 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.lineTo(x * GRID_SIZE + GRID_SIZE - 4, y * GRID_SIZE + GRID_SIZE - 2);
+                        ctx.closePath();
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    } else if (level[y][x] === 5) {
+                        // Goal - green square
+                        ctx.fillStyle = '#44ff44';
+                        ctx.fillRect(x * GRID_SIZE + 1, y * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else if (level[y][x] === 6) {
+                        // Sign - brown square with post
+                        ctx.fillStyle = '#8B4513';
+                        ctx.fillRect(x * GRID_SIZE + 4, y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 12);
+                        ctx.fillRect(x * GRID_SIZE + GRID_SIZE / 2 - 2, y * GRID_SIZE + GRID_SIZE - 10, 4, 8);
+                    } else if (level[y][x] === 7) {
+                        // Wing token - golden wing shape
+                        const cx = x * GRID_SIZE + GRID_SIZE / 2;
+                        const cy = y * GRID_SIZE + GRID_SIZE / 2;
+                        ctx.fillStyle = '#FFD700';
+                        ctx.beginPath();
+                        // Left wing
+                        ctx.moveTo(cx, cy);
+                        ctx.quadraticCurveTo(cx - 12, cy - 8, cx - 14, cy - 2);
+                        ctx.quadraticCurveTo(cx - 10, cy + 4, cx, cy);
+                        // Right wing
+                        ctx.moveTo(cx, cy);
+                        ctx.quadraticCurveTo(cx + 12, cy - 8, cx + 14, cy - 2);
+                        ctx.quadraticCurveTo(cx + 10, cy + 4, cx, cy);
+                        ctx.fill();
+                        // Center circle
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>

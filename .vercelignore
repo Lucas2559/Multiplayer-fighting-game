@@ -1,0 +1,4 @@
+# The hub is plain static files; keep tooling and notes off the public site.
+.claude/
+.playwright-mcp/
+*.md

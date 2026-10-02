@@ -1,7 +1,8 @@
 # Deploying the chat — Vercel + Cloudflare R2
 
-Only this `chat-room` folder goes to Vercel. The game hub and the other games
-stay where they are (Netlify, at `games.lucasz.com`).
+This `chat-room` folder is its own Vercel project. The game hub and the other
+games are a second Vercel project built from the repo root (`games.lucasz.com`,
+see the root `vercel.json`).
 
 | Piece | Runs on | Holds |
 |---|---|---|
@@ -83,7 +84,7 @@ If something fails, the banner says why:
 - *"…upload was blocked — the R2 bucket's CORS settings…"* → this exact address isn't
   in the list from step 1.2.
 - *"Couldn't reach the picture service"* → you're on a copy without `/api`, e.g. the
-  old one on Netlify.
+  hub's `/chat-room/` path (which now redirects here).
 
 ## 5. Give it its own address
 
@@ -91,14 +92,12 @@ If something fails, the banner says why:
    record it wants — usually a CNAME to `cname.vercel-dns.com`.
 2. **Cloudflare → lucasz.com → DNS → Add record:** type CNAME, name `chat`, target as
    Vercel showed, proxy **DNS only** (grey cloud) so Vercel can issue its certificate.
-   Leave the existing `games` record alone — the hub stays on Netlify.
+   The `games` record belongs to the hub's own Vercel project.
 
 ## 6. Point the hub at the new chat
 
-The hub's **Chat Room** card still opens the old copy on Netlify
-(`games.lucasz.com/chat-room/public/`), which can't send pictures and, after step 7,
-can't show them either. Change that card's link in the hub's `index.html` to
-`https://chat.lucasz.com/` and redeploy the hub on Netlify.
+Done: the hub's **Chat Room** card links to `https://chat.lucasz.com/`, and the
+hub's `vercel.json` redirects any old `games.lucasz.com/chat-room/…` link there.
 
 ## 7. Move the existing pictures into R2
 
