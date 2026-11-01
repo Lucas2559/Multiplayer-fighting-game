@@ -1,0 +1,352 @@
+{
+ "Ackee": {
+  "file": "Ackee_001.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Ackee_001.jpg/960px-Ackee_001.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Jerome Walker",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ackee_001.jpg"
+ },
+ "Aconitum napellus": {
+  "file": "Aconitum_napellus_230705.jpg",
+  "thumb": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Aconitum_napellus_230705.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+  "artist": "Bernd Haynold",
+  "license": "CC BY-SA 2.5",
+  "page": "https://commons.wikimedia.org/wiki/File:Aconitum_napellus_230705.jpg"
+ },
+ "Almond": {
+  "file": "Almonds_-_in_shell,_shell_cracked_open,_shelled,_blanched.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Almonds_-_in_shell%2C_shell_cracked_open%2C_shelled%2C_blanched.jpg/960px-Almonds_-_in_shell%2C_shell_cracked_open%2C_shelled%2C_blanched.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Almonds_-_in_shell,_shell_cracked_open,_shelled,_blanched.jpg"
+ },
+ "Amanita muscaria": {
+  "file": "Amanita_muscaria_Aberystwyth_2023.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Amanita_muscaria_Aberystwyth_2023.jpg/960px-Amanita_muscaria_Aberystwyth_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Kieran Roy Powell",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Amanita_muscaria_Aberystwyth_2023.jpg"
+ },
+ "Amanita phalloides": {
+  "file": "Amanita_phalloides_1.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/Amanita_phalloides_1.JPG/960px-Amanita_phalloides_1.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Archenzo",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Amanita_phalloides_1.JPG"
+ },
+ "Apricot": {
+  "file": "Apricot_and_cross_section.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Apricot_and_cross_section.jpg/960px-Apricot_and_cross_section.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Fir0002",
+  "license": "GFDL 1.2",
+  "page": "https://commons.wikimedia.org/wiki/File:Apricot_and_cross_section.jpg"
+ },
+ "Aspergillus flavus": {
+  "file": "Aspergillus_flavus.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Aspergillus_flavus.jpg/960px-Aspergillus_flavus.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Medmyco",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Aspergillus_flavus.jpg"
+ },
+ "Atropa bella-donna": {
+  "file": "Atropa_belladonna_(16627871072).jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Atropa_belladonna_%2816627871072%29.jpg/960px-Atropa_belladonna_%2816627871072%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Joan Simon from Barcelona, España",
+  "license": "CC BY-SA 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Atropa_belladonna_(16627871072).jpg"
+ },
+ "Blue mussel": {
+  "file": "Miesmuscheln-2.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Miesmuscheln-2.jpg/960px-Miesmuscheln-2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Rainer Zenz",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Miesmuscheln-2.jpg"
+ },
+ "Carambola": {
+  "file": "Averrhoa_carambola_ARS_k5735-7.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Averrhoa_carambola_ARS_k5735-7.jpg/960px-Averrhoa_carambola_ARS_k5735-7.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Unknown",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Averrhoa_carambola_ARS_k5735-7.jpg"
+ },
+ "Carolina Reaper": {
+  "file": "Carolina_Reaper_pepper_pods_(cropped).jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Carolina_Reaper_pepper_pods_%28cropped%29.jpg/960px-Carolina_Reaper_pepper_pods_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Dale Thurber",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Carolina_Reaper_pepper_pods_(cropped).jpg"
+ },
+ "Cashew": {
+  "file": "Cashew_apples.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Cashew_apples.jpg/960px-Cashew_apples.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Abhishek Jacob",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cashew_apples.jpg"
+ },
+ "Cassava": {
+  "file": "PeeledCassava.jpg",
+  "thumb": "https://commons.wikimedia.org/wiki/Special:FilePath/PeeledCassava.jpg?width=800",
+  "artist": "Taken by J. Stolfi, 2005",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:PeeledCassava.jpg"
+ },
+ "Chicken as food": {
+  "file": "Chickens_in_market.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Chickens_in_market.jpg/960px-Chickens_in_market.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Tomás Castelazo",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Chickens_in_market.jpg"
+ },
+ "Cicuta maculata": {
+  "file": "Cicuta_maculata.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Cicuta_maculata.jpg/960px-Cicuta_maculata.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Williammehlhorn at English Wikipedia",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Cicuta_maculata.jpg"
+ },
+ "Conium maculatum": {
+  "file": "Conium.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Conium.jpg/960px-Conium.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Unknown",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Conium.jpg"
+ },
+ "Cookie dough": {
+  "file": "Cookiedough.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Cookiedough.jpg/960px-Cookiedough.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Geraldine",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cookiedough.jpg"
+ },
+ "Destroying angel": {
+  "file": "Destroying_Angel.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Destroying_Angel.jpg/960px-Destroying_Angel.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "en:User:Rafti Institute &amp; en:User:Ms. havisham",
+  "license": "Copyrighted free use",
+  "page": "https://commons.wikimedia.org/wiki/File:Destroying_Angel.jpg"
+ },
+ "Digitalis purpurea": {
+  "file": "Digitalis_purpurea_LC0101.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Digitalis_purpurea_LC0101.jpg/960px-Digitalis_purpurea_LC0101.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Jörg Hempel",
+  "license": "CC BY-SA 3.0 de",
+  "page": "https://commons.wikimedia.org/wiki/File:Digitalis_purpurea_LC0101.jpg"
+ },
+ "Escolar": {
+  "file": "Escolier_noir_(Lepidocybium_flavobrunneum)_(Ifremer_00761-87291).jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Escolier_noir_%28Lepidocybium_flavobrunneum%29_%28Ifremer_00761-87291%29.jpg/960px-Escolier_noir_%28Lepidocybium_flavobrunneum%29_%28Ifremer_00761-87291%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Hugues Evano (IFREMER, Délégation océan Indien (DOI), Département Ressources Biologiques et Environnement (RBE), F-97420 Le Port, France)",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Escolier_noir_(Lepidocybium_flavobrunneum)_(Ifremer_00761-87291).jpg"
+ },
+ "Fesikh": {
+  "file": "Fesikh_of_Desouk.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Fesikh_of_Desouk.JPG/960px-Fesikh_of_Desouk.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Faris knight",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Fesikh_of_Desouk.JPG"
+ },
+ "Grape": {
+  "file": "Grapes,_Rostov-on-Don,_Russia.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/960px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Vyacheslav Argenberg",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Grapes,_Rostov-on-Don,_Russia.jpg"
+ },
+ "Grapefruit": {
+  "file": "Grapefruits_-_whole-halved-segments.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8c/Grapefruits_-_whole-halved-segments.jpg/960px-Grapefruits_-_whole-halved-segments.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Grapefruits_-_whole-halved-segments.jpg"
+ },
+ "Great barracuda": {
+  "file": "Gran_barracuda_(Sphyraena_barracuda),_Yeda,_Arabia_Saudita,_2025-05-20,_DD_118.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Gran_barracuda_%28Sphyraena_barracuda%29%2C_Yeda%2C_Arabia_Saudita%2C_2025-05-20%2C_DD_118.jpg/960px-Gran_barracuda_%28Sphyraena_barracuda%29%2C_Yeda%2C_Arabia_Saudita%2C_2025-05-20%2C_DD_118.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Diego Delso",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Gran_barracuda_(Sphyraena_barracuda),_Yeda,_Arabia_Saudita,_2025-05-20,_DD_118.jpg"
+ },
+ "Green sea turtle": {
+  "file": "Green_sea_turtle_(Chelonia_mydas)_Moorea.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Green_sea_turtle_%28Chelonia_mydas%29_Moorea.jpg/960px-Green_sea_turtle_%28Chelonia_mydas%29_Moorea.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Green_sea_turtle_(Chelonia_mydas)_Moorea.jpg"
+ },
+ "Gyromitra esculenta": {
+  "file": "Frühjahrslorchel.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Fr%C3%BChjahrslorchel.JPG/960px-Fr%C3%BChjahrslorchel.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Unknown",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Fr%C3%BChjahrslorchel.JPG"
+ },
+ "Honey": {
+  "file": "Runny_hunny.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Runny_hunny.jpg/960px-Runny_hunny.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Scott Bauer, USDA ARS",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Runny_hunny.jpg"
+ },
+ "Hákarl": {
+  "file": "Hakarl_near_Bjarnahöfn_in_Iceland.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Hakarl_near_Bjarnah%C3%B6fn_in_Iceland.JPG/960px-Hakarl_near_Bjarnah%C3%B6fn_in_Iceland.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Chris 73",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Hakarl_near_Bjarnah%C3%B6fn_in_Iceland.JPG"
+ },
+ "Kidney bean": {
+  "file": "Red_Rajma_BNC.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Red_Rajma_BNC.jpg/960px-Red_Rajma_BNC.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Prathyush Thomas",
+  "license": "GFDL 1.2",
+  "page": "https://commons.wikimedia.org/wiki/File:Red_Rajma_BNC.jpg"
+ },
+ "Liquorice (confectionery)": {
+  "file": "Liquorice_wheels.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Liquorice_wheels.jpg/960px-Liquorice_wheels.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Pikaluk from UK",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Liquorice_wheels.jpg"
+ },
+ "Lychee": {
+  "file": "Litchi_chinensis_fruits.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Litchi_chinensis_fruits.JPG/960px-Litchi_chinensis_fruits.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "B.navez",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Litchi_chinensis_fruits.JPG"
+ },
+ "Mad honey": {
+  "file": "Mad_Honey.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Mad_Honey.jpg/960px-Mad_Honey.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "The Drug Users Bible",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mad_Honey.jpg"
+ },
+ "Mango": {
+  "file": "Mangos_-_single_and_halved.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Mangos_-_single_and_halved.jpg/960px-Mangos_-_single_and_halved.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Mangos_-_single_and_halved.jpg"
+ },
+ "Narcissus (plant)": {
+  "file": "Narcissus_poeticus_subsp._radiiflorus.1658.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Narcissus_poeticus_subsp._radiiflorus.1658.jpg/960px-Narcissus_poeticus_subsp._radiiflorus.1658.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Unknown",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Narcissus_poeticus_subsp._radiiflorus.1658.jpg"
+ },
+ "Nutmeg": {
+  "file": "Biji_Pala_Bubuk.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Biji_Pala_Bubuk.jpg/960px-Biji_Pala_Bubuk.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Herusutimbul",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Biji_Pala_Bubuk.jpg"
+ },
+ "Oyster": {
+  "file": "Crassostrea_gigas_p1040848.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Crassostrea_gigas_p1040848.jpg/960px-Crassostrea_gigas_p1040848.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "David Monniaux",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Crassostrea_gigas_p1040848.jpg"
+ },
+ "Phytolacca americana": {
+  "file": "Pokeweed_bush_in_Northumberland_County,_Pennsylvania.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Pokeweed_bush_in_Northumberland_County%2C_Pennsylvania.JPG/960px-Pokeweed_bush_in_Northumberland_County%2C_Pennsylvania.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Jakec",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Pokeweed_bush_in_Northumberland_County,_Pennsylvania.JPG"
+ },
+ "Polar bear": {
+  "file": "Polar_Bear_-_Alaska_(cropped).jpg",
+  "thumb": "https://upload.wikimedia.org/wikipedia/commons/6/66/Polar_Bear_-_Alaska_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+  "artist": "Alan Wilson",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Polar_Bear_-_Alaska_(cropped).jpg"
+ },
+ "Casu marzu": {
+  "file": "Casu_Marzu_cheese.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Casu_Marzu_cheese.jpg/960px-Casu_Marzu_cheese.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Shardan",
+  "license": "CC BY-SA 2.5",
+  "page": "https://commons.wikimedia.org/wiki/File:Casu_Marzu_cheese.jpg"
+ },
+ "Convallaria majalis": {
+  "file": "Convallaria_majalis_inflorescence_-_Keila.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Convallaria_majalis_inflorescence_-_Keila.jpg/960px-Convallaria_majalis_inflorescence_-_Keila.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Convallaria_majalis_inflorescence_-_Keila.jpg"
+ },
+ "Potato": {
+  "file": "Patates.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/960px-Patates.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Scott Bauer, USDA ARS",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Patates.jpg"
+ },
+ "Pteridium aquilinum": {
+  "file": "Adelaarsvaren_planten_Pteridium_aquilinum.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Adelaarsvaren_planten_Pteridium_aquilinum.jpg/960px-Adelaarsvaren_planten_Pteridium_aquilinum.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Rasbak",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Adelaarsvaren_planten_Pteridium_aquilinum.jpg"
+ },
+ "Raw milk": {
+  "file": "Bouteilles_commerce_lait_cru_vache_Aveyron_sud.JPG",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Bouteilles_commerce_lait_cru_vache_Aveyron_sud.JPG/960px-Bouteilles_commerce_lait_cru_vache_Aveyron_sud.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Lesyeuxpourvoir",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Bouteilles_commerce_lait_cru_vache_Aveyron_sud.JPG"
+ },
+ "Rhubarb": {
+  "file": "Rheum_rhabarbarum.2006-04-27.uellue.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Rheum_rhabarbarum.2006-04-27.uellue.jpg/960px-Rheum_rhabarbarum.2006-04-27.uellue.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Dieter Weber (User:Uellue)",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Rheum_rhabarbarum.2006-04-27.uellue.jpg"
+ },
+ "Ricinus": {
+  "file": "Ricinus_March_2010-1.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Ricinus_March_2010-1.jpg/960px-Ricinus_March_2010-1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Alvesgaspar",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Ricinus_March_2010-1.jpg"
+ },
+ "Sambucus nigra": {
+  "file": "Sambucus_nigra_004.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Sambucus_nigra_004.jpg/960px-Sambucus_nigra_004.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Willow",
+  "license": "CC BY 2.5",
+  "page": "https://commons.wikimedia.org/wiki/File:Sambucus_nigra_004.jpg"
+ },
+ "San-nakji": {
+  "file": "Korean.cuisine-Sannakji.hoe-01.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Korean.cuisine-Sannakji.hoe-01.jpg/960px-Korean.cuisine-Sannakji.hoe-01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "by LWY at flickr",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Korean.cuisine-Sannakji.hoe-01.jpg"
+ },
+ "Swordfish": {
+  "file": "Xiphias_gladius_Linnaeus,_1758_2599925021.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Xiphias_gladius_Linnaeus%2C_1758_2599925021.jpg/960px-Xiphias_gladius_Linnaeus%2C_1758_2599925021.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Naturalis Biodiversity Center",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Xiphias_gladius_Linnaeus,_1758_2599925021.jpg"
+ },
+ "Takifugu rubripes": {
+  "file": "Fugu_in_Tank.jpg",
+  "thumb": "https://upload.wikimedia.org/wikipedia/commons/2/25/Fugu_in_Tank.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+  "artist": "Unknown",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Fugu_in_Tank.jpg"
+ },
+ "Taxus baccata": {
+  "file": "Taxus_baccata_MHNT.jpg",
+  "thumb": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Taxus_baccata_MHNT.jpg/960px-Taxus_baccata_MHNT.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+  "artist": "Didier Descouens",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Taxus_baccata_MHNT.jpg"
+ }
+}

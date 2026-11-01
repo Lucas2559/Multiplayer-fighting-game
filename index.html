@@ -193,5 +193,14 @@
             </p>
         </a>
     </div>
+<script>
+  // Hidden door: typing "book" anywhere on this page opens the book.
+  let typed = '';
+  addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+    typed = (typed + e.key.toLowerCase()).slice(-4);
+    if (typed === 'book') location.href = 'book/index.html';
+  });
+</script>
 </body>
 </html>
