@@ -6,3 +6,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Browser-automation snapshots: can capture dashboard pages, including keys.
+.playwright-mcp/
+.vercel
+.env*
