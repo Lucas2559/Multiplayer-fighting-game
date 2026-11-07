@@ -51,7 +51,7 @@
 <script src="entries.js"></script>
 <script>
 // Four sample foods to preview each style.
-const SAMPLE = ["Amanita_phalloides", "Takifugu_rubripes", "Atropa_bella-donna", "Ackee"];
+const SAMPLE = ["Amanita_phalloides", "Digitalis_purpurea", "Cassava", "Liquorice_(confectionery)"];
 fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
   document.getElementById("grid").innerHTML = Object.entries(STYLES).map(([k, s], i) => `
     <a class="card c-${k}" href="book.html?style=${k}">

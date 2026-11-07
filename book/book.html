@@ -30,13 +30,22 @@
   .toolbar a.on { opacity: 1; font-weight: 700; text-decoration: underline; }
   .toolbar button { font: inherit; background: #fbf7ef; color: #2a2622; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 
-  .cover { text-align: center; min-height: 900px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; }
-  .cover .kicker { letter-spacing: .25em; text-transform: uppercase; color: var(--muted); font-size: 13px; }
-  .cover h1 { font-size: 72px; font-weight: 900; }
-  .cover h2 { font-size: 28px; font-weight: 400; color: var(--accent); }
-  .cover .illo { width: 360px; max-width: 100%; margin: 16px 0; }
-  .cover .illo img { height: 300px; }
-  .cover .byline { color: var(--muted); }
+  /* Cover: title, a photo collage with one food per danger level, and the level scale */
+  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+  .cover .kicker { letter-spacing: .25em; text-transform: uppercase; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .cover h1 { font-size: 76px; font-weight: 900; line-height: 1; }
+  .cover h2 { font-size: 28px; font-weight: 400; color: var(--accent); margin-top: -2px; }
+  .cover-grid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 1.6fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; margin: 8px 0 2px; }
+  .cover-grid .illo { margin: 0; }
+  .cover-grid .illo:first-child { grid-row: span 2; }
+  .cover-grid .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
+  .cover-grid .tag { position: absolute; left: var(--illo-pad, 0); right: var(--illo-pad, 0); bottom: var(--illo-pad, 0); z-index: 1; margin: 0; color: #fff; font: 700 13px/1.25 var(--body); text-align: left; padding: 6px 9px; }
+  .cover-grid .illo:first-child .tag { font-size: 16px; padding: 8px 12px; }
+  .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); }
+  .scale-bar span { padding: 7px 4px; }
+  .scale-bar small { display: block; font-size: 15px; letter-spacing: 1px; }
+  .cover .tagline { margin: 2px 0 0; font-size: 19px; }
+  .cover .byline { color: var(--muted); font-size: 15px; }
 
   .front h1 { font-size: 40px; margin-bottom: 20px; }
   .front h2 { font-size: 24px; margin: 32px 0 12px; }
@@ -100,7 +109,27 @@
   .where p { margin: 0; }
   .map { width: 100%; display: block; background: var(--tag); border: 1px solid var(--rule); border-radius: 4px; }
   .map use { fill: color-mix(in srgb, var(--ink) 35%, var(--tag)); }
+  .map .place { fill: #d81e1e; stroke: #d81e1e; stroke-width: .5; stroke-linejoin: round; }
   .map circle { fill: #d81e1e; stroke: #fff; stroke-width: 1.2; }
+  /* Text bubbles. --lvl is the food's danger color; v0-v4 are the five bubble kinds. */
+  .bubble { --bb: var(--tag); position: relative; background: var(--bb); border-radius: 18px; padding: 10px 14px; margin: 0 0 16px; transform: rotate(var(--tilt, 0deg)); }
+  .entry .bubble h3 { margin: 0 0 3px; }
+  .bubble > :last-child, .bubble .where p { margin-bottom: 0; }
+  .bubble.v0 { --bb: color-mix(in srgb, var(--lvl) 15%, var(--paper)); }
+  .bubble.v0::after, .bubble.v1::after { content: ""; position: absolute; bottom: -10px; left: 28px; border: 10px solid transparent; border-bottom: 0; border-top-color: var(--tail, var(--bb)); }
+  .bubble.v1 { --bb: var(--tag); }
+  .bubble.v1::after { left: auto; right: 28px; }
+  .bubble.v2 { --bb: var(--paper); border: 2px dashed var(--lvl); border-radius: 12px; }
+  .bubble.v3 { --bb: color-mix(in srgb, var(--accent) 9%, var(--paper)); border-radius: 30px; }
+  .bubble.v3::before, .bubble.v3::after { content: ""; position: absolute; border-radius: 50%; background: var(--tail, var(--bb)); }
+  .bubble.v3::after { width: 12px; height: 12px; left: 26px; bottom: -11px; }
+  .bubble.v3::before { width: 7px; height: 7px; left: 16px; bottom: -19px; }
+  .sheet > .bubble.v3:last-child::before, .sheet > .bubble.v3:last-child::after { display: none; }
+  .bubble.v4 { --bb: color-mix(in srgb, var(--lvl) 8%, var(--tag)); border-left: 7px solid var(--lvl); border-radius: 6px 20px 20px 6px; }
+  .s-vintage .bubble { border-radius: 4px; }
+  .s-sketch .bubble { border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; border: 2px solid rgba(0,0,0,.45); }
+  .s-comic .bubble { --tail: #111; border: 3px solid #111; box-shadow: 3px 3px 0 #111; }
+  .s-poster .bubble { --tail: #111; border: 3px solid #111; border-radius: 0; }
   .danger-strip { display: flex; justify-content: space-between; gap: 12px; color: #fff; font-weight: 700; font-size: 13px; padding: 5px 12px; border-radius: 4px; }
   .level-list { color: #fff; }
   .level-list a { color: inherit; }
@@ -125,7 +154,7 @@
   .s-sketch { --bg: #dfe4ea; --paper: #fdfdf8; --ink: #33363b; --muted: #6b7078; --rule: #cfd8e3; --accent: #2f4f8f; --tag: #eef2f8;
     --d1: #5a8a5a; --d2: #9a8a2a; --d3: #c27a2a; --d4: #b8452e; --d5: #7a1f1f; --head: Caveat, cursive; }
   .s-sketch .page { border-radius: 2px;
-    background: linear-gradient(90deg, transparent 62px, #f2b8b8 62px 64px, transparent 64px),
+    background: linear-gradient(90deg, transparent 53px, #f2b8b8 53px 55px, transparent 55px),
                 repeating-linear-gradient(transparent 0 31px, #d6e3f2 31px 32px), var(--paper); }
   .s-sketch h1, .s-sketch .entry h3, .s-sketch .toc-level { font-weight: 700; }
   .s-sketch .entry h1 { font-size: 52px; }
@@ -185,7 +214,7 @@
 
 
   /* ---------- Page sides: each style has its own ---------- */
-  .s-vintage, .s-sketch, .s-watercolor, .s-comic, .s-poster { --side: 88px; --print-side: 58px; }
+  .s-vintage, .s-sketch, .s-watercolor, .s-comic, .s-poster { --side: 88px; --print-side: 50px; }
   .s-vintage .page::before, .s-vintage .page::after, .s-watercolor .page::before, .s-watercolor .page::after,
   .s-comic .page::before, .s-comic .page::after, .s-poster .page::before, .s-poster .page::after,
   .s-sketch .page::before, .s-sketch .page::after { content: ""; position: absolute; top: 0; bottom: 0; pointer-events: none; }
@@ -200,7 +229,7 @@
   .s-sketch .page::after { width: 16px;
     background: linear-gradient(135deg, var(--bg) 50%, transparent 50%) 0 0 / 16px 16px repeat-y, linear-gradient(45deg, var(--bg) 50%, transparent 50%) 0 8px / 16px 16px repeat-y; transform: scaleX(-1); }
   /* In the open book the spine is in the middle: left-hand pages mirror, so the holes meet there */
-  .s-sketch .page.left { background: linear-gradient(270deg, transparent 62px, #f2b8b8 62px 64px, transparent 64px), repeating-linear-gradient(transparent 0 31px, #d6e3f2 31px 32px), var(--paper); }
+  .s-sketch .page.left { background: linear-gradient(270deg, transparent 53px, #f2b8b8 53px 55px, transparent 55px), repeating-linear-gradient(transparent 0 31px, #d6e3f2 31px 32px), var(--paper); }
   .s-sketch .page.left::before { left: auto; right: 0; transform: scaleX(-1); }
   .s-sketch .page.left::after { right: auto; left: 0; transform: none; }
   /* Watercolor: soft washes of paint bleeding in from both edges */
@@ -228,24 +257,28 @@
     body.book-mode { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
     .book-mode #book { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
     .book-mode #spread { display: flex; zoom: var(--z, 1); }
-    .book-mode .page { flex: none; width: 749px; height: 971px; margin: 0; padding: 20px calc(var(--print-side, 0px) + 24px); border-radius: 0; overflow-y: auto; font-size: 14.7px; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
-    .book-mode.s-vintage .page { font-size: 15.3px; }
+    .book-mode .page { flex: none; width: 749px; height: 971px; margin: 0; padding: 16px calc(var(--print-side, 0px) + 10px); border-radius: 0; overflow-y: auto; font-size: 19px; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+    .book-mode.s-vintage .page { font-size: 20px; }
     .book-mode .page.off { display: none; }
-    .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.36; }
+    .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.34; }
     .book-mode .s1 .illo { flex: 1 1 0; min-height: 134px; margin-bottom: 14px; }
     .book-mode .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
-    .book-mode .where { grid-template-columns: 260px 1fr; }
-    .book-mode .more-photos { flex: 1 1 0; min-height: 105px; }
+    .book-mode .where { grid-template-columns: 210px 1fr; }
+    .book-mode .more-photos { flex: 1 1 0; min-height: 90px; }
     .book-mode .sheet.s2 figcaption { margin: 3px 0 0; }
     .book-mode .sheet figcaption { margin: -10px 0 8px; }
     .book-mode .entry header { padding-bottom: 8px; margin-bottom: 10px; }
     .book-mode .danger-box { padding: 8px 14px; margin-bottom: 10px; }
-    .book-mode .entry h3 { font-size: 18.7px; margin: 9px 0 3px; }
+    .book-mode .entry h3 { font-size: 23px; margin: 7px 0 2px; }
+    .book-mode.s-sketch .entry h3 { font-size: 28px; }
     .book-mode .entry p, .book-mode .entry ul { margin-bottom: 4px; }
-    .book-mode .fact { padding: 8px 14px; margin-top: 8px; }
+    .book-mode .bubble { padding: 6px 12px; margin-bottom: 11px; }
+    .book-mode.s-sketch .bubble, .s-sketch .book-mode .bubble { margin-bottom: 9px; }
+    .book-mode .bubble p, .book-mode .bubble ul { margin-bottom: 2px; }
     .book-mode.s-comic .fact { margin-bottom: 18px; }
-    .book-mode .sources { margin-top: 8px; padding-top: 5px; font-size: 12px; }
-    .book-mode .cover, .book-mode .divider { min-height: 0; }
+    .book-mode .sources { margin-top: 6px; padding-top: 4px; font-size: 12px; line-height: 1.25; }
+    .book-mode .divider { min-height: 0; }
+    .book-mode .cover { height: 971px; }
     .book-mode .toc li { padding: 0; font-size: 13.5px; line-height: 1.32; }
     .book-mode .toc-level { font-size: 15px; margin: 8px 0 2px; }
     .book-mode .front h1 { margin-bottom: 8px; }
@@ -260,14 +293,18 @@
     .page::before, .page::after { display: none; }
     .s-sketch .page { background: var(--paper); }
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
-    .cover { min-height: 70vh; }
+    .cover { height: auto; }
     .cover h1 { font-size: 48px; }
+    .cover-grid { flex: none; height: 420px; grid-template-columns: 1fr 1fr; grid-template-rows: 2fr 1fr 1fr; }
+    .cover-grid .illo:first-child { grid-row: auto; grid-column: span 2; }
+    .scale-bar { font-size: 10px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
     .illo img { height: 240px; }
     .sheet { min-height: 0; }
     .s1 .illo { flex: none; height: 240px; }
     .more-photos { flex: none; height: 160px; }
+    .bubble { width: auto !important; margin-left: 0 !important; }
     .where { grid-template-columns: 1fr; }
     .toc, .wild-list { columns: 1; }
   }
@@ -278,24 +315,28 @@
     body { background: #fff; font-size: 12pt; }
     .toolbar { display: none; }
     .page { box-shadow: none !important; margin: 0; max-width: none; padding: 0 var(--print-side, 0); break-after: page; border-radius: 0; }
-    .cover, .divider { min-height: 9in; }
+    .divider { min-height: 9in; }
+    .cover { height: 9.6in; gap: 8px; }
+    .cover h1 { font-size: 54pt; }
+    .cover h2 { font-size: 20pt; }
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
-    .s1 .illo { flex: 1 1 0; min-height: 1.4in; margin-bottom: 14px; }
+    .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
     .sheet figcaption { margin: -10px 0 8px; }
-    .more-photos { flex: 1 1 0; min-height: 1.1in; }
+    .more-photos { flex: 1 1 0; min-height: 0.9in; }
     .sheet.s2 figcaption { margin: 3px 0 0; }
     .entry header { padding-bottom: 8px; margin-bottom: 10px; }
     .danger-box { padding: 8px 14px; margin-bottom: 10px; }
-    .entry h3, .s-sketch .entry h3 { font-size: 14pt; margin: 9px 0 3px; }
+    .entry h3, .s-sketch .entry h3 { font-size: 16.5pt; margin: 7px 0 2px; }
     .entry p, .entry ul { margin-bottom: 4px; }
-    .fact { padding: 8px 14px; margin-top: 8px; }
+    .bubble { padding: 5px 11px; margin-bottom: 10px; }
+    .bubble p, .bubble ul { margin-bottom: 2px; }
     .s-comic .fact { margin-bottom: 18px; }
-    .sources { margin-top: 8px; padding-top: 5px; font-size: 9pt; }
+    .sources { margin-top: 6px; padding-top: 4px; font-size: 9pt; line-height: 1.25; }
     .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
-    .where { grid-template-columns: 2.7in 1fr; }
-    .s-vintage { font-size: 11.5pt; }
-    .s-comic, .s-sketch, .s-watercolor, .s-poster, .s-normal { font-size: 11pt; }
+    .where { grid-template-columns: 2.1in 1fr; }
+    .s-vintage { font-size: 14.5pt; }
+    .s-comic, .s-sketch, .s-watercolor, .s-poster, .s-normal { font-size: 13.5pt; }
     * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     a { color: inherit; text-decoration: none; }
     @page { size: letter; margin: 0.6in; }
@@ -308,7 +349,9 @@
 <script src="styles.js"></script>
 <script src="entries.js"></script>
 <script src="extras.js"></script>
+<script src="easy.js"></script>
 <script src="map.js"></script>
+<script src="countries.js"></script>
 <script src="photos.js"></script>
 <script>
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
@@ -318,7 +361,7 @@ document.title = "A Guide to Foods: " + STYLES[styleKey].name;
 
 document.getElementById("toolbar").innerHTML =
   `<a href="index.html">All styles</a> ·` +
-  Object.entries(STYLES).map(([k, s]) => `<a href="book.html?style=${k}${location.search.includes("sample") ? "&sample=1" : ""}" class="${k === styleKey ? "on" : ""}">${s.name}</a>`).join(" ") +
+  Object.entries(STYLES).map(([k, s]) => `<a href="book.html?style=${k}" class="${k === styleKey ? "on" : ""}">${s.name}</a>`).join(" ") +
   ` <button onclick="window.print()">Print / Save as PDF</button>`;
 
 const DANGER = {
@@ -331,17 +374,20 @@ const DANGER = {
 const LEVEL_NAME = { 1: "Mild", 2: "Risky", 3: "Dangerous", 4: "Very Dangerous", 5: "Deadly" };
 const LEVELS = [1, 2, 3, 4, 5];
 // Within a level, count down so the book ends on #1.
-// ?sample=1 shows one example food from each level.
-const isSample = new URLSearchParams(location.search).has("sample");
-const SAMPLE_RANKS = [46, 33, 17, 11, 1];
-const atLevel = n => ENTRIES.filter(e => e.danger === n && (!isSample || SAMPLE_RANKS.includes(e.rank))).sort((a, b) => b.rank - a.rank);
+// Test version: one food from each level. The full book is saved in food/book_full_50_foods.
+const TEST_RANKS = [46, 33, 17, 11, 1];
+ENTRIES.splice(0, ENTRIES.length, ...ENTRIES.filter(e => TEST_RANKS.includes(e.rank)));
+ENTRIES.forEach(e => { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); });
+const atLevel = n => ENTRIES.filter(e => e.danger === n).sort((a, b) => b.rank - a.rank);
 const ORDERED = LEVELS.flatMap(atLevel);
 const skulls = n => "💀".repeat(n);
 const book = document.getElementById("book");
 
 // The land shapes are drawn once and reused by every food's map.
 document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="land" viewBox="0 0 360 145"><path d="${LAND_PATH}"/></symbol></svg>`);
-const worldMap = pins => `<svg class="map" viewBox="0 0 360 145" role="img" aria-label="World map with markers"><use href="#land" width="360" height="145"/>${pins.map(([lat, lon]) => `<circle cx="${lon + 180}" cy="${85 - lat}" r="5"/>`).join("")}</svg>`;
+const worldMap = x => `<svg class="map" viewBox="0 0 360 145" role="img" aria-label="World map with the places it's most found shaded"><use href="#land" width="360" height="145"/>${x.shade
+  ? x.shade.map(n => `<path class="place" d="${COUNTRY_PATHS[n]}"/>`).join("")
+  : x.pins.map(([lat, lon]) => `<circle cx="${lon + 180}" cy="${85 - lat}" r="5"/>`).join("")}</svg>`;
 
 function page(cls, html) {
   const s = document.createElement("section");
@@ -409,13 +455,16 @@ function openBook() {
 
 fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
-  const coverImg = photo(ENTRIES.find(e => e.rank === 1));
+  // The most dangerous food from each level, deadliest first (it gets the big tile).
+  const coverFoods = LEVELS.map(n => atLevel(n).at(-1)).filter(Boolean).reverse();
 
   page("cover", `
     <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
     <h1>A Guide to Foods</h1>
     <h2>The World's Most Dangerous Foods</h2>
-    ${coverImg.thumb ? `<figure class="illo"><img src="${coverImg.thumb}" alt="Death cap mushroom"></figure>` : ""}
+    <div class="cover-grid">${coverFoods.map(e => { const p = photo(e); return `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"><figcaption class="tag" style="background:var(--d${e.danger})">${skulls(e.danger)} ${e.name}</figcaption></figure>`; }).join("")}</div>
+    <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${n}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
+    <p class="tagline">From mild to deadly: what not to eat, and why.</p>
     <div class="byline">By ____________________</div>
     <div class="byline">Class: ____________________ &nbsp; Date: ____________</div>`);
 
@@ -428,7 +477,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     </ul>
     <div class="callout"><b>If you think someone has been poisoned,</b> call your local emergency number or poison control center right away. In the US, Poison Control is <b>1-800-222-1222</b>.</div>
     <h2>How to Read This Book</h2>
-    <p>Every food has a <b>danger level</b> from 1 to 5. The book starts with the mildest foods and works up to the deadliest. Each food also has a rank that counts down as you read, from <b>#${ENTRIES.length}</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
+    <p>Every food has a <b>danger level</b> from 1 to 5. This test version shows one food from each level, starting with the mildest foods and working up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
     <ul class="scale">${LEVELS.map(n => `<li><span class="sk">${skulls(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
     <p style="margin-top:16px">Each food's page has a danger box that explains why it got its level. Entries marked <b>Lookalike</b> are not foods at all: they are poisonous plants and mushrooms that people mistake for food. Entries marked 🌲 are ones campers might find outdoors.</p>`);
 
@@ -440,6 +489,15 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <li><span class="n">🌲</span><a href="#wild">Out in the Wild</a></li>
       <li><span class="n">📚</span><a href="#sources">Sources &amp; Photo Credits</a></li></ul>`);
 
+  // Page orders, one per food in turn: [left page, right page].
+  const LAYOUTS = [
+    [["head", "danger", "photo", "quick", "what", "named", "where"], ["poison", "sick", "safe", "photos", "fun"]],
+    [["head", "photo", "danger", "what", "quick", "where", "named"], ["photos", "poison", "sick", "fun", "safe"]],
+    [["head", "danger", "what", "photo", "quick", "named", "where"], ["fun", "poison", "photos", "sick", "safe"]],
+    [["head", "what", "photo", "danger", "named", "quick", "where"], ["poison", "photos", "sick", "safe", "fun"]],
+    [["head", "danger", "quick", "photo", "where", "what", "named"], ["safe", "poison", "sick", "fun", "photos"]],
+  ];
+  let foodNo = 0;
   for (const n of LEVELS) {
     const group = atLevel(n);
     page("divider", `
@@ -455,33 +513,51 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     for (const e of group) {
       const p = photo(e);
       const x = EXTRAS[e.rank];
-      page("entry sheet s1", `
-        <header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1>${e.name}</h1><div class="sci">${e.sci}</div></header>
-        <div class="danger-box" style="background:var(--d${e.danger})">
+      // Each section is a bubble. The shape cycles through five kinds, starting
+      // at a different one for each food, so no two foods look the same.
+      // Each bubble also gets its own width, sideways nudge and tilt, so the
+      // page looks scattered rather than lined up. Same food, same scatter.
+      const bubble = (i, icon, title, body) => {
+        const v = (i + e.rank) % 5;
+        const r = k => ((e.rank * 37 + i * 61 + k * 17) % 100) / 100;
+        const w = i < 3 ? 87 + Math.round(r(1) * 12) : 93 + Math.round(r(1) * 7); // page 2 is fuller
+        const side = ["0", "auto", `${Math.round((100 - w) / 2)}%`][Math.floor(r(2) * 3)];
+        const tilt = (r(3) * 3 - 1.5).toFixed(2);
+        return `<div class="bubble v${v}" style="width:${w}%;margin-left:${side};--tilt:${tilt}deg"><h3>${icon} ${title}</h3>${body}</div>`;
+      };
+      const one = {
+        head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1>${e.name}</h1><div class="sci">${e.sci}</div></header>`,
+        danger: `<div class="danger-box" style="background:var(--d${e.danger})">
           <div class="lvl">${e.danger}<small>of 5</small></div>
           <div><div class="sk">${skulls(e.danger)}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
-        </div>
-        ${p.thumb ? `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"></figure>
-          <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : ""}
-        <dl class="quick">
+        </div>`,
+        photo: p.thumb ? `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"></figure>
+          <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : "",
+        quick: `<dl class="quick">
           <dt>Family</dt><dd>${x.family}</dd>
           <dt>Science name</dt><dd><i>${e.sci}</i></dd>
           <dt>Type</dt><dd>${e.type}${e.wild ? " · 🌲 Campers beware" : ""}</dd>
-        </dl>
-        <h3>What it is</h3><p>${e.where}</p>
-        <h3>How it got its name</h3><p>${x.named}</p>
-        <h3>Where it's most found</h3>
-        <div class="where">${worldMap(x.pins)}<p>${x.found}</p></div>`);
+        </dl>`,
+        what: bubble(0, "💬", "What it is", `<p>${e.where}</p>`),
+        named: bubble(1, "🏷️", "How it got its name", `<p>${x.named}</p>`),
+        where: bubble(2, "🗺️", "Where it's most found", `<div class="where">${worldMap(x)}<p>${x.found}</p></div>`),
+      };
+      const two = {
+        poison: bubble(3, "☠️", "What makes it dangerous", `<p>${e.poison}</p>`),
+        sick: bubble(4, "🤢", "What happens if you eat it", `<ul>${e.symptoms.map(s => `<li>${s}</li>`).join("")}</ul><p>${e.symptomsNote}</p>`),
+        safe: bubble(5, "🛡️", "How to stay safe", `<p>${e.safe}</p><ul>${x.stay.map(s => `<li>${s}</li>`).join("")}</ul>`),
+        photos: `<div class="more-photos">${EXTRA_PHOTOS[e.rank].map(q => `<figure class="illo"><img src="${q.thumb}" alt="${e.name}"></figure>`).join("")}</div>
+        <figcaption>Photos: ${EXTRA_PHOTOS[e.rank].map(q => `${q.artist}, ${q.license}`).join("; ")}, via Wikimedia Commons</figcaption>`,
+        fun: bubble(6, "⭐", "Fun facts", `<ul>${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul>`),
+      };
+      // Each food gets its own arrangement of the same pieces, so the pages
+      // don't all look alike.
+      const [o1, o2] = LAYOUTS[foodNo++ % LAYOUTS.length];
+      page("entry sheet s1", o1.map(k => one[k]).join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
       page("entry sheet s2", `
         <div class="danger-strip" style="background:var(--d${e.danger})"><span>${skulls(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
-        <h3>What makes it dangerous</h3><p>${e.poison}</p>
-        <h3>What happens if you eat it</h3><ul>${e.symptoms.map(s => `<li>${s}</li>`).join("")}</ul><p>${e.symptomsNote}</p>
-        <h3>How people make it safe</h3><p>${e.safe}</p>
-        <h3>How to stay safe</h3><ul>${x.stay.map(s => `<li>${s}</li>`).join("")}</ul>
-        <div class="more-photos">${EXTRA_PHOTOS[e.rank].map(q => `<figure class="illo"><img src="${q.thumb}" alt="${e.name}"></figure>`).join("")}</div>
-        <figcaption>Photos: ${EXTRA_PHOTOS[e.rank].map(q => `${q.artist}, ${q.license}`).join("; ")}, via Wikimedia Commons</figcaption>
-        <div class="fact"><h3>Fun facts</h3><ul>${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul></div>
-        <div class="sources"><b>Sources</b><ol>${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<li>${t}. <a href="${u}">${u}</a></li>`).join("")}</ol></div>`);
+        ${o2.map(k => two[k]).join("\n")}
+        <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
     }
   }
 
