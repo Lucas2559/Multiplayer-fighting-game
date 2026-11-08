@@ -481,9 +481,9 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   // Page orders, one per food in turn: [left page, right page].
   const LAYOUTS = [
     [["head", "danger", "photo", "quick", "what", "named", "where"], ["poison", "sick", "safe", "photos", "fun"]],
-    [["head", "photo", "danger", "what", "quick", "where", "named"], ["photos", "poison", "sick", "fun", "safe"]],
+    [["head", "danger", "photo", "what", "quick", "where", "named"], ["photos", "poison", "sick", "fun", "safe"]],
     [["head", "danger", "what", "photo", "quick", "named", "where"], ["fun", "poison", "photos", "sick", "safe"]],
-    [["head", "what", "photo", "danger", "named", "quick", "where"], ["poison", "photos", "sick", "safe", "fun"]],
+    [["head", "danger", "what", "photo", "named", "quick", "where"], ["poison", "photos", "sick", "safe", "fun"]],
     [["head", "danger", "quick", "photo", "where", "what", "named"], ["safe", "poison", "sick", "fun", "photos"]],
   ];
   let foodNo = 0;
