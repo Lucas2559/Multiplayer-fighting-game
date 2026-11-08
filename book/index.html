@@ -4,61 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A Guide to Foods</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Atkinson+Hyperlegible:wght@400;700&family=Bangers&family=Caveat:wght@700&family=Fraunces:ital,opsz,wght@0,9..144,900;1,9..144,600&family=IM+Fell+English&display=swap" rel="stylesheet">
-<style>
-  :root { --bg: #2a2622; --card: #fbf7ef; --ink: #2a2622; --muted: #6f665c; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Atkinson Hyperlegible", system-ui, sans-serif; }
-  header { text-align: center; color: #fbf7ef; padding: 48px 16px 24px; }
-  header h1 { font: 900 56px/1.05 Fraunces, Georgia, serif; margin: 0; }
-  header p { opacity: .75; margin: 10px 0 0; font-size: 18px; }
-  .grid { max-width: 1180px; margin: 0 auto; padding: 16px 16px 56px; display: grid; gap: 22px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-  a.card { background: var(--card); color: inherit; text-decoration: none; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;
-    box-shadow: 0 8px 26px rgba(0,0,0,.3); transition: transform .15s; }
-  a.card:hover, a.card:focus-visible { transform: translateY(-4px); }
-  .thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #ddd; }
-  .thumbs img { width: 100%; height: 150px; object-fit: cover; display: block; }
-  .card .body { padding: 16px 18px 20px; }
-  .card h2 { margin: 0 0 4px; font-size: 26px; }
-  .card p { margin: 0; color: var(--muted); }
-  .num { font-size: 13px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
-
-  .c-vintage { background: #f2e6cc; } .c-vintage h2 { font-family: "IM Fell English", serif; font-weight: 400; }
-  .c-sketch h2 { font-family: Caveat, cursive; font-size: 34px; color: #2f4f8f; }
-  .c-watercolor { background: #fffdf9; } .c-watercolor h2 { font-family: Fraunces, serif; font-style: italic; font-weight: 600; color: #a8487a; }
-  .c-comic { background: #fffbea; border: 4px solid #111; } .c-comic h2 { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: 1.5px; color: #d62828; font-size: 32px; }
-  .c-poster { background: #fffbea; border-top: 14px solid; border-image: repeating-linear-gradient(-45deg, #111 0 14px, #ffcc00 14px 28px) 14; }
-  .c-poster h2 { font-family: Anton, Impact, sans-serif; font-weight: 400; text-transform: uppercase; }
-  /* A taste of each version's page sides */
-  .c-vintage, .c-sketch, .c-watercolor, .c-comic, .c-poster { border-left: 16px solid; border-right: 16px solid; }
-  .c-vintage { border-color: #6e3f17; border-style: double; }
-  .c-sketch { border-left: 16px dotted #39404a; border-right: 4px dashed #aab4c0; }
-  .c-watercolor { border-image: linear-gradient(#e39ac0, #8fc9a4, #f0c27b) 16; }
-  .c-comic { border-left-color: #d62828; border-right-color: #48cae4; border-top-color: #111; border-bottom-color: #111; }
-  .c-poster { border-width: 14px 16px 0; }
-  .c-normal h2 { font-weight: 700; }
-  @media (max-width: 500px) { header h1 { font-size: 40px; } }
-</style>
+<!-- The book has one design now, so skip straight to it. -->
+<meta http-equiv="refresh" content="0; url=book.html">
+<script>location.replace("book.html" + location.hash);</script>
 </head>
-<body>
-<header>
-  <h1>A Guide to Foods</h1>
-  <p>The World's Most Dangerous Foods · pick a page design</p>
-</header>
-<main class="grid" id="grid"></main>
-<script src="styles.js"></script>
-<script src="entries.js"></script>
-<script>
-// Four sample foods to preview each style.
-const SAMPLE = ["Amanita_phalloides", "Digitalis_purpurea", "Cassava", "Liquorice_(confectionery)"];
-fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
-  document.getElementById("grid").innerHTML = Object.entries(STYLES).map(([k, s], i) => `
-    <a class="card c-${k}" href="book.html?style=${k}">
-      <div class="thumbs">${SAMPLE.map(t => { const p = IMG[t.replace(/_/g, " ")]; return p ? `<img src="${p.thumb}" alt="">` : ""; }).join("")}</div>
-      <div class="body"><div class="num">Version ${i + 1}</div><h2>${s.name}</h2><p>${s.blurb}</p></div>
-    </a>`).join("");
-});
-</script>
-</body>
+<body><a href="book.html">Open A Guide to Foods</a></body>
 </html>

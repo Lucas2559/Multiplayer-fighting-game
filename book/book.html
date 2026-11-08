@@ -88,9 +88,10 @@
   .divider .sk { font-size: 44px; letter-spacing: 6px; }
   .divider h1 { font-size: 56px; font-weight: 900; }
   .divider p { font-size: 20px; margin: 0; opacity: .9; }
-  .wild-list { columns: 2; }
-  .credits { font-size: 14px; }
-  .credits li { margin-bottom: 4px; }
+  .wild-list { columns: 3; font-size: .85em; }
+  .wild-list li { break-inside: avoid; }
+  .credits { font-size: 12.5px; line-height: 1.3; columns: 2; column-gap: 24px; padding-left: 18px; }
+  .credits li { margin-bottom: 4px; break-inside: avoid; overflow-wrap: anywhere; }
 
   /* Two-page food entries: page 1's photo stretches to fill the page */
   .sheet { display: flex; flex-direction: column; min-height: 1100px; }
@@ -102,10 +103,11 @@
   .more-photos .illo { margin: 0; }
   .more-photos .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
   .s2 figcaption { margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s1 figcaption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .quick { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0 0 6px; }
   .quick dt { font-weight: 700; color: var(--accent); }
   .quick dd { margin: 0; }
-  .where { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: center; }
+  .where { display: grid; grid-template-columns: 420px 1fr; gap: 16px; align-items: center; }
   .where p { margin: 0; }
   .map { width: 100%; display: block; background: var(--tag); border: 1px solid var(--rule); border-radius: 4px; }
   .map use { fill: color-mix(in srgb, var(--ink) 35%, var(--tag)); }
@@ -137,6 +139,8 @@
   .level-list .lead { margin: 0 0 14px; }
   .level-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
   .level-list li { line-height: 1.3; font-size: .92em; }
+  .level-list ul.many { grid-template-columns: 1fr 1fr; gap: 8px 22px; }
+  .level-list ul.many li { font-size: .78em; }
   .fact ul { margin-bottom: 0; }
 
   /* ---------- 1. Vintage Field Guide ---------- */
@@ -151,13 +155,12 @@
 
 
   /* ---------- 2. Pencil Sketch ---------- */
-  .s-sketch { --bg: #dfe4ea; --paper: #fdfdf8; --ink: #33363b; --muted: #6b7078; --rule: #cfd8e3; --accent: #2f4f8f; --tag: #eef2f8;
+  .s-sketch { --bg: #d9ccb0; --paper: #f2e6cc; --ink: #33363b; --muted: #6b6152; --rule: #cdb994; --accent: #2f4f8f; --tag: #e8d9b8;
     --d1: #5a8a5a; --d2: #9a8a2a; --d3: #c27a2a; --d4: #b8452e; --d5: #7a1f1f; --head: Caveat, cursive; }
-  .s-sketch .page { border-radius: 2px;
-    background: linear-gradient(90deg, transparent 53px, #f2b8b8 53px 55px, transparent 55px),
-                repeating-linear-gradient(transparent 0 31px, #d6e3f2 31px 32px), var(--paper); }
+  .s-sketch .page { border-radius: 0; box-shadow: inset 0 0 80px rgba(120,80,30,.18), 0 8px 28px rgba(0,0,0,.12); }
   .s-sketch h1, .s-sketch .entry h3, .s-sketch .toc-level { font-weight: 700; }
   .s-sketch .entry h1 { font-size: 52px; }
+  .s-sketch .entry h1.long { font-size: 38px; line-height: 1; }
   .s-sketch .entry h3 { font-size: 28px; }
   .s-sketch .front h1 { font-size: 54px; }
   .s-sketch { --num: "Patrick Hand", cursive; --illo-pad: 10px; }
@@ -220,18 +223,8 @@
   .s-sketch .page::before, .s-sketch .page::after { content: ""; position: absolute; top: 0; bottom: 0; pointer-events: none; }
   .page::before { left: 0; } .page::after { right: 0; }
   /* Vintage: a column of engraved diamonds between thin rules */
-  .s-vintage .page::before, .s-vintage .page::after { width: 44px; margin: 0 10px; border: solid #8a6d44; border-width: 0 1px;
+  .s-vintage .page::before, .s-vintage .page::after, .s-sketch .page::before, .s-sketch .page::after { width: 44px; margin: 0 10px; border: solid #8a6d44; border-width: 0 1px;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Cpath d='M21 5 L33 21 L21 37 L9 21Z' fill='none' stroke='%236e3f17' stroke-width='1.5'/%3E%3Ccircle cx='21' cy='21' r='3.5' fill='%236e3f17'/%3E%3C/svg%3E") center top / 42px 42px repeat-y; }
-  /* Sketch: spiral-bound holes down the left, a torn paper edge on the right */
-  .s-sketch .page::before { width: 52px; border-right: 1px dashed #aab4c0;
-    background: radial-gradient(circle at 18px 20px, #39404a 0 7px, transparent 7.5px), linear-gradient(transparent 12px, #8d97a3 12px 15px, transparent 15px) 0 6px / 30px 40px no-repeat;
-    background-size: 52px 40px; background-repeat: repeat-y; }
-  .s-sketch .page::after { width: 16px;
-    background: linear-gradient(135deg, var(--bg) 50%, transparent 50%) 0 0 / 16px 16px repeat-y, linear-gradient(45deg, var(--bg) 50%, transparent 50%) 0 8px / 16px 16px repeat-y; transform: scaleX(-1); }
-  /* In the open book the spine is in the middle: left-hand pages mirror, so the holes meet there */
-  .s-sketch .page.left { background: linear-gradient(270deg, transparent 53px, #f2b8b8 53px 55px, transparent 55px), repeating-linear-gradient(transparent 0 31px, #d6e3f2 31px 32px), var(--paper); }
-  .s-sketch .page.left::before { left: auto; right: 0; transform: scaleX(-1); }
-  .s-sketch .page.left::after { right: auto; left: 0; transform: none; }
   /* Watercolor: soft washes of paint bleeding in from both edges */
   .s-watercolor .page { overflow: hidden; }
   .s-watercolor .page::before, .s-watercolor .page::after { width: 76px; filter: blur(7px); opacity: .8;
@@ -261,9 +254,9 @@
     .book-mode.s-vintage .page { font-size: 20px; }
     .book-mode .page.off { display: none; }
     .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.34; }
-    .book-mode .s1 .illo { flex: 1 1 0; min-height: 134px; margin-bottom: 14px; }
+    .book-mode .s1 .illo { flex: 1 1 0; min-height: 112px; margin-bottom: 14px; }
     .book-mode .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
-    .book-mode .where { grid-template-columns: 210px 1fr; }
+    .book-mode .where { grid-template-columns: 330px 1fr; gap: 12px; }
     .book-mode .more-photos { flex: 1 1 0; min-height: 90px; }
     .book-mode .sheet.s2 figcaption { margin: 3px 0 0; }
     .book-mode .sheet figcaption { margin: -10px 0 8px; }
@@ -291,7 +284,6 @@
   @media (max-width: 700px) {
     .page { padding: 32px 16px; margin: 0; border-radius: 0; }
     .page::before, .page::after { display: none; }
-    .s-sketch .page { background: var(--paper); }
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
     .cover { height: auto; }
     .cover h1 { font-size: 48px; }
@@ -322,6 +314,7 @@
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
     .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
+    .sheet > .bubble:last-child::after { display: none; } /* its tail would poke off the page */
     .sheet figcaption { margin: -10px 0 8px; }
     .more-photos { flex: 1 1 0; min-height: 0.9in; }
     .sheet.s2 figcaption { margin: 3px 0 0; }
@@ -334,7 +327,7 @@
     .s-comic .fact { margin-bottom: 18px; }
     .sources { margin-top: 6px; padding-top: 4px; font-size: 9pt; line-height: 1.25; }
     .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
-    .where { grid-template-columns: 2.1in 1fr; }
+    .where { grid-template-columns: 3.3in 1fr; gap: 10px; }
     .s-vintage { font-size: 14.5pt; }
     .s-comic, .s-sketch, .s-watercolor, .s-poster, .s-normal { font-size: 13.5pt; }
     * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -355,14 +348,12 @@
 <script src="photos.js"></script>
 <script>
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
-  ? new URLSearchParams(location.search).get("style") : "vintage";
+  ? new URLSearchParams(location.search).get("style") : "sketch";
 document.body.classList.add("s-" + styleKey);
-document.title = "A Guide to Foods: " + STYLES[styleKey].name;
+document.title = "A Guide to Foods";
 
-document.getElementById("toolbar").innerHTML =
-  `<a href="index.html">All styles</a> ·` +
-  Object.entries(STYLES).map(([k, s]) => `<a href="book.html?style=${k}" class="${k === styleKey ? "on" : ""}">${s.name}</a>`).join(" ") +
-  ` <button onclick="window.print()">Print / Save as PDF</button>`;
+// The whole book now uses one design; the others stay reachable with ?style=.
+document.getElementById("toolbar").innerHTML = `<button onclick="window.print()">Print / Save as PDF</button>`;
 
 const DANGER = {
   1: "makes you sick, but rarely serious",
@@ -374,10 +365,8 @@ const DANGER = {
 const LEVEL_NAME = { 1: "Mild", 2: "Risky", 3: "Dangerous", 4: "Very Dangerous", 5: "Deadly" };
 const LEVELS = [1, 2, 3, 4, 5];
 // Within a level, count down so the book ends on #1.
-// Test version: one food from each level. The full book is saved in food/book_full_50_foods.
-const TEST_RANKS = [46, 33, 17, 11, 1];
-ENTRIES.splice(0, ENTRIES.length, ...ENTRIES.filter(e => TEST_RANKS.includes(e.rank)));
-ENTRIES.forEach(e => { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); });
+// Easier wording and shaded maps (easy.js) replace the original text where present.
+ENTRIES.forEach(e => { if (EASY[e.rank]) { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); } });
 const atLevel = n => ENTRIES.filter(e => e.danger === n).sort((a, b) => b.rank - a.rank);
 const ORDERED = LEVELS.flatMap(atLevel);
 const skulls = n => "💀".repeat(n);
@@ -385,7 +374,7 @@ const book = document.getElementById("book");
 
 // The land shapes are drawn once and reused by every food's map.
 document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="land" viewBox="0 0 360 145"><path d="${LAND_PATH}"/></symbol></svg>`);
-const worldMap = x => `<svg class="map" viewBox="0 0 360 145" role="img" aria-label="World map with the places it's most found shaded"><use href="#land" width="360" height="145"/>${x.shade
+const worldMap = x => `<svg class="map" viewBox="0 7 360 138" role="img" aria-label="World map with the places it's most found shaded"><use href="#land" width="360" height="145"/>${x.shade
   ? x.shade.map(n => `<path class="place" d="${COUNTRY_PATHS[n]}"/>`).join("")
   : x.pins.map(([lat, lon]) => `<circle cx="${lon + 180}" cy="${85 - lat}" r="5"/>`).join("")}</svg>`;
 
@@ -470,16 +459,16 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
 
   page("front", `
     <h1>Before You Read</h1>
-    <p>This book is about dangerous foods: foods that can hurt or kill you. It is for learning, not cooking. It does not teach you how to make any of these foods safe at home, and you should never try.</p>
+    <p>This book is about foods that can hurt or kill you. It is for learning, not cooking. It doesn't teach you how to make any of these foods safe, and you should never try.</p>
     <ul>
       <li>Never eat a wild plant, mushroom, or berry unless an expert has told you exactly what it is.</li>
       <li>Some foods in this book are only safe when prepared by trained people, like licensed fugu chefs.</li>
     </ul>
     <div class="callout"><b>If you think someone has been poisoned,</b> call your local emergency number or poison control center right away. In the US, Poison Control is <b>1-800-222-1222</b>.</div>
     <h2>How to Read This Book</h2>
-    <p>Every food has a <b>danger level</b> from 1 to 5. This test version shows one food from each level, starting with the mildest foods and working up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
+    <p>Every food has a <b>danger level</b> from 1 to 5. The book starts with the mildest foods and works up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
     <ul class="scale">${LEVELS.map(n => `<li><span class="sk">${skulls(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
-    <p style="margin-top:16px">Each food's page has a danger box that explains why it got its level. Entries marked <b>Lookalike</b> are not foods at all: they are poisonous plants and mushrooms that people mistake for food. Entries marked 🌲 are ones campers might find outdoors.</p>`);
+    <p style="margin-top:16px">A <b>Lookalike</b> isn't a food at all: it's a poisonous plant or mushroom that people mistake for food. 🌲 means campers might find it outdoors.</p>`);
 
   page("front", `
     <h1>Contents</h1>
@@ -508,7 +497,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     page("level-list", `
       <h2>${skulls(n)} Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</h2>
       <p class="lead">${DANGER[n][0].toUpperCase() + DANGER[n].slice(1)}. Here's what you'll find in this section:</p>
-      <ul>${group.map(e => `<li><a href="#e${e.rank}"><b>#${e.rank} ${e.name}</b></a><br>${e.why}</li>`).join("")}</ul>`).style.background = `var(--d${n})`;
+      <ul class="${group.length > 7 ? "many" : ""}">${group.map(e => `<li><a href="#e${e.rank}"><b>#${e.rank} ${e.name}</b></a><br>${e.why}</li>`).join("")}</ul>`).style.background = `var(--d${n})`;
 
     for (const e of group) {
       const p = photo(e);
@@ -526,7 +515,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         return `<div class="bubble v${v}" style="width:${w}%;margin-left:${side};--tilt:${tilt}deg"><h3>${icon} ${title}</h3>${body}</div>`;
       };
       const one = {
-        head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1>${e.name}</h1><div class="sci">${e.sci}</div></header>`,
+        head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1 class="${e.name.length > 18 ? "long" : ""}">${e.name}</h1><div class="sci">${e.sci}</div></header>`,
         danger: `<div class="danger-box" style="background:var(--d${e.danger})">
           <div class="lvl">${e.danger}<small>of 5</small></div>
           <div><div class="sk">${skulls(e.danger)}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
@@ -563,26 +552,32 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
 
   page("front", `
     <h1 id="wild">🌲 Out in the Wild: A Guide for Campers</h1>
-    <p>Camping and hiking are a great way to explore nature, but nature isn't a grocery store. Many deadly plants and mushrooms look a lot like safe ones, and some of the most dangerous ones in this book grow along trails, streams, and campsites.</p>
+    <p>Nature isn't a grocery store. Many deadly plants and mushrooms look like safe ones, and some of the most dangerous ones in this book grow near trails, streams, and campsites.</p>
     <div class="callout"><b>The golden rule:</b> never eat any wild plant, berry, or mushroom unless an expert has identified it for you. If you're not 100% sure, don't eat it.</div>
     <h2>Good habits outdoors</h2>
     <ul>
-      <li>Bring all the food you'll need, so you're never tempted to snack on wild plants.</li>
       <li>Teach younger kids not to put berries, leaves, or mushrooms in their mouths.</li>
-      <li>Watch out for plants with lacy leaves and umbrella-shaped clusters of tiny white flowers. Some are safe, but the hemlocks are among the deadliest plants on Earth.</li>
-      <li>Remember that mushroom poisoning often has <b>no symptoms for many hours</b>. If someone ate a wild mushroom, get help right away, even if they feel fine.</li>
-      <li>Wash your hands after touching unknown plants.</li>
+      <li>Watch out for plants with lacy leaves and umbrella-shaped clusters of tiny white flowers. Hemlocks look like this, and they are among the deadliest plants on Earth.</li>
+      <li>Mushroom poisoning often shows <b>no signs for hours</b>. If someone ate a wild mushroom, get help right away.</li>
       <li>Save the poison control number in your phone before you go: <b>1-800-222-1222</b> (US).</li>
     </ul>
     <h2>Entries in this book you might find outdoors</h2>
     <ul class="wild-list">${ORDERED.filter(e => e.wild).map(e => `<li><a href="#e${e.rank}">#${e.rank} ${e.name}</a></li>`).join("")}</ul>`);
 
-  page("front", `
-    <h1 id="sources">📚 Sources &amp; Photo Credits</h1>
-    <h2>Sources</h2>
-    <ol class="credits">${[...new Map(ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank]]).map(s => [s[1], s])).values()].map(([t, u]) => `<li>${t}. <a href="${u}">${u}</a></li>`).join("")}</ol>
-    <h2>Photo credits</h2>
-    <ol class="credits">${ORDERED.map(e => { const p = photo(e); return [p, ...EXTRA_PHOTOS[e.rank]].filter(q => q.file).map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`).join(""); }).join("")}</ol>`);
+  // Sources and photo credits don't fit on one page, so split them into
+  // fixed-size chunks, each on its own page.
+  const sourceItems = [...new Map(ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank]]).map(s => [s[1], s])).values()]
+    .map(([t, u]) => `<li><a href="${u}">${t}</a></li>`);
+  const creditItems = ORDERED.flatMap(e => [photo(e), ...EXTRA_PHOTOS[e.rank]].filter(q => q.file)
+    .map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`));
+  const chunks = (items, size) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
+  const SOURCES_PER_PAGE = 60, CREDITS_PER_PAGE = 36;
+  chunks(sourceItems, SOURCES_PER_PAGE).forEach((c, i) => page("front", `
+    ${i ? "<h2>Sources (continued)</h2>" : `<h1 id="sources">📚 Sources &amp; Photo Credits</h1><h2>Sources</h2>`}
+    <ol class="credits" start="${i * SOURCES_PER_PAGE + 1}">${c.join("")}</ol>`));
+  chunks(creditItems, CREDITS_PER_PAGE).forEach((c, i) => page("front", `
+    <h2>Photo credits${i ? " (continued)" : ""}</h2>
+    <ol class="credits" start="${i * CREDITS_PER_PAGE + 1}">${c.join("")}</ol>`));
 
   openBook();
 });

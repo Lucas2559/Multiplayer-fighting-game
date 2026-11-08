@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Book Trailer</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Caveat:wght@600;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  /* A 1280x720 trailer for the book. render(t) draws the frame at t seconds,
+     so frames can be captured one at a time (see README.md). */
+  :root { --paper: #f2e6cc; --tag: #e8d9b8; --ink: #33363b; --accent: #2f4f8f; --dark: #1d1a16;
+    --d1: #5a8a5a; --d2: #9a8a2a; --d3: #c27a2a; --d4: #b8452e; --d5: #7a1f1f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; background: var(--dark); }
+  body { font-family: "Atkinson Hyperlegible", sans-serif; color: var(--ink); }
+  .scene { position: absolute; inset: 0; opacity: 0; overflow: hidden; }
+  .hand { font-family: Caveat, cursive; font-weight: 700; }
+  .paper { background: var(--paper); box-shadow: inset 0 0 160px rgba(120,80,30,.28); }
+  .paper::before, .paper::after { content: ""; position: absolute; top: 0; bottom: 0; width: 44px; margin: 0 18px; border: solid #8a6d44; border-width: 0 1px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Cpath d='M21 5 L33 21 L21 37 L9 21Z' fill='none' stroke='%236e3f17' stroke-width='1.5'/%3E%3Ccircle cx='21' cy='21' r='3.5' fill='%236e3f17'/%3E%3C/svg%3E") center top / 42px 42px repeat-y; }
+  .paper::before { left: 0; } .paper::after { right: 0; }
+  .full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .caption { position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-size: 64px; text-shadow: 0 3px 18px rgba(0,0,0,.8); }
+  .card { position: absolute; background: #fff; padding: 10px 10px 40px; box-shadow: 3px 6px 18px rgba(0,0,0,.35); }
+  .card img { display: block; width: 100%; height: calc(100% - 0px); object-fit: cover; }
+  .card .label { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font: 700 26px Caveat, cursive; color: var(--ink); }
+  .card::before { content: ""; position: absolute; top: -12px; left: 50%; width: 120px; height: 28px; transform: translateX(-50%) rotate(-2deg); background: rgba(255,240,170,.8); z-index: 1; }
+  .rankbig { font-family: "Patrick Hand", cursive; color: var(--accent); }
+  .bubble { position: absolute; background: var(--tag); border: 2px solid rgba(0,0,0,.45); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; padding: 16px 24px; font-size: 26px; }
+  .bubble h3 { margin: 0 0 4px; font: 700 40px Caveat, cursive; color: var(--accent); }
+  .bar { position: absolute; left: 240px; height: 74px; border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; border: 2px solid rgba(0,0,0,.5); color: #fff; display: flex; align-items: center; gap: 16px; padding: 0 22px; font-size: 30px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .bar .n { font: 54px "Patrick Hand", cursive; }
+  .thumb { position: absolute; width: 120px; height: 84px; object-fit: cover; border: 5px solid #fff; box-shadow: 2px 4px 10px rgba(0,0,0,.3); }
+</style>
+</head>
+<body>
+<div id="s1" class="scene"><img id="s1img" class="full"><div class="caption hand" id="s1t" style="bottom:70px">Some foods look completely harmless…</div></div>
+<div id="s2" class="scene"><div id="s2flash"></div><div class="caption hand" id="s2a" style="top:250px">Some can make you sick.</div><div class="caption hand" id="s2b" style="top:250px;font-size:96px;color:#ffd5cc">Some can even kill you. 💀</div></div>
+<div id="s3" class="scene paper">
+  <div id="s3k" style="position:absolute;top:150px;width:100%;text-align:center;font-size:26px;letter-spacing:.25em;text-transform:uppercase;color:#6b6152">50 Foods · 5 Danger Levels</div>
+  <div id="s3t" class="hand" style="position:absolute;top:200px;width:100%;text-align:center;font-size:150px;color:var(--accent)">A Guide to Foods</div>
+  <div id="s3s" class="hand" style="position:absolute;top:390px;width:100%;text-align:center;font-size:62px">The World's Most Dangerous Foods</div>
+  <svg id="s3u" style="position:absolute;top:365px;left:320px" width="640" height="20"><path d="M5 12 Q 160 2 320 10 T 635 8" fill="none" stroke="#b8452e" stroke-width="5" stroke-linecap="round" stroke-dasharray="700" stroke-dashoffset="700"/></svg>
+</div>
+<div id="s4" class="scene paper"><div class="hand" id="s4h" style="position:absolute;top:28px;width:100%;text-align:center;font-size:66px;color:var(--accent)">How dangerous is it?</div><div id="s4bars"></div></div>
+<div id="s5" class="scene paper"><div id="s5cards"></div><div id="s5n" class="rankbig" style="position:absolute;left:110px;top:40px;font-size:200px">#50</div><div id="s5name" class="hand" style="position:absolute;left:115px;top:250px;font-size:56px;width:430px;line-height:1.05"></div></div>
+<div id="s6" class="scene paper"><div class="hand" id="s6h" style="position:absolute;top:24px;width:100%;text-align:center;font-size:62px;color:var(--accent)">On every page…</div><div id="s6b"></div></div>
+<div id="s7" class="scene"><div id="s7warn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:0 140px">
+    <div style="font-size:90px">🍄 🌿 🫐</div><div class="hand" style="font-size:64px;line-height:1.15">Never eat a wild plant or mushroom unless an expert says it's safe.</div></div>
+  <div id="s7end" class="paper" style="position:absolute;inset:0;opacity:0">
+    <div class="hand" style="position:absolute;top:190px;width:100%;text-align:center;font-size:150px;color:var(--accent)">A Guide to Foods</div>
+    <div class="hand" id="s7tag" style="position:absolute;top:380px;width:100%;text-align:center;font-size:64px;color:#b8452e">Read it before you eat it.</div>
+    <div id="s7skulls" style="position:absolute;top:480px;width:100%;text-align:center;font-size:44px">💀💀💀💀💀</div>
+  </div></div>
+<script src="../../entries.js"></script>
+<script src="../../easy.js"></script>
+<script src="../../map.js"></script>
+<script src="../../countries.js"></script>
+<script>
+// Scene start times in seconds; each matches its narration line (narration starts 0.4s in).
+const SCENES = [["s1", 0], ["s2", 3.5], ["s3", 8.5], ["s4", 13.5], ["s5", 20.5], ["s6", 28], ["s7", 37]];
+const LENGTH = 45.5;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = x => { x = clamp(x); return x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2; };
+const ramp = (t, a, b) => ease((t - a) / (b - a));
+const $ = id => document.getElementById(id);
+const byRank = r => ENTRIES.find(e => e.rank === r);
+const NAMES = { 1: "Mild", 2: "Risky", 3: "Dangerous", 4: "Very Dangerous", 5: "Deadly" };
+let IMG = {};
+const src = r => (IMG[byRank(r).img.replace(/_/g, " ")] || {}).thumb;
+
+async function setup() {
+  IMG = await (await fetch("../../images.json")).json();
+  $("s1img").src = src(50);
+  const flashes = [22, 39, 28, 11, 1];
+  $("s2flash").innerHTML = flashes.map((r, i) => `<img class="full" id="f${i}" src="${src(r)}">`).join("") +
+    `<div id="s2tint" style="position:absolute;inset:0;background:#7a1f1f"></div>`;
+  const levelFoods = [46, 33, 17, 11, 3];
+  $("s4bars").innerHTML = levelFoods.map((r, i) => {
+    const n = i + 1;
+    return `<div class="bar" id="bar${n}" style="top:${130 + i * 112}px;background:var(--d${n})"><span class="n">${n}</span>${"💀".repeat(n)} ${NAMES[n]}<span style="font-weight:400;opacity:.9">· e.g. ${byRank(r).name}</span></div>
+      <img class="thumb" id="th${n}" src="${src(r)}" style="top:${124 + i * 112}px;left:90px">`;
+  }).join("");
+  const cards = [[50, 640, 70, -5], [37, 930, 90, 4], [30, 600, 380, 3], [16, 900, 400, -4], [3, 300, 430, -3], [1, 0, 0, 0]];
+  $("s5cards").innerHTML = cards.map(([r, x, y, rot], i) => `<div class="card" id="c${i}" data-x="${x}" data-y="${y}" data-rot="${rot}" style="width:${i === 5 ? 560 : 300}px;height:${i === 5 ? 440 : 250}px"><img src="${src(r)}" style="height:${i === 5 ? 390 : 200}px"><div class="label">#${r} ${byRank(r).name.replace(/ \(.*\)/, "")}</div></div>`).join("");
+  const map = `<svg viewBox="0 7 360 138" width="250" style="display:block;background:#e8d9b8;border-radius:4px"><path d="${LAND_PATH}" fill="#a39a88"/>${EASY[1].shade.map(n => `<path d="${COUNTRY_PATHS[n]}" fill="#d81e1e"/>`).join("")}</svg>`;
+  const B = [
+    ["🗺️ Where it's found", `<div style="display:flex;gap:14px;align-items:center;font-size:22px">${map}<span>Europe,<br>North America,<br>Australia…</span></div>`, 110, 120, -1.5],
+    ["☠️ What makes it dangerous", "Poisons called <b>amatoxins</b><br>destroy the liver.", 690, 140, 1.2],
+    ["🛡️ How to stay safe", "Never eat a wild mushroom<br>unless an expert checked it.", 150, 430, 1],
+    ["⭐ Fun facts", "Death caps cause about <b>90%</b><br>of mushroom poisoning deaths.", 690, 420, -1.2],
+  ];
+  $("s6b").innerHTML = B.map(([h, body, x, y, rot], i) => `<div class="bubble" id="b${i}" data-rot="${rot}" style="left:${x}px;top:${y}px"><h3>${h}</h3>${body}</div>`).join("");
+  await Promise.all([...document.images].map(i => i.complete ? 0 : new Promise(z => { i.onload = i.onerror = z; })));
+  await document.fonts.ready;
+}
+
+function render(t) {
+  // Cross-fade between scenes over 0.4s.
+  SCENES.forEach(([id, start], i) => {
+    const end = i + 1 < SCENES.length ? SCENES[i + 1][1] : LENGTH;
+    const o = Math.min(ramp(t, start - .2, start + .2), i + 1 < SCENES.length ? 1 - ramp(t, end - .2, end + .2) : 1 - ramp(t, LENGTH - .6, LENGTH));
+    $(id).style.opacity = i === 0 ? Math.min(1 - ramp(t, end - .2, end + .2), ramp(t, 0, .5)) : o;
+  });
+  // 1. A harmless-looking mango, slowly zooming.
+  let l = t;
+  $("s1img").style.transform = `scale(${1 + l * .03})`;
+  $("s1t").style.opacity = ramp(l, .4, 1.2);
+  // 2. Quick photo flashes, then a red tint.
+  l = t - 3.5;
+  for (let i = 0; i < 5; i++) {
+    const on = i === 4 ? l >= 2.4 : l >= i * .6 && l < (i + 1) * .6;
+    $("f" + i).style.opacity = on ? 1 : 0;
+    $("f" + i).style.transform = `scale(${1.08 - .04 * clamp((l - i * .6) / .6)})`;
+  }
+  $("s2tint").style.opacity = l < 2.4 ? .25 : .25 + .3 * ramp(l, 2.4, 3.2);
+  $("s2a").style.opacity = l < 2.4 ? ramp(l, .3, .7) : 1 - ramp(l, 2.3, 2.5);
+  $("s2b").style.opacity = ramp(l, 2.5, 2.9);
+  $("s2b").style.transform = `scale(${1.25 - .25 * ramp(l, 2.5, 3)})`;
+  // 3. Title reveal.
+  l = t - 8.5;
+  $("s3k").style.opacity = ramp(l, .2, .8);
+  $("s3t").style.opacity = ramp(l, .4, 1.1);
+  $("s3t").style.transform = `translateY(${20 * (1 - ramp(l, .4, 1.1))}px) rotate(-1deg)`;
+  $("s3s").style.opacity = ramp(l, 1.6, 2.3);
+  $("s3u").firstElementChild.setAttribute("stroke-dashoffset", 700 * (1 - ramp(l, 2.2, 3.2)));
+  // 4. Danger bars grow one after another, timed to "one, mild... five, deadly".
+  l = t - 13.5;
+  $("s4h").style.opacity = ramp(l, 0, .5);
+  for (let n = 1; n <= 5; n++) {
+    const a = .8 + (n - 1) * .75;
+    $("bar" + n).style.width = `${(340 + n * 120) * ramp(l, a, a + .6)}px`;
+    $("bar" + n).style.opacity = l > a ? 1 : 0;
+    $("th" + n).style.opacity = ramp(l, a, a + .3);
+    $("th" + n).style.transform = `rotate(${n % 2 ? -4 : 4}deg) scale(${.6 + .4 * ramp(l, a, a + .4)})`;
+  }
+  // 5. Countdown: the rank ticks down while taped photos drop in; #1 lands last, big.
+  l = t - 20.5;
+  const ranks = [50, 37, 30, 16, 3, 1];
+  const r = Math.round(50 - 49 * ramp(l, .3, 5.6));
+  $("s5n").textContent = "#" + r;
+  const shown = ranks.filter((_, i) => l >= .3 + i * 1.05);
+  const cur = shown.length ? shown[shown.length - 1] : 50;
+  $("s5name").textContent = byRank(cur).name;
+  $("s5n").style.color = `var(--d${byRank(cur).danger})`;
+  $("s5name").style.opacity = ramp(l, .3, .6);
+  for (let i = 0; i < 6; i++) {
+    const c = $("c" + i), a = .3 + i * 1.05, p = ramp(l, a, a + .45);
+    const big = i === 5;
+    const x = big ? 640 : +c.dataset.x, y = big ? 180 : +c.dataset.y, rot = +c.dataset.rot;
+    c.style.opacity = l >= a ? 1 : 0;
+    c.style.left = x + "px"; c.style.top = (y - 500 * (1 - p)) + "px";
+    c.style.transform = `rotate(${rot + 12 * (1 - p)}deg)`;
+    if (big) c.style.zIndex = 5;
+  }
+  // Earlier cards fade back when #1 lands.
+  for (let i = 0; i < 5; i++) $("c" + i).style.filter = `brightness(${1 - .45 * ramp(l, 5.6, 6.2)})`;
+  // 6. Page bubbles pop in, timed to the narration.
+  l = t - 28;
+  $("s6h").style.opacity = ramp(l, 0, .5);
+  [.9, 2.2, 3.6, 5.3].forEach((a, i) => {
+    const b = $("b" + i), p = ramp(l, a, a + .35);
+    b.style.opacity = l >= a ? 1 : 0;
+    b.style.transform = `rotate(${b.dataset.rot}deg) scale(${.5 + .5 * p + .06 * Math.sin(Math.PI * p)})`;
+  });
+  // 7. Safety warning, then the end card.
+  l = t - 37;
+  $("s7").style.background = "var(--dark)";
+  $("s7warn").style.opacity = ramp(l, .1, .6) * (1 - ramp(l, 4, 4.4));
+  $("s7end").style.opacity = ramp(l, 4.1, 4.6);
+  $("s7tag").style.opacity = ramp(l, 6, 6.6);
+  $("s7tag").style.transform = `rotate(-2deg) scale(${1.15 - .15 * ramp(l, 6, 6.6)})`;
+  $("s7skulls").style.opacity = ramp(l, 6.4, 7);
+}
+window.ready = setup().then(() => render(0));
+// Preview mode: ?play plays it in real time.
+if (location.search.includes("play")) window.ready.then(() => { const t0 = performance.now(); const f = () => { const t = (performance.now() - t0) / 1000; render(t % LENGTH); requestAnimationFrame(f); }; f(); });
+</script>
+</body>
+</html>
