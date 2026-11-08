@@ -1,5 +1,5 @@
 // Book content: one object per entry. Ranks run #50 (least dangerous) to #1;
-// book.html sorts by danger level and rank, so file order does not matter.
+// index.html sorts by danger level and rank, so file order does not matter.
 // img is the Wikipedia page whose lead photo is used (see images.json).
 const ENTRIES = [
 {

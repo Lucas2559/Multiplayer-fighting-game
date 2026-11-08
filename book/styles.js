@@ -1,5 +1,5 @@
 // The six page designs. Every version shows the real photos; what differs is
-// the look of the pages and their sides. See the .s-* rules in book.html.
+// the look of the pages and their sides. See the .s-* rules in index.html.
 const STYLES = {
   vintage:    { name: "Vintage Field Guide", blurb: "Aged paper with engraved diamond columns down both sides." },
   sketch:     { name: "Pencil Sketch",       blurb: "Hand-drawn headings and bubbles on aged paper with engraved diamond columns." },
