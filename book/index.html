@@ -27,6 +27,9 @@
   .toolbar { position: sticky; top: 0; z-index: 5; background: #2a2622; color: #fbf7ef; font: 14px/1.4 "Atkinson Hyperlegible", sans-serif;
     display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center; padding: 8px 16px; }
   .toolbar a { color: #fbf7ef; opacity: .7; text-decoration: none; }
+  /* Bottom-left corner: inside the bottom bar in the book view, floating on phones */
+  .print-btn { position: fixed; left: 16px; bottom: 7px; z-index: 6; font: 700 14px/1.4 "Atkinson Hyperlegible", sans-serif; background: #fbf7ef; color: #2a2622;
+    border: 0; border-radius: 4px; padding: 5px 16px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
   .toolbar a.on { opacity: 1; font-weight: 700; text-decoration: underline; }
   .toolbar button { font: inherit; background: #fbf7ef; color: #2a2622; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 
@@ -305,7 +308,7 @@
     .page.off { display: block; }
     .cover.off, .divider.off, .sheet.off { display: flex; }
     body { background: #fff; font-size: 12pt; }
-    .toolbar { display: none; }
+    .toolbar, .print-btn { display: none; }
     .page { box-shadow: none !important; margin: 0; max-width: none; padding: 0 var(--print-side, 0); break-after: page; border-radius: 0; }
     .divider { min-height: 9in; }
     .cover { height: 9.6in; gap: 8px; }
@@ -337,7 +340,7 @@
 </style>
 </head>
 <body>
-<div class="toolbar" id="toolbar"></div>
+<button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
 <main id="book"></main>
 <script src="styles.js"></script>
 <script src="entries.js"></script>
@@ -353,7 +356,6 @@ document.body.classList.add("s-" + styleKey);
 document.title = "A Guide to Foods";
 
 // The whole book now uses one design; the others stay reachable with ?style=.
-document.getElementById("toolbar").innerHTML = `<button onclick="window.print()">Print / Save as PDF</button>`;
 
 const DANGER = {
   1: "makes you sick, but rarely serious",
@@ -426,7 +428,7 @@ function openBook() {
     const on = innerWidth > 700;
     document.body.classList.toggle("book-mode", on);
     if (!on) return;
-    const free = innerHeight - document.getElementById("toolbar").offsetHeight - nav.offsetHeight - 16;
+    const free = innerHeight - nav.offsetHeight - 16;
     spread.style.setProperty("--z", Math.min(1.3, (innerWidth - 16) / 1498, free / 971));
   }
   prev.onclick = () => show(at - 1);
