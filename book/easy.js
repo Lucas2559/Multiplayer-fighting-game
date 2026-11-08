@@ -447,7 +447,7 @@ const EASY = {
   stay: ["Eat oysters cooked, not raw.","People with liver disease should never eat them raw."],
   facts: ["One oyster can filter many gallons of seawater in a day.","Some oysters can change from male to female."],
 },
-18: {
+17: {
   shade: ["Kenya","Uganda","Tanzania","Nigeria","Ghana","India","Pakistan","Bangladesh","Nepal","Guatemala","Honduras","El Salvador","Nicaragua"],
   why: "Big outbreaks have killed people. Small amounts eaten for years can cause cancer.",
   where: "When peanuts, corn, and other crops are stored somewhere warm and damp, a mold called <i>Aspergillus</i> (ass-per-JILL-us) can grow on them.",
@@ -461,7 +461,7 @@ const EASY = {
   stay: ["Throw away moldy, shriveled, or discolored nuts and grains.","Store nuts and grains somewhere cool and dry.","Buy from sellers you trust."],
   facts: ["Scientists fight the toxic mold with a harmless kind that crowds it out.","<i>Aspergillus</i> molds can be useful too. One kind helps make soy sauce."],
 },
-17: {
+18: {
   shade: ["Brazil","Peru","Bolivia","Colombia","Nigeria","Dem. Rep. Congo","Thailand"],
   why: "It is safe when made the right way. Made the wrong way, it can kill or leave someone unable to walk.",
   where: "Cassava is a starchy root, a bit like a potato. Hundreds of millions of people eat it. It is made into flour, bread, and tapioca.",

@@ -74,7 +74,7 @@ async function setup() {
   const flashes = [22, 39, 28, 11, 1];
   $("s2flash").innerHTML = flashes.map((r, i) => `<img class="full" id="f${i}" src="${src(r)}">`).join("") +
     `<div id="s2tint" style="position:absolute;inset:0;background:#7a1f1f"></div>`;
-  const levelFoods = [46, 33, 17, 11, 3];
+  const levelFoods = [46, 33, 18, 11, 3];
   $("s4bars").innerHTML = levelFoods.map((r, i) => {
     const n = i + 1;
     return `<div class="bar" id="bar${n}" style="top:${130 + i * 112}px;background:var(--d${n})"><span class="n">${n}</span>${"💀".repeat(n)} ${NAMES[n]}<span style="font-weight:400;opacity:.9">· e.g. ${byRank(r).name}</span></div>

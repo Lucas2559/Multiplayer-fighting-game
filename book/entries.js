@@ -179,7 +179,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Ciguatera fish poisoning\"", "https://en.wikipedia.org/wiki/Ciguatera_fish_poisoning"]]
 },
 {
-  rank: 18, name: "Moldy Peanuts and Corn", sci: "Aspergillus flavus (the mold)", danger: 3, type: "Mold on food", img: "Aspergillus_flavus", wild: false,
+  rank: 17, name: "Moldy Peanuts and Corn", sci: "Aspergillus flavus (the mold)", danger: 4, type: "Mold on food", img: "Aspergillus_flavus", wild: false,
   why: "Large outbreaks have been deadly, and small amounts eaten over years can cause cancer.",
   where: "When peanuts, corn, and other crops are stored somewhere warm and damp, a mold called <i>Aspergillus</i> can grow on them. It happens around the world, but it's a bigger problem in hot, humid places.",
   poison: "The mold makes <b>aflatoxin</b>, which attacks the liver. It's one of the strongest natural cancer-causing chemicals known.",
@@ -190,7 +190,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Aflatoxin\"", "https://en.wikipedia.org/wiki/Aflatoxin"]]
 },
 {
-  rank: 17, name: "Cassava", sci: "Manihot esculenta", danger: 3, type: "Plant (root)", img: "Cassava", wild: false,
+  rank: 18, name: "Cassava", sci: "Manihot esculenta", danger: 3, type: "Plant (root)", img: "Cassava", wild: false,
   why: "It's safe when processed properly, but badly processed cassava can kill or cause permanent paralysis.",
   where: "Cassava is a starchy root from South America. It's now a main food for hundreds of millions of people in Africa, Asia, and Latin America. It's made into flour, bread, fufu, gari, and tapioca.",
   poison: "Raw cassava contains <b>linamarin</b>, which releases <b>cyanide</b> when the root is cut or chewed. \"Bitter\" types of cassava have much more than \"sweet\" types.",
