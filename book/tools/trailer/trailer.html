@@ -57,8 +57,9 @@
 <script src="../../countries.js"></script>
 <script>
 // Scene start times in seconds; each matches its narration line (narration starts 0.4s in).
-const SCENES = [["s1", 0], ["s2", 3.5], ["s3", 8.5], ["s4", 13.5], ["s5", 20.5], ["s6", 28], ["s7", 37]];
-const LENGTH = 45.5;
+const SCENES = [["s1", 0], ["s2", 3.6], ["s3", 9.8], ["s4", 14.8], ["s5", 22.2], ["s6", 28.4], ["s7", 36.8]];
+const LENGTH = 47.5;
+const START = Object.fromEntries(SCENES);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const ease = x => { x = clamp(x); return x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2; };
 const ramp = (t, a, b) => ease((t - a) / (b - a));
@@ -106,45 +107,45 @@ function render(t) {
   $("s1img").style.transform = `scale(${1 + l * .03})`;
   $("s1t").style.opacity = ramp(l, .4, 1.2);
   // 2. Quick photo flashes, then a red tint.
-  l = t - 3.5;
+  l = t - START.s2;
   for (let i = 0; i < 5; i++) {
-    const on = i === 4 ? l >= 2.4 : l >= i * .6 && l < (i + 1) * .6;
+    const on = i === 4 ? l >= 3.5 : l >= i * .85 && l < (i + 1) * .85;
     $("f" + i).style.opacity = on ? 1 : 0;
-    $("f" + i).style.transform = `scale(${1.08 - .04 * clamp((l - i * .6) / .6)})`;
+    $("f" + i).style.transform = `scale(${1.08 - .04 * clamp((l - i * .85) / .85)})`;
   }
-  $("s2tint").style.opacity = l < 2.4 ? .25 : .25 + .3 * ramp(l, 2.4, 3.2);
-  $("s2a").style.opacity = l < 2.4 ? ramp(l, .3, .7) : 1 - ramp(l, 2.3, 2.5);
-  $("s2b").style.opacity = ramp(l, 2.5, 2.9);
-  $("s2b").style.transform = `scale(${1.25 - .25 * ramp(l, 2.5, 3)})`;
+  $("s2tint").style.opacity = l < 3.5 ? .25 : .25 + .3 * ramp(l, 3.5, 4.3);
+  $("s2a").style.opacity = l < 3.3 ? ramp(l, .3, .7) : 1 - ramp(l, 3.3, 3.5);
+  $("s2b").style.opacity = ramp(l, 3.6, 4);
+  $("s2b").style.transform = `scale(${1.25 - .25 * ramp(l, 3.6, 4.1)})`;
   // 3. Title reveal.
-  l = t - 8.5;
+  l = t - START.s3;
   $("s3k").style.opacity = ramp(l, .2, .8);
   $("s3t").style.opacity = ramp(l, .4, 1.1);
   $("s3t").style.transform = `translateY(${20 * (1 - ramp(l, .4, 1.1))}px) rotate(-1deg)`;
-  $("s3s").style.opacity = ramp(l, 1.6, 2.3);
-  $("s3u").firstElementChild.setAttribute("stroke-dashoffset", 700 * (1 - ramp(l, 2.2, 3.2)));
+  $("s3s").style.opacity = ramp(l, 2.2, 2.9);
+  $("s3u").firstElementChild.setAttribute("stroke-dashoffset", 700 * (1 - ramp(l, 2.8, 3.8)));
   // 4. Danger bars grow one after another, timed to "one, mild... five, deadly".
-  l = t - 13.5;
+  l = t - START.s4;
   $("s4h").style.opacity = ramp(l, 0, .5);
   for (let n = 1; n <= 5; n++) {
-    const a = .8 + (n - 1) * .75;
+    const a = 3.1 + (n - 1) * .52;
     $("bar" + n).style.width = `${(340 + n * 120) * ramp(l, a, a + .6)}px`;
     $("bar" + n).style.opacity = l > a ? 1 : 0;
     $("th" + n).style.opacity = ramp(l, a, a + .3);
     $("th" + n).style.transform = `rotate(${n % 2 ? -4 : 4}deg) scale(${.6 + .4 * ramp(l, a, a + .4)})`;
   }
   // 5. Countdown: the rank ticks down while taped photos drop in; #1 lands last, big.
-  l = t - 20.5;
+  l = t - START.s5;
   const ranks = [50, 37, 30, 16, 3, 1];
-  const r = Math.round(50 - 49 * ramp(l, .3, 5.6));
+  const r = Math.round(50 - 49 * ramp(l, .3, 4.8));
   $("s5n").textContent = "#" + r;
-  const shown = ranks.filter((_, i) => l >= .3 + i * 1.05);
+  const shown = ranks.filter((_, i) => l >= .3 + i * .9);
   const cur = shown.length ? shown[shown.length - 1] : 50;
   $("s5name").textContent = byRank(cur).name;
   $("s5n").style.color = `var(--d${byRank(cur).danger})`;
   $("s5name").style.opacity = ramp(l, .3, .6);
   for (let i = 0; i < 6; i++) {
-    const c = $("c" + i), a = .3 + i * 1.05, p = ramp(l, a, a + .45);
+    const c = $("c" + i), a = .3 + i * .9, p = ramp(l, a, a + .45);
     const big = i === 5;
     const x = big ? 640 : +c.dataset.x, y = big ? 180 : +c.dataset.y, rot = +c.dataset.rot;
     c.style.opacity = l >= a ? 1 : 0;
@@ -153,23 +154,23 @@ function render(t) {
     if (big) c.style.zIndex = 5;
   }
   // Earlier cards fade back when #1 lands.
-  for (let i = 0; i < 5; i++) $("c" + i).style.filter = `brightness(${1 - .45 * ramp(l, 5.6, 6.2)})`;
+  for (let i = 0; i < 5; i++) $("c" + i).style.filter = `brightness(${1 - .45 * ramp(l, 4.8, 5.4)})`;
   // 6. Page bubbles pop in, timed to the narration.
-  l = t - 28;
+  l = t - START.s6;
   $("s6h").style.opacity = ramp(l, 0, .5);
-  [.9, 2.2, 3.6, 5.3].forEach((a, i) => {
+  [1.6, 3.0, 4.3, 6.1].forEach((a, i) => {
     const b = $("b" + i), p = ramp(l, a, a + .35);
     b.style.opacity = l >= a ? 1 : 0;
     b.style.transform = `rotate(${b.dataset.rot}deg) scale(${.5 + .5 * p + .06 * Math.sin(Math.PI * p)})`;
   });
   // 7. Safety warning, then the end card.
-  l = t - 37;
+  l = t - START.s7;
   $("s7").style.background = "var(--dark)";
-  $("s7warn").style.opacity = ramp(l, .1, .6) * (1 - ramp(l, 4, 4.4));
-  $("s7end").style.opacity = ramp(l, 4.1, 4.6);
-  $("s7tag").style.opacity = ramp(l, 6, 6.6);
-  $("s7tag").style.transform = `rotate(-2deg) scale(${1.15 - .15 * ramp(l, 6, 6.6)})`;
-  $("s7skulls").style.opacity = ramp(l, 6.4, 7);
+  $("s7warn").style.opacity = ramp(l, .1, .6) * (1 - ramp(l, 5.1, 5.5));
+  $("s7end").style.opacity = ramp(l, 5.2, 5.7);
+  $("s7tag").style.opacity = ramp(l, 7.3, 7.9);
+  $("s7tag").style.transform = `rotate(-2deg) scale(${1.15 - .15 * ramp(l, 7.3, 7.9)})`;
+  $("s7skulls").style.opacity = ramp(l, 7.7, 8.3);
 }
 window.ready = setup().then(() => render(0));
 // Preview mode: ?play plays it in real time.
