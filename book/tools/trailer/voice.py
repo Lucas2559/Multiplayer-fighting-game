@@ -13,8 +13,8 @@ import torch
 from voxcpm import VoxCPM
 
 # The description in parentheses sets the voice; VoxCPM2 doesn't read it aloud.
-# A calm, polished narrator; plain descriptions sound more natural than "exciting" ones.
-VOICE = "(A professional documentary narrator, a confident adult woman with a clear, polished, steady voice, measured pace, calm authority)"
+# A calm, matter-of-fact voice; the user found the documentary-narrator voice too dramatic.
+VOICE = "(A calm adult woman speaking in a plain, even, everyday tone, relaxed and matter-of-fact, like reading aloud in class, not dramatic)"
 LINES = [
     "Some foods look completely harmless.",
     "But some can make you sick. And some can even kill you.",

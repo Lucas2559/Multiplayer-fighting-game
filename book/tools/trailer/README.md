@@ -1,6 +1,6 @@
 # Book trailer
 
-`trailer.html` draws a 48.5-second, 1280x720 trailer. It opens with a 5-second hook: four harmless-looking foods, "Which of these foods could kill you?", then skull stamps on "All of them." `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
+`trailer.html` draws a 49.5-second, 1280x720 trailer. It opens with a 5-second hook: four harmless-looking foods, "Which of these foods could kill you?", then skull stamps on "All of them." `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
 
 To make the MP4:
 
@@ -18,7 +18,7 @@ To make the MP4:
 ```
 ffmpeg -f lavfi -i "aevalsrc='0.9*sin(2*PI*(48+90*exp(-t*28))*t)*exp(-t*10)+0.25*(random(0)-0.5)*exp(-t*60)':s=48000:d=0.6" -ac 1 thud.wav
 ffmpeg -framerate 30 -i frames/%05d.jpg -i h1.wav -i h2.wav -i n1.wav ... -i n7.wav -i thud.wav \
-  -filter_complex "[1]adelay=300:all=1[h1];[2]adelay=3200:all=1[h2];[3]adelay=5400:all=1[a1];[4]adelay=8900:all=1[a2];[5]adelay=13800:all=1[a3];[6]adelay=19000:all=1[a4];[7]adelay=24800:all=1[a5];[8]adelay=30300:all=1[a6];[9]adelay=38800:all=1[a7];[10]volume=0.55,asplit=4[t1][t2][t3][t4];[t1]adelay=3320:all=1[u1];[t2]adelay=3440:all=1[u2];[t3]adelay=3560:all=1[u3];[t4]adelay=3680:all=1[u4];[h1][h2][a1][a2][a3][a4][a5][a6][a7][u1][u2][u3][u4]amix=inputs=13:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
+  -filter_complex "[1]adelay=300:all=1[h1];[2]adelay=3300:all=1[h2];[3]adelay=5400:all=1[a1];[4]adelay=9000:all=1[a2];[5]adelay=14100:all=1[a3];[6]adelay=19200:all=1[a4];[7]adelay=25900:all=1[a5];[8]adelay=32000:all=1[a6];[9]adelay=40300:all=1[a7];[10]volume=0.55,asplit=4[t1][t2][t3][t4];[t1]adelay=3420:all=1[u1];[t2]adelay=3540:all=1[u2];[t3]adelay=3660:all=1[u3];[t4]adelay=3780:all=1[u4];[h1][h2][a1][a2][a3][a4][a5][a6][a7][u1][u2][u3][u4]amix=inputs=13:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
   -map 0:v -map "[a]" -c:v libx264 -pix_fmt yuv420p -crf 20 -c:a aac -shortest -movflags +faststart book_trailer.mp4
 ```
 
