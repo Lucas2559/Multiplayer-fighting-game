@@ -1,6 +1,6 @@
 # Book trailer
 
-`trailer.html` draws a 47.5-second, 1280x720 trailer. `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
+`trailer.html` draws a 43.5-second, 1280x720 trailer. `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
 
 To make the MP4:
 
@@ -17,7 +17,7 @@ To make the MP4:
 
 ```
 ffmpeg -framerate 30 -i frames/%05d.jpg -i n1.wav ... -i n7.wav \
-  -filter_complex "[1]adelay=400:all=1[a1];[2]adelay=4000:all=1[a2];[3]adelay=10200:all=1[a3];[4]adelay=15200:all=1[a4];[5]adelay=22600:all=1[a5];[6]adelay=28800:all=1[a6];[7]adelay=37200:all=1[a7];[a1][a2][a3][a4][a5][a6][a7]amix=inputs=7:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
+  -filter_complex "[1]adelay=400:all=1[a1];[2]adelay=3900:all=1[a2];[3]adelay=8800:all=1[a3];[4]adelay=14000:all=1[a4];[5]adelay=19800:all=1[a5];[6]adelay=25300:all=1[a6];[7]adelay=33800:all=1[a7];[a1][a2][a3][a4][a5][a6][a7]amix=inputs=7:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
   -map 0:v -map "[a]" -c:v libx264 -pix_fmt yuv420p -crf 20 -c:a aac -shortest -movflags +faststart book_trailer.mp4
 ```
 
