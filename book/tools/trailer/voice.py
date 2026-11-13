@@ -1,7 +1,8 @@
 """Make the trailer narration with VoxCPM2.
 
-Usage: voxcpm_env/bin/python voice.py OUT_DIR
-Writes n1.wav ... n7.wav and prints each length.
+Usage: voxcpm_env/bin/python voice.py OUT_DIR [--hook-only]
+Writes h1.wav, h2.wav (the opening hook) and n1.wav ... n7.wav, and prints each
+length. --hook-only makes just the hook, cloning an existing n1.wav.
 
 Line 1 is made with voice design. Every other line clones line 1's voice, so
 the whole trailer sounds like one person instead of seven slightly different ones.
@@ -23,6 +24,8 @@ LINES = [
     "On every page: where it's found, what makes it dangerous, and how to stay safe. Plus lots of fun facts!",
     "Never eat a wild plant or mushroom unless an expert says it's safe. A Guide to Foods. Read it before you eat it.",
 ]
+# The opening hook, said in the same voice before line 1's scene.
+HOOK = ["Which of these foods could kill you?", "All of them."]
 STEPS = 25   # more diffusion steps: slower, but cleaner and smoother speech (default 10)
 CFG = 1.8    # a little lower than the default 2.0 for less forced delivery
 
@@ -34,7 +37,7 @@ rate = model.tts_model.sample_rate
 print(f"model loaded in {time.time() - t0:.0f}s, {rate} Hz", flush=True)
 
 first = f"{out}/n1.wav"
-for n, line in enumerate(LINES, 1):
+for n, line in enumerate([] if "--hook-only" in sys.argv else LINES, 1):
     t0 = time.time()
     torch.manual_seed(7)  # same delivery on every run
     if n == 1:
@@ -44,3 +47,11 @@ for n, line in enumerate(LINES, 1):
                              cfg_value=CFG, inference_timesteps=STEPS)
     sf.write(f"{out}/n{n}.wav", wav, rate)
     print(f"n{n}: {len(wav) / rate:.2f}s audio, took {time.time() - t0:.0f}s", flush=True)
+
+for n, line in enumerate(HOOK, 1):
+    t0 = time.time()
+    torch.manual_seed(7)
+    wav = model.generate(text=line, prompt_wav_path=first, prompt_text=LINES[0], reference_wav_path=first,
+                         cfg_value=CFG, inference_timesteps=STEPS)
+    sf.write(f"{out}/h{n}.wav", wav, rate)
+    print(f"h{n}: {len(wav) / rate:.2f}s audio, took {time.time() - t0:.0f}s", flush=True)

@@ -1,10 +1,10 @@
 # Book trailer
 
-`trailer.html` draws a 43.5-second, 1280x720 trailer. `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
+`trailer.html` draws a 48.5-second, 1280x720 trailer. It opens with a 5-second hook: four harmless-looking foods, "Which of these foods could kill you?", then skull stamps on "All of them." `render(t)` shows the frame at `t` seconds; open `trailer.html?play` (served by `tools/serve.py`) to watch it without sound.
 
 To make the MP4:
 
-1. Narration: `voice.py` makes `n1.wav` to `n7.wav` with VoxCPM2 (on the CPU; the Mac GPU gives silence). Line 1 uses voice design and the rest clone line 1, so it's one consistent voice. It takes about 30 minutes. Set up once with Python 3.12: `python3.12 -m venv voxcpm_env && voxcpm_env/bin/pip install voxcpm soundfile`. The first run downloads the model (about 5 GB). The earlier version used macOS `say` (voice Samantha, rate 165). The lines:
+1. Narration: `voice.py` makes the hook lines `h1.wav`, `h2.wav` and `n1.wav` to `n7.wav` with VoxCPM2 (on the CPU; the Mac GPU gives silence). Line 1 uses voice design and the rest clone line 1, so it's one consistent voice. It takes about 30 minutes. Set up once with Python 3.12: `python3.12 -m venv voxcpm_env && voxcpm_env/bin/pip install voxcpm soundfile`. The first run downloads the model (about 5 GB). The earlier version used macOS `say` (voice Samantha, rate 165). The lines:
    1. Some foods look completely harmless.
    2. But some can make you sick. And some can even kill you.
    3. A Guide to Foods. The world's most dangerous foods.
@@ -16,8 +16,9 @@ To make the MP4:
 3. Encode, starting each line 0.4 s into its scene (scene starts are in `SCENES`):
 
 ```
-ffmpeg -framerate 30 -i frames/%05d.jpg -i n1.wav ... -i n7.wav \
-  -filter_complex "[1]adelay=400:all=1[a1];[2]adelay=3900:all=1[a2];[3]adelay=8800:all=1[a3];[4]adelay=14000:all=1[a4];[5]adelay=19800:all=1[a5];[6]adelay=25300:all=1[a6];[7]adelay=33800:all=1[a7];[a1][a2][a3][a4][a5][a6][a7]amix=inputs=7:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
+ffmpeg -f lavfi -i "aevalsrc='0.9*sin(2*PI*(48+90*exp(-t*28))*t)*exp(-t*10)+0.25*(random(0)-0.5)*exp(-t*60)':s=48000:d=0.6" -ac 1 thud.wav
+ffmpeg -framerate 30 -i frames/%05d.jpg -i h1.wav -i h2.wav -i n1.wav ... -i n7.wav -i thud.wav \
+  -filter_complex "[1]adelay=300:all=1[h1];[2]adelay=3200:all=1[h2];[3]adelay=5400:all=1[a1];[4]adelay=8900:all=1[a2];[5]adelay=13800:all=1[a3];[6]adelay=19000:all=1[a4];[7]adelay=24800:all=1[a5];[8]adelay=30300:all=1[a6];[9]adelay=38800:all=1[a7];[10]volume=0.55,asplit=4[t1][t2][t3][t4];[t1]adelay=3320:all=1[u1];[t2]adelay=3440:all=1[u2];[t3]adelay=3560:all=1[u3];[t4]adelay=3680:all=1[u4];[h1][h2][a1][a2][a3][a4][a5][a6][a7][u1][u2][u3][u4]amix=inputs=13:normalize=0,loudnorm=I=-16:TP=-1.5,aresample=48000,apad[a]" \
   -map 0:v -map "[a]" -c:v libx264 -pix_fmt yuv420p -crf 20 -c:a aac -shortest -movflags +faststart book_trailer.mp4
 ```
 

@@ -29,10 +29,17 @@
   .bubble h3 { margin: 0 0 4px; font: 700 40px Caveat, cursive; color: var(--accent); }
   .bar { position: absolute; left: 240px; height: 74px; border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; border: 2px solid rgba(0,0,0,.5); color: #fff; display: flex; align-items: center; gap: 16px; padding: 0 22px; font-size: 30px; font-weight: 700; white-space: nowrap; overflow: hidden; }
   .bar .n { font: 54px "Patrick Hand", cursive; }
+  .stamp { position: absolute; left: 50%; top: 42%; width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 8px solid #d81e1e; border-radius: 50%; color: #d81e1e;
+    background: rgba(255,255,255,.55); display: flex; align-items: center; justify-content: center; font-size: 84px; z-index: 2; }
   .thumb { position: absolute; width: 120px; height: 84px; object-fit: cover; border: 5px solid #fff; box-shadow: 2px 4px 10px rgba(0,0,0,.3); }
 </style>
 </head>
 <body>
+<div id="s0" class="scene" style="background:radial-gradient(circle at 50% 45%, #3a2a22, #120e0b 75%)">
+  <div id="s0q" class="hand" style="position:absolute;top:40px;width:100%;text-align:center;color:#fff;font-size:78px">Which of these foods could kill you?</div>
+  <div id="s0cards" style="position:absolute;left:0;right:0;top:190px;display:flex;justify-content:center;gap:36px"></div>
+  <div id="s0all" class="hand" style="position:absolute;bottom:26px;width:100%;text-align:center;color:#ff5a4a;font-size:96px;text-shadow:0 4px 20px rgba(0,0,0,.8)">All of them.</div>
+</div>
 <div id="s1" class="scene"><img id="s1img" class="full"><div class="caption hand" id="s1t" style="bottom:70px">Some foods look completely harmless…</div></div>
 <div id="s2" class="scene"><div id="s2flash"></div><div class="caption hand" id="s2a" style="top:250px">Some can make you sick.</div><div class="caption hand" id="s2b" style="top:250px;font-size:96px;color:#ffd5cc">Some can even kill you. 💀</div></div>
 <div id="s3" class="scene paper">
@@ -57,8 +64,9 @@
 <script src="../../countries.js"></script>
 <script>
 // Scene start times in seconds; each matches its narration line (narration starts 0.4s in).
-const SCENES = [["s1", 0], ["s2", 3.5], ["s3", 8.4], ["s4", 13.6], ["s5", 19.4], ["s6", 24.9], ["s7", 33.4]];
-const LENGTH = 43.5;
+// s0 is the 5-second hook: "Which of these foods could kill you?" at 0.3s, "All of them." at 3.2s.
+const SCENES = [["s0", 0], ["s1", 5], ["s2", 8.5], ["s3", 13.4], ["s4", 18.6], ["s5", 24.4], ["s6", 29.9], ["s7", 38.4]];
+const LENGTH = 48.5;
 const START = Object.fromEntries(SCENES);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const ease = x => { x = clamp(x); return x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2; };
@@ -71,6 +79,8 @@ const src = r => (IMG[byRank(r).img.replace(/_/g, " ")] || {}).thumb;
 
 async function setup() {
   IMG = await (await fetch("../../images.json")).json();
+  const hook = [[26, "Apricot kernels"], [19, "Raw oysters"], [18, "Cassava"], [1, "A wild mushroom"]];
+  $("s0cards").innerHTML = hook.map(([r, label], i) => `<div class="card" id="h${i}" style="position:relative;flex:none;width:265px;height:330px"><img src="${src(r)}" style="height:280px"><div class="label">${label}</div><div class="stamp" id="st${i}">💀</div></div>`).join("");
   $("s1img").src = src(50);
   const flashes = [22, 39, 28, 11, 1];
   $("s2flash").innerHTML = flashes.map((r, i) => `<img class="full" id="f${i}" src="${src(r)}">`).join("") +
@@ -100,10 +110,25 @@ function render(t) {
   SCENES.forEach(([id, start], i) => {
     const end = i + 1 < SCENES.length ? SCENES[i + 1][1] : LENGTH;
     const o = Math.min(ramp(t, start - .2, start + .2), i + 1 < SCENES.length ? 1 - ramp(t, end - .2, end + .2) : 1 - ramp(t, LENGTH - .6, LENGTH));
-    $(id).style.opacity = i === 0 ? Math.min(1 - ramp(t, end - .2, end + .2), ramp(t, 0, .5)) : o;
+    $(id).style.opacity = i === 0 ? Math.min(1 - ramp(t, end - .2, end + .2), ramp(t, 0, .15)) : o;
   });
-  // 1. A harmless-looking mango, slowly zooming.
+  // 0. Hook: four harmless-looking foods pop in, then a skull stamp slams onto each.
   let l = t;
+  $("s0q").style.opacity = ramp(l, .1, .5);
+  for (let i = 0; i < 4; i++) {
+    const a = .25 + i * .22, p = ramp(l, a, a + .3), card = $("h" + i);
+    card.style.opacity = l >= a ? 1 : 0;
+    card.style.transform = `rotate(${[-4, 3, -2, 4][i]}deg) scale(${.7 + .3 * p})`;
+    const s = 3.2 + i * .12, q = ramp(l, s, s + .14);
+    $("st" + i).style.opacity = l >= s ? 1 : 0;
+    $("st" + i).style.transform = `rotate(-14deg) scale(${2.6 - 1.6 * q})`;
+  }
+  const shake = l > 3.2 && l < 3.8 ? Math.sin(l * 90) * 9 * (1 - (l - 3.2) / .6) : 0;
+  $("s0cards").style.transform = `translate(${shake}px, ${shake * .5}px)`;
+  $("s0all").style.opacity = ramp(l, 3.3, 3.6);
+  $("s0all").style.transform = `scale(${1.3 - .3 * ramp(l, 3.3, 3.7)})`;
+  // 1. A harmless-looking mango, slowly zooming.
+  l = t - START.s1;
   $("s1img").style.transform = `scale(${1 + l * .03})`;
   $("s1t").style.opacity = ramp(l, .4, 1.2);
   // 2. Quick photo flashes, then a red tint.
