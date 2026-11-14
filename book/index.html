@@ -70,8 +70,9 @@
   .scale li { display: flex; gap: 12px; align-items: baseline; }
   .scale .sk { width: 120px; flex: none; font-size: 17px; line-height: 1; }
   .meter { display: inline-flex; gap: .18em; vertical-align: middle; line-height: 1; }
-  .meter i { width: .95em; height: .5em; border-radius: .12em; background: currentColor; }
-  .meter i.off { opacity: .28; }
+  .meter i { width: .95em; height: .5em; border-radius: .12em;
+    background: linear-gradient(90deg, currentColor var(--p, 0%), color-mix(in srgb, currentColor 28%, transparent) var(--p, 0%)); }
+  .meter i.on { background: currentColor; }
   .level-list h2 .meter, .toc-level .meter { font-size: 18px; margin-right: 6px; }
   .scale-bar .meter { font-size: 13px; }
   .danger-strip .meter { font-size: 13px; margin-right: 4px; }
@@ -91,7 +92,7 @@
   .danger-box { display: flex; gap: 16px; align-items: center; color: #fff; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
   .danger-box .lvl { font-family: var(--num, var(--head)); font-weight: 900; font-size: 44px; line-height: 1; flex: none; text-align: center; }
   .danger-box .lvl small { display: block; font: 700 11px/1.4 var(--body); letter-spacing: .15em; text-transform: uppercase; opacity: .85; }
-  .danger-box .sk { font-size: 20px; margin-bottom: 4px; }
+  .danger-box .sk { font-size: 25px; margin-bottom: 2px; }
   .danger-box p { margin: 4px 0 0; }
   .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .pill { background: var(--tag); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
@@ -391,8 +392,12 @@ const LEVELS = [1, 2, 3, 4, 5];
 ENTRIES.forEach(e => { if (EASY[e.rank]) { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); } });
 const atLevel = n => ENTRIES.filter(e => e.danger === n).sort((a, b) => b.rank - a.rank);
 const ORDERED = LEVELS.flatMap(atLevel);
-// Danger level as a 5-segment bar: n segments filled, in the surrounding text color.
-const meter = n => `<span class="meter" role="img" aria-label="Danger level ${n} of 5">${[1, 2, 3, 4, 5].map(i => `<i${i > n ? ' class="off"' : ""}></i>`).join("")}</span>`;
+const place = e => { const g = atLevel(e.danger); return (g.indexOf(e) + 1) / g.length; };
+// Danger level as a 5-segment bar in the surrounding text color. The first n - 1
+// segments are full; segment n is filled by `part` (0 to 1), so a food's bar
+// shows both its level and its place within that level.
+const meter = (n, part = 1) => `<span class="meter" role="img" aria-label="Danger level ${n} of 5">${[1, 2, 3, 4, 5].map(i =>
+  i < n || (i === n && part >= 1) ? '<i class="on"></i>' : i === n ? `<i style="--p:${Math.round(part * 100)}%"></i>` : "<i></i>").join("")}</span>`;
 const book = document.getElementById("book");
 
 // The land shapes are drawn once and reused by every food's map.
@@ -546,7 +551,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1 class="${e.name.length > 18 ? "long" : ""}">${e.name}</h1><div class="sci">${e.sci}</div></header>`,
         danger: `<div class="danger-box" style="background:var(--d${e.danger})">
           <div class="lvl">${e.danger}<small>of 5</small></div>
-          <div><div class="sk">${meter(e.danger)}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
+          <div><div class="sk">${meter(e.danger, place(e))}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
         </div>`,
         photo: p.thumb ? `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : "",
@@ -572,7 +577,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       const [o1, o2] = LAYOUTS[foodNo++ % LAYOUTS.length];
       page("entry sheet s1", o1.map(k => one[k]).join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
       page("entry sheet s2", `
-        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
+        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger, place(e))} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
         ${o2.map(k => two[k]).join("\n")}
         <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
     }
