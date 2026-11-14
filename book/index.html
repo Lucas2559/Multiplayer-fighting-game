@@ -33,17 +33,27 @@
   .toolbar a.on { opacity: 1; font-weight: 700; text-decoration: underline; }
   .toolbar button { font: inherit; background: #fbf7ef; color: #2a2622; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 
-  /* Cover: title, a photo collage with one food per danger level, and the level scale */
-  /* Cover: a plain book cover. Title and subtitle on a dark background, one big photo below. */
-  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; padding: 0 !important; overflow: hidden;
-    background: #1c1916 !important; color: #f4ecdc; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
+  /* Cover: the trailer's opening scene. Title, the question, four harmless-looking foods
+     each stamped with a red skull, and the answer: "All of them." */
+  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 24px 48px !important; overflow: hidden;
+    background: radial-gradient(circle at 50% 55%, #3a2a22, #120e0b 78%) !important; color: #f4ecdc; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* keep the dark cover when printed */
   .cover::before, .cover::after { display: none !important; }
-  .cover-top { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 40px 48px; }
-  .cover h1 { font: 700 72px/1.02 Fraunces, Georgia, serif; letter-spacing: -.01em; color: #f4ecdc; margin: 0; }
+  .cover h1 { font: 700 64px/1.02 Fraunces, Georgia, serif; letter-spacing: -.01em; color: #f4ecdc; margin: 0; }
   .cover .rule { width: 90px; height: 3px; background: #d9573f; margin: 0 auto; border: 0; }
-  .cover h2 { font: italic 400 27px/1.3 Fraunces, Georgia, serif; color: #d9c9ab; margin: 0; }
-  .cover-photo { display: block; width: 100%; height: auto; flex: none; }
+  .cover .q { font: 700 52px/1.05 Caveat, cursive; color: #fff; margin: 6px 0 0; }
+  .cover-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 30px 40px; max-width: 510px; margin: 0 auto; width: 100%; }
+  .cover-card { position: relative; background: #fff; padding: 10px 10px 42px; box-shadow: 3px 6px 18px rgba(0,0,0,.45); }
+  .cover-card:nth-child(1) { transform: rotate(-4deg); } .cover-card:nth-child(2) { transform: rotate(3deg); }
+  .cover-card:nth-child(3) { transform: rotate(-2deg); } .cover-card:nth-child(4) { transform: rotate(4deg); }
+  .cover-card::before { content: ""; position: absolute; top: -12px; left: 50%; width: 110px; height: 26px; transform: translateX(-50%) rotate(-2deg); background: rgba(255,240,170,.8); z-index: 1; }
+  .cover-card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .cover-card span { position: absolute; left: 0; right: 0; bottom: 4px; font: 700 27px Caveat, cursive; color: #33363b; }
+  .cover-card .stamp { position: absolute; left: 50%; top: 44%; width: 118px; height: 118px; margin: -59px 0 0 -59px; border: 7px solid #d81e1e; border-radius: 50%;
+    background: rgba(255,255,255,.6); color: #d81e1e; display: flex; align-items: center; justify-content: center; transform: rotate(-14deg); z-index: 2; }
+  .cover-card .stamp .ico { width: 66px; height: 66px; stroke-width: 1.7; }
+  .cover-card .stamp .ico .f { fill: rgba(216,30,30,.35); }
+  .cover .all { font: 700 84px/1 Caveat, cursive; color: #ff5a4a; text-shadow: 0 4px 20px rgba(0,0,0,.8); margin: 4px 0 0; }
 
   .front h1 { font-size: 40px; margin-bottom: 20px; }
   .front h2 { font-size: 24px; margin: 32px 0 12px; }
@@ -370,8 +380,14 @@
     .page::before, .page::after { display: none; }
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
     .cover { height: auto; }
-    .cover h1 { font-size: 48px; }
-    .cover-top { padding: 48px 22px; }
+    .cover { padding: 40px 18px !important; gap: 18px; }
+    .cover h1 { font-size: 42px; }
+    .cover .q { font-size: 38px; }
+    .cover-cards { gap: 22px 18px; }
+    .cover-card .stamp { width: 80px; height: 80px; margin: -40px 0 0 -40px; border-width: 5px; }
+    .cover-card .stamp .ico { width: 46px; height: 46px; }
+    .cover-card span { font-size: 21px; }
+    .cover .all { font-size: 60px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
     .illo img { height: 240px; }
@@ -394,7 +410,8 @@
     .divider { min-height: 9in; }
     .cover { height: 9.6in; gap: 8px; }
     .cover h1 { font-size: 54pt; }
-    .cover h2 { font-size: 20pt; }
+    .cover .q { font-size: 34pt; }
+    .cover .all { font-size: 54pt; }
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
     .up1 .up-photo, .up1 .up-photo + figcaption { display: none !important; } /* no room in print */
@@ -639,16 +656,17 @@ function openBook() {
 
 fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
-  // Cover: title, subtitle and one big photo of raw chicken (a dangerous food that's in
-  // most kitchens). The photo is credited with the others at the back.
-  const coverPhoto = EXTRA_PHOTOS[31][1];
+  // Cover: the trailer's opening hook. Four foods that look harmless, each stamped with a skull.
+  // The photos are the entries' own, so they're already credited at the back.
+  const hook = [[26, "Apricot kernels"], [19, "Raw oysters"], [18, "Cassava"], [1, "A wild mushroom"]];
   page("cover", `
-    <div class="cover-top">
-      <h1>The World's Most Dangerous Foods</h1>
-      <hr class="rule">
-      <h2>Some are in your kitchen right now</h2>
+    <h1>The World's Most Dangerous Foods</h1>
+    <hr class="rule">
+    <p class="q">Which of these foods could kill you?</p>
+    <div class="cover-cards">${hook.map(([r, label]) => `
+      <div class="cover-card"><img src="${photo(ENTRIES.find(e => e.rank === r)).thumb}" alt="${label}"><span>${label}</span><div class="stamp">${icon("skull")}</div></div>`).join("")}
     </div>
-    <img class="cover-photo" src="${coverPhoto.thumb}" alt="Raw chicken legs on a tray">`);
+    <p class="all">All of them.</p>`);
 
   page("front", `
     <h1>Before You Read</h1>
