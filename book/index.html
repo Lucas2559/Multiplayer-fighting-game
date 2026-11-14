@@ -34,21 +34,34 @@
   .toolbar button { font: inherit; background: #fbf7ef; color: #2a2622; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 
   /* Cover: title, a photo collage with one food per danger level, and the level scale */
-  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
-  .cover .kicker { letter-spacing: .25em; text-transform: uppercase; color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .cover h1 { font-size: 76px; font-weight: 900; line-height: 1; }
-  .cover h2 { font-size: 28px; font-weight: 400; color: var(--accent); margin-top: -2px; }
-  .cover-grid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 1.6fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; margin: 8px 0 2px; }
-  .cover-grid .illo { margin: 0; }
-  .cover-grid .illo:first-child { grid-row: span 2; }
-  .cover-grid .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
-  .cover-grid .tag { position: absolute; left: var(--illo-pad, 0); right: var(--illo-pad, 0); bottom: var(--illo-pad, 0); z-index: 1; margin: 0; color: #fff; font: 700 13px/1.25 var(--body); text-align: left; padding: 6px 9px; }
-  .cover-grid .illo:first-child .tag { font-size: 16px; padding: 8px 12px; }
-  .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); }
-  .scale-bar span { padding: 7px 4px; }
-  .scale-bar small { display: block; font-size: 15px; letter-spacing: 1px; }
-  .cover .tagline { margin: 2px 0 0; font-size: 19px; }
-  .cover .byline { color: var(--muted); font-size: 15px; }
+  /* Cover: a dark field-guide cover inside a cream frame */
+  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; color: #f2e6cc;
+    background: radial-gradient(circle at 50% 38%, #3b2c22, #1d1713 78%) !important; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* keep the dark cover when printed */
+  .cover::before, .cover::after { opacity: .55; filter: brightness(1.6); }
+  .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; border: 3px double #cdb994; padding: 18px 22px 14px; }
+  .cover .kicker { letter-spacing: .3em; text-transform: uppercase; color: #cdb994; font-size: 13px; }
+  .cover h1 { font-size: 84px; font-weight: 700; line-height: .95; color: #f2e6cc; margin-top: 2px; }
+  .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
+  .cover h2 { font-size: 34px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
+  .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 10px 26px 4px; }
+  .cover .illo { margin: 0; flex: 1; display: flex; flex-direction: column; background: #fff; padding: 9px 9px 0; }
+  .cover .illo img { position: static; flex: 1; min-height: 0; width: 100%; height: auto; object-fit: cover; }
+  .cover .illo figcaption { font: 700 18px/1.2 Caveat, cursive; color: #33363b; padding: 5px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-align: center; }
+  .cover .illo.hero figcaption { font-size: 26px; }
+  .cover-row .illo figcaption { font-size: 16px; padding: 4px 2px 5px; }
+  .cover .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .cover .stamp { position: absolute; right: -10px; top: 18px; transform: rotate(12deg); border: 4px solid #e0533d; color: #e0533d; background: rgba(255,250,240,.88);
+    font: 700 34px/1 Caveat, cursive; padding: 6px 14px 4px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
+  .cover-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; height: 170px; margin: 6px 4px 4px; }
+  .cover-row .illo, .cover-hero .illo { min-height: 0; min-width: 0; }
+  .cover-row .illo:nth-child(odd) { transform: rotate(-2deg); } .cover-row .illo:nth-child(even) { transform: rotate(2deg); }
+  .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); margin-top: 6px; }
+  .scale-bar span { padding: 6px 4px; }
+  .scale-bar small { display: block; font-size: 11px; letter-spacing: 0; margin-bottom: 2px; }
+  .cover .tagline { margin: 4px 0 0; font: 700 27px/1.15 Caveat, cursive; color: #f2e6cc; white-space: nowrap; }
+  .cover .tagline b { color: #ff8a6a; }
+  .cover .byline { color: #cdb994; font-size: 14px; }
 
   .front h1 { font-size: 40px; margin-bottom: 20px; }
   .front h2 { font-size: 24px; margin: 32px 0 12px; }
@@ -290,8 +303,8 @@
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
     .cover { height: auto; }
     .cover h1 { font-size: 48px; }
-    .cover-grid { flex: none; height: 420px; grid-template-columns: 1fr 1fr; grid-template-rows: 2fr 1fr 1fr; }
-    .cover-grid .illo:first-child { grid-row: auto; grid-column: span 2; }
+    .cover-hero { flex: none; height: 360px; margin: 10px 0 4px; }
+    .cover-row { grid-template-columns: 1fr 1fr; height: 300px; }
     .scale-bar { font-size: 10px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
@@ -446,18 +459,23 @@ function openBook() {
 
 fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
-  // The most dangerous food from each level, deadliest first (it gets the big tile).
-  const coverFoods = LEVELS.map(n => atLevel(n).at(-1)).filter(Boolean).reverse();
+  // Cover: the deadliest food is the big photo; one food from each other level sits below it.
+  const byRank = r => ENTRIES.find(e => e.rank === r);
+  const hero = byRank(1), row = [46, 33, 28, 11].map(byRank).filter(Boolean);
+  const tile = (e, cls) => `<figure class="illo ${cls}"><img src="${photo(e).thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
 
   page("cover", `
-    <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
-    <h1>A Guide to Foods</h1>
-    <h2>The World's Most Dangerous Foods</h2>
-    <div class="cover-grid">${coverFoods.map(e => { const p = photo(e); return `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"><figcaption class="tag" style="background:var(--d${e.danger})">${skulls(e.danger)} ${e.name}</figcaption></figure>`; }).join("")}</div>
-    <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${n}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
-    <p class="tagline">From mild to deadly: what not to eat, and why.</p>
-    <div class="byline">By ____________________</div>
-    <div class="byline">Class: ____________________ &nbsp; Date: ____________</div>`);
+    <div class="cover-frame">
+      <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
+      <h1>A Guide to Foods</h1>
+      <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
+      <h2>The World's Most Dangerous Foods</h2>
+      <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">💀 Deadly</div></div>
+      <div class="cover-row">${row.map(e => tile(e, "small")).join("")}</div>
+      <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${skulls(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
+      <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
+      <div class="byline">By ____________________ &nbsp; Class: ______________ &nbsp; Date: __________</div>
+    </div>`);
 
   page("front", `
     <h1>Before You Read</h1>
