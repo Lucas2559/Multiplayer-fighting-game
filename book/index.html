@@ -34,33 +34,16 @@
   .toolbar button { font: inherit; background: #fbf7ef; color: #2a2622; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 
   /* Cover: title, a photo collage with one food per danger level, and the level scale */
-  /* Cover: a dark field-guide cover inside a cream frame */
-  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; color: #f2e6cc;
-    background: radial-gradient(circle at 50% 38%, #3b2c22, #1d1713 78%) !important; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
+  /* Cover: a plain book cover. Title and subtitle on a dark background, one big photo below. */
+  .cover { text-align: center; height: 1100px; display: flex; flex-direction: column; padding: 0 !important; overflow: hidden;
+    background: #1c1916 !important; color: #f4ecdc; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* keep the dark cover when printed */
-  .cover::before, .cover::after { opacity: .55; filter: brightness(1.6); }
-  .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; border: 3px double #cdb994; padding: 14px 16px 12px; }
-  .cover .kicker { letter-spacing: .3em; text-transform: uppercase; color: #cdb994; font-size: 13px; }
-  .cover h1 { font-size: 66px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
-  .cover .also { font: 700 26px/1 Caveat, cursive; color: #cdb994; margin: 0; }
-  .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
-  .cover h2 { font-size: 28px; font-weight: 700; color: #ff8a6a; margin-top: -4px; }
-  .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 8px 0 2px; }
-  .cover .illo { margin: 0; flex: 1; display: flex; flex-direction: column; background: #fff; padding: 9px 9px 0; }
-  .cover .illo img { position: static; flex: 1; min-height: 0; width: 100%; height: auto; object-fit: cover; }
-  .cover .illo figcaption { font: 700 18px/1.2 Caveat, cursive; color: #33363b; padding: 5px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-align: center; }
-  .cover .illo.hero figcaption { font-size: 26px; }
-  .cover .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-  .cover .stamp { position: absolute; right: -10px; top: 18px; transform: rotate(12deg); border: 4px solid #e0533d; color: #e0533d; background: rgba(255,250,240,.88);
-    font: 700 34px/1 Caveat, cursive; padding: 6px 14px 4px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
-  .cover-hero .illo { min-height: 0; min-width: 0; }
-  .cover .illo::before { display: none; } /* no tape on the cover photos */
-  .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); margin-top: 6px; }
-  .scale-bar span { padding: 6px 4px; }
-  .scale-bar small { display: block; font-size: 11px; letter-spacing: 0; margin-bottom: 2px; }
-  .cover .tagline { margin: 4px 0 0; font: 700 27px/1.15 Caveat, cursive; color: #f2e6cc; white-space: nowrap; }
-  .cover .tagline b { color: #ff8a6a; }
-  .cover .byline { color: #cdb994; font-size: 14px; }
+  .cover::before, .cover::after { display: none !important; }
+  .cover-top { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 40px 48px; }
+  .cover h1 { font: 700 72px/1.02 Fraunces, Georgia, serif; letter-spacing: -.01em; color: #f4ecdc; margin: 0; }
+  .cover .rule { width: 90px; height: 3px; background: #d9573f; margin: 0 auto; border: 0; }
+  .cover h2 { font: italic 400 27px/1.3 Fraunces, Georgia, serif; color: #d9c9ab; margin: 0; }
+  .cover-photo { display: block; width: 100%; height: auto; flex: none; }
 
   .front h1 { font-size: 40px; margin-bottom: 20px; }
   .front h2 { font-size: 24px; margin: 32px 0 12px; }
@@ -72,7 +55,6 @@
     background: linear-gradient(90deg, currentColor var(--p, 0%), color-mix(in srgb, currentColor 28%, transparent) var(--p, 0%)); }
   .meter i.on { background: currentColor; }
   .level-list h2 .meter, .toc-level .meter { font-size: 18px; margin-right: 6px; }
-  .scale-bar .meter { font-size: 13px; }
   .danger-strip .meter { font-size: 13px; margin-right: 4px; }
   .callout { border-left: 4px solid var(--accent); background: var(--tag); padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0; }
   .toc { columns: 2; column-gap: 32px; padding: 0; list-style: none; margin: 0; }
@@ -389,9 +371,7 @@
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
     .cover { height: auto; }
     .cover h1 { font-size: 48px; }
-    .cover-hero { flex: none; height: 440px; margin: 8px 0 2px; }
-    .cover .tagline { white-space: normal; }
-    .scale-bar { font-size: 10px; }
+    .cover-top { padding: 48px 22px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
     .illo img { height: 240px; }
@@ -659,24 +639,16 @@ function openBook() {
 
 fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})).then(IMG => {
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
-  // Cover: the deadliest food is the big photo; one food from each other level sits below it.
-  const byRank = r => ENTRIES.find(e => e.rank === r);
-  // The cover photo is raw chicken, to match "Some are in your kitchen right now".
-  const hero = byRank(31), heroPhoto = EXTRA_PHOTOS[31][1];
-  const tile = (e, cls, p = photo(e)) => `<figure class="illo ${cls}"><img src="${p.thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
-
+  // Cover: title, subtitle and one big photo of raw chicken (a dangerous food that's in
+  // most kitchens). The photo is credited with the others at the back.
+  const coverPhoto = EXTRA_PHOTOS[31][1];
   page("cover", `
-    <div class="cover-frame">
-      <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
-      <h1>The World's Most <br>Dangerous Foods</h1>
-      <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
-      <div class="also">…and the plants that pretend to be food</div>
+    <div class="cover-top">
+      <h1>The World's Most Dangerous Foods</h1>
+      <hr class="rule">
       <h2>Some are in your kitchen right now</h2>
-      <div class="cover-hero">${tile(hero, "hero", heroPhoto)}<div class="stamp">Danger</div></div>
-      <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
-      <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
-      <div class="byline">By ____________________ &nbsp; Date: __________</div>
-    </div>`);
+    </div>
+    <img class="cover-photo" src="${coverPhoto.thumb}" alt="Raw chicken legs on a tray">`);
 
   page("front", `
     <h1>Before You Read</h1>
