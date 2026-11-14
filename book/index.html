@@ -474,7 +474,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <div class="cover-row">${row.map(e => tile(e, "small")).join("")}</div>
       <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${skulls(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
-      <div class="byline">By ____________________ &nbsp; Class: ______________ &nbsp; Date: __________</div>
+      <div class="byline">By ____________________ &nbsp; Date: __________</div>
     </div>`);
 
   page("front", `
