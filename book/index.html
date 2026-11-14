@@ -178,7 +178,7 @@
   .s1 .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
   /* Text pages have room to spare now that the photos have their own page: bigger text, spread out. */
   .sheet.s2 { gap: 16px; }
-  .sheet.s2 > .bubble, .sheet.s2 > .quick { font-size: 1.2em; }
+  .sheet.s2 > .bubble, .sheet.s2 > .quick { font-size: var(--txt, 1.1em); }
   .sheet.s2 > .bubble { margin-bottom: 0 !important; }
   .sheet.s2 > :not(.danger-strip) { margin-top: auto !important; }
   .sheet.s1 .more-photos { flex-grow: 2; }
@@ -378,6 +378,7 @@
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
     .illo img { height: 240px; }
     .sheet { min-height: 0; }
+    .page.blank { display: none; }
     .s1 .illo { flex: none; height: 240px; }
     .more-photos { flex: none; height: 160px; }
     .sheet.up .up-photo, .sheet.up1 .up-photo { flex: none; height: 220px; }
@@ -390,7 +391,7 @@
     .page.off { display: block; }
     .cover.off, .divider.off, .sheet.off { display: flex; }
     body { background: #fff; font-size: 12pt; }
-    .toolbar, .print-btn { display: none; }
+    .toolbar, .print-btn, .page.blank { display: none !important; }
     .page { box-shadow: none !important; margin: 0; max-width: none; padding: 0 var(--print-side, 0); break-after: page; border-radius: 0; }
     .divider { min-height: 9in; }
     .cover { height: 9.6in; gap: 8px; }
@@ -493,7 +494,10 @@ function openBook() {
   for (let i = 0; i < pages.length;) {
     const p = pages[i];
     if (p.classList.contains("cover")) { spreads.push([p]); i++; }
-    else { spreads.push([p, pages[i + 1]].filter(Boolean)); i += 2; }
+    else if (!pages[i + 1]?.classList.contains("new-spread")) { spreads.push([p, pages[i + 1]].filter(Boolean)); i += 2; }
+    // A new level (or the back of the book) always starts on a left page. If that would
+    // leave this page alone, an empty page sits beside it on screen. It isn't printed.
+    else { spreads.push([p, page("blank", "")]); i++; }
   }
   spreads.forEach(s => { if (s.length === 2) s[0].classList.add("left"); });
   const spread = document.createElement("div");
@@ -672,19 +676,20 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     ${DAILY.slice(2).map(dailySection).join("")}
     <div class="callout"><b>The rule for everything in this book:</b> if you're not sure a food is safe, don't eat it. Ask an adult, and call poison control if someone feels sick: <b>1-800-222-1222</b> (US).</div>`);
 
-  // Each food is two spreads: a photo page (title, danger level and all its photos, big),
-  // then three text pages. Orders, one per food in turn: [text page 1, 2, 3].
+  // Each food is three pages: a photo page (title, danger level and all its photos, big),
+  // then two text pages. Orders, one per food in turn: [text page 1, 2].
   const LAYOUTS = [
-    [["quick", "what", "named", "where"], ["poison", "sick"], ["safe", "fun"]],
-    [["what", "quick", "where", "named"], ["poison", "sick"], ["safe", "fun"]],
-    [["what", "quick", "named", "where"], ["poison", "sick"], ["safe", "fun"]],
-    [["what", "named", "quick", "where"], ["poison", "sick"], ["safe", "fun"]],
-    [["quick", "where", "what", "named"], ["poison", "sick"], ["safe", "fun"]],
+    [["quick", "what", "named", "where", "poison"], ["sick", "safe", "fun"]],
+    [["what", "quick", "where", "named", "poison"], ["sick", "safe", "fun"]],
+    [["what", "quick", "named", "where", "poison"], ["sick", "safe", "fun"]],
+    [["what", "named", "quick", "where", "poison"], ["sick", "safe", "fun"]],
+    [["quick", "where", "what", "named", "poison"], ["sick", "safe", "fun"]],
   ];
+
   let foodNo = 0;
   for (const n of LEVELS) {
     const group = atLevel(n);
-    page("divider", `
+    page("divider new-spread", `
       <div class="sk">${meter(n)}</div>
       <h1 id="level${n}">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</h1>
       <p>${DANGER[n][0].toUpperCase() + DANGER[n].slice(1)}</p>
@@ -764,7 +769,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     }
   }
 
-  page("front", `
+  page("front new-spread", `
     <h1 id="wild">🌲 Out in the Wild: A Guide for Campers</h1>
     <p>Nature isn't a grocery store. Many deadly plants and mushrooms look like safe ones, and some of the most dangerous ones in this book grow near trails, streams, and campsites.</p>
     <div class="callout"><b>The golden rule:</b> never eat any wild plant, berry, or mushroom unless an expert has identified it for you. If you're not 100% sure, don't eat it.</div>
