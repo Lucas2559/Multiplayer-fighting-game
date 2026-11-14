@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A Guide to Foods</title>
+<title>The World's Most Dangerous Foods</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bangers&family=Caveat:wght@500;700&family=Comic+Neue:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,600&family=IM+Fell+English:ital@0;1&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
@@ -41,15 +41,17 @@
   .cover::before, .cover::after { opacity: .55; filter: brightness(1.6); }
   .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; border: 3px double #cdb994; padding: 18px 22px 14px; }
   .cover .kicker { letter-spacing: .3em; text-transform: uppercase; color: #cdb994; font-size: 13px; }
-  .cover h1 { font-size: 84px; font-weight: 700; line-height: .95; color: #f2e6cc; margin-top: 2px; }
+  .cover h1 { font-size: 74px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
   .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
-  .cover h2 { font-size: 34px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
+  .cover h2 { font-size: 30px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
+  .cover .row-label { font: 700 24px/1 Caveat, cursive; color: #f2e6cc; text-align: left; margin: 2px 6px -4px; }
   .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 10px 26px 4px; }
   .cover .illo { margin: 0; flex: 1; display: flex; flex-direction: column; background: #fff; padding: 9px 9px 0; }
   .cover .illo img { position: static; flex: 1; min-height: 0; width: 100%; height: auto; object-fit: cover; }
   .cover .illo figcaption { font: 700 18px/1.2 Caveat, cursive; color: #33363b; padding: 5px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-align: center; }
   .cover .illo.hero figcaption { font-size: 26px; }
-  .cover-row .illo figcaption { font-size: 16px; padding: 4px 2px 5px; }
+  .cover-row .illo figcaption { font-size: 15px; padding: 4px 1px 5px; letter-spacing: -.01em; }
+  .cover-row .dot { margin-right: 4px; }
   .cover .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
   .cover .stamp { position: absolute; right: -10px; top: 18px; transform: rotate(12deg); border: 4px solid #e0533d; color: #e0533d; background: rgba(255,250,240,.88);
     font: 700 34px/1 Caveat, cursive; padding: 6px 14px 4px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
@@ -344,6 +346,7 @@
     .cover { height: 9.6in; gap: 8px; }
     .cover h1 { font-size: 54pt; }
     .cover h2 { font-size: 20pt; }
+    .cover-row .illo figcaption { font-size: 13px; }
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
     .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
@@ -384,7 +387,7 @@
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
   ? new URLSearchParams(location.search).get("style") : "sketch";
 document.body.classList.add("s-" + styleKey);
-document.title = "A Guide to Foods";
+document.title = "The World's Most Dangerous Foods";
 
 // The whole book now uses one design; the others stay reachable with ?style=.
 
@@ -490,16 +493,18 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
   // Cover: the deadliest food is the big photo; one food from each other level sits below it.
   const byRank = r => ENTRIES.find(e => e.rank === r);
-  const hero = byRank(1), row = [46, 33, 28, 11].map(byRank).filter(Boolean);
+  // The row shows everyday foods, so readers see this isn't only about rare, exotic things.
+  const hero = byRank(1), row = [36, 37, 22, 20].map(byRank).filter(Boolean);
   const tile = (e, cls) => `<figure class="illo ${cls}"><img src="${photo(e).thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
 
   page("cover", `
     <div class="cover-frame">
       <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
-      <h1>A Guide to Foods</h1>
+      <h1>The World's Most <br>Dangerous Foods</h1>
       <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
-      <h2>The World's Most Dangerous Foods</h2>
+      <h2>From mild to deadly: what not to eat, and why</h2>
       <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">Deadly</div></div>
+      <div class="row-label">Some are in your kitchen right now:</div>
       <div class="cover-row">${row.map(e => tile(e, "small")).join("")}</div>
       <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
