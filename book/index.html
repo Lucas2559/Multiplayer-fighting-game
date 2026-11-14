@@ -94,6 +94,15 @@
   .danger-box .lvl small { display: block; font: 700 11px/1.4 var(--body); letter-spacing: .15em; text-transform: uppercase; opacity: .85; }
   .danger-box .sk { font-size: 25px; margin-bottom: 2px; }
   .danger-box p { margin: 4px 0 0; }
+  .danger-box .dz { flex: 1; min-width: 0; }
+  .risks { margin-top: 4px; font-size: .78em; line-height: 1.22; }
+  .risks .if { font-weight: 700; opacity: .92; margin-bottom: 2px; }
+  .risk { display: grid; grid-template-columns: 10.6em 1fr 3em; gap: 8px; align-items: center; white-space: nowrap; }
+  .risk .track { height: .7em; border-radius: 99px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .risk .track span { display: block; height: 100%; border-radius: 99px; background: #fff; }
+  .risk .pct { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .risk.est .track span { background: repeating-linear-gradient(135deg, #fff 0 5px, rgba(255,255,255,.55) 5px 8px); }
+  .danger-box .key { float: right; font-size: .7em; opacity: .85; margin-top: .3em; }
   .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .pill { background: var(--tag); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
   .pill.wild { background: #e2ecd6; }
@@ -278,7 +287,7 @@
     .book-mode.s-vintage .page { font-size: 20px; }
     .book-mode .page.off { display: none; }
     .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.34; }
-    .book-mode .s1 .illo { flex: 1 1 0; min-height: 112px; margin-bottom: 14px; }
+    .book-mode .s1 .illo { flex: 1 1 0; min-height: 98px; margin-bottom: 14px; }
     .book-mode .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
     .book-mode .where { grid-template-columns: 330px 1fr; gap: 12px; }
     .book-mode .more-photos { flex: 1 1 0; min-height: 90px; }
@@ -370,6 +379,7 @@
 <script src="map.js"></script>
 <script src="countries.js"></script>
 <script src="photos.js"></script>
+<script src="risks.js"></script>
 <script>
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
   ? new URLSearchParams(location.search).get("style") : "sketch";
@@ -392,7 +402,13 @@ const LEVELS = [1, 2, 3, 4, 5];
 ENTRIES.forEach(e => { if (EASY[e.rank]) { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); } });
 const atLevel = n => ENTRIES.filter(e => e.danger === n).sort((a, b) => b.rank - a.rank);
 const ORDERED = LEVELS.flatMap(atLevel);
-const place = e => { const g = atLevel(e.danger); return (g.indexOf(e) + 1) / g.length; };
+// "What could happen": one bar per bad outcome, filled to its chance (risks.js).
+const risks = e => {
+  const r = typeof RISKS !== "undefined" && RISKS[e.rank];
+  if (!r) return "";
+  return `<div class="risks"><div class="if">${r.scenario}:</div>${r.outcomes.map(o => `<div class="risk${o.est ? " est" : ""}">
+    <span class="lbl">${o.label}</span><span class="track"><span style="width:${Math.max(o.pct, 1.5)}%"></span></span><span class="pct">${o.pct <= 1 ? "<1" : "~" + o.pct}%</span></div>`).join("")}</div>`;
+};
 // Danger level as a 5-segment bar in the surrounding text color. The first n - 1
 // segments are full; segment n is filled by `part` (0 to 1), so a food's bar
 // shows both its level and its place within that level.
@@ -551,7 +567,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1 class="${e.name.length > 18 ? "long" : ""}">${e.name}</h1><div class="sci">${e.sci}</div></header>`,
         danger: `<div class="danger-box" style="background:var(--d${e.danger})">
           <div class="lvl">${e.danger}<small>of 5</small></div>
-          <div><div class="sk">${meter(e.danger, place(e))}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
+          <div class="dz"><b>Danger level: ${LEVEL_NAME[e.danger]}.</b>${RISKS[e.rank]?.outcomes.some(o => o.est) ? `<span class="key">Striped = rough estimate</span>` : ""}${risks(e) || `<p>${e.why}</p>`}</div>
         </div>`,
         photo: p.thumb ? `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : "",
@@ -577,7 +593,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       const [o1, o2] = LAYOUTS[foodNo++ % LAYOUTS.length];
       page("entry sheet s1", o1.map(k => one[k]).join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
       page("entry sheet s2", `
-        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger, place(e))} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
+        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
         ${o2.map(k => two[k]).join("\n")}
         <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
     }
@@ -599,7 +615,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
 
   // Sources and photo credits don't fit on one page, so split them into
   // fixed-size chunks, each on its own page.
-  const sourceItems = [...new Map(ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank]]).map(s => [s[1], s])).values()]
+  const riskSources = e => ((typeof RISKS !== "undefined" && RISKS[e.rank]?.sources) || []).map(u => [`Danger chances: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
+  const sourceItems = [...new Map(ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e)]).map(s => [s[1], s])).values()]
     .map(([t, u]) => `<li><a href="${u}">${t}</a></li>`);
   const creditItems = ORDERED.flatMap(e => [photo(e), ...EXTRA_PHOTOS[e.rank]].filter(q => q.file)
     .map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`));
