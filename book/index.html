@@ -805,14 +805,14 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         pg.style.setProperty("--lvl", `var(--d${e.danger})`);
         if (m) pg.extra = i === 0 ? { list: ".more-list", items: m.p2 } : { list: ".fun-list", items: m.p3 };
       });
-      // The deadliest foods get an extra "Up Close" spread (upclose.js).
+      // The deadliest foods, and the everyday ones, get an extra "Up Close" spread (upclose.js).
       const u = typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank];
       if (u) {
         const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>🔍 Up Close</span><span>#${e.rank} ${e.name}</span></div>`;
         page("entry sheet up up1", `${strip}
           <h1 class="up-title">Up Close: ${e.name}</h1>
-          ${bubble(0, "📖", `A true story: ${u.story.title}`, `<p>${u.story.text}</p>`)}
-          ${bubble(1, "🔬", "How the poison works", `<ol class="steps">${u.how.map(s => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`).join("")}</ol>`)}
+          ${bubble(0, "📖", `${u.storyLabel || "A true story"}: ${u.story.title}`, `<p>${u.story.text}</p>`)}
+          ${bubble(1, "🔬", u.howTitle || "How the poison works", `<ol class="steps">${u.how.map(s => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`).join("")}</ol>`)}
           ${u.lookalikes ? bubble(2, "👀", "Don't mix it up with", `<p>${u.lookalikes}</p>`) : ""}
           ${(q => q ? `<figure class="illo up-photo"><img src="${q.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${q.artist}, ${q.license}, via Wikimedia Commons</figcaption>` : "")(EXTRA_PHOTOS[e.rank][0])}`).style.setProperty("--lvl", `var(--d${e.danger})`);
