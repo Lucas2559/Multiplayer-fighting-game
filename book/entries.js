@@ -80,7 +80,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Mad honey\"", "https://en.wikipedia.org/wiki/Mad_honey"]]
 },
 {
-  rank: 30, name: "Sannakji (Live Octopus)", sci: "Octopus minor", danger: 2, type: "Animal (seafood)", img: "San-nakji", wild: false,
+  rank: 30, name: "Live Octopus (Sannakji)", sci: "Octopus minor", danger: 2, type: "Animal (seafood)", img: "San-nakji", wild: false,
   why: "Choking can kill. It's rare, and chewing well lowers the risk.",
   where: "Sannakji is a Korean dish. A small octopus is cut into pieces while it's alive and served right away with sesame oil. The pieces are still wriggling on the plate!",
   poison: "Sannakji isn't poisonous. Its danger is <b>choking</b>. The suction cups on the tentacles can still grab on, and they can stick to the inside of the mouth or throat.",
@@ -135,7 +135,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Almond\"", "https://en.wikipedia.org/wiki/Almond"]]
 },
 {
-  rank: 22, name: "Honey (for Babies)", sci: "Clostridium botulinum spores", danger: 3, type: "Animal product (honey)", img: "Honey", wild: false,
+  rank: 22, name: "Honey for Babies Under 1", sci: "Clostridium botulinum spores", danger: 3, type: "Animal product (honey)", img: "Honey", wild: false,
   why: "It can be deadly for babies, but most recover with hospital care. It's safe for everyone over 1 year old.",
   where: "Honey is safe and delicious for older kids and adults all over the world. But it's dangerous for babies under 1 year old.",
   poison: "Honey can contain tiny, sleeping spores of bacteria called <b>Clostridium botulinum</b>. Older children and adults have gut bacteria that stop the spores from growing. A baby's gut doesn't have that protection yet, so the spores can grow and make <b>botulinum toxin</b>. This causes a sickness called <b>infant botulism</b>.",
@@ -168,7 +168,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Phytolacca americana\"", "https://en.wikipedia.org/wiki/Phytolacca_americana"]]
 },
 {
-  rank: 23, name: "Ciguatera Fish (e.g. Barracuda)", sci: "Sphyraena barracuda and others", danger: 3, type: "Animal (fish)", img: "Great_barracuda", wild: false,
+  rank: 23, name: "Barracuda and Other Reef Fish", sci: "Sphyraena barracuda and others", danger: 3, type: "Animal (fish)", img: "Great_barracuda", wild: false,
   why: "It's very common and symptoms can last for months, but it's rarely deadly.",
   where: "Ciguatera (see-gwah-TER-uh) poisoning comes from big fish that live around warm tropical coral reefs, such as barracuda, grouper, snapper, and amberjack. It's most common in the Caribbean, the Pacific Islands, and the Indian Ocean.",
   poison: "Tiny algae on coral reefs make <b>ciguatoxin</b>. Small fish eat the algae, and bigger fish eat the small fish, so the toxin builds up in large predators. The fish looks, smells, and tastes normal, and cooking or freezing doesn't destroy the toxin.",
@@ -223,7 +223,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Chelonitoxism\"", "https://en.wikipedia.org/wiki/Chelonitoxism"]]
 },
 {
-  rank: 14, name: "Fesikh (Fermented Fish)", sci: "Mugil cephalus", danger: 4, type: "Animal (fish)", img: "Fesikh", wild: false,
+  rank: 14, name: "Fermented Fish (Fesikh)", sci: "Mugil cephalus", danger: 4, type: "Animal (fish)", img: "Fesikh", wild: false,
   why: "Botulism can stop a person's breathing, and outbreaks have killed people.",
   where: "Fesikh (feh-SEEKH) is a traditional Egyptian dish of salted, fermented grey mullet fish. Egyptians eat it to celebrate Sham el-Nessim, an ancient spring festival.",
   poison: "To make fesikh, fish is dried in the sun and then packed in salt for weeks. If it isn't done carefully, bacteria called <i>Clostridium botulinum</i> can grow and make <b>botulinum toxin</b>, which causes <b>botulism</b>.",
@@ -366,7 +366,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Cashew\"", "https://en.wikipedia.org/wiki/Cashew"]]
 },
 {
-  rank: 47, name: "Hákarl (Fermented Shark)", sci: "Somniosus microcephalus", danger: 1, type: "Animal (fish)", img: "Hákarl", wild: false,
+  rank: 47, name: "Fermented Shark (Hákarl)", sci: "Somniosus microcephalus", danger: 1, type: "Animal (fish)", img: "Hákarl", wild: false,
   why: "Only fresh, unfermented shark meat is risky, and the traditional process makes it safe.",
   where: "Hákarl (HOW-karl) is a traditional Icelandic food made from the Greenland shark. People eat it in small cubes, especially during Þorrablót, a midwinter festival.",
   poison: "Fresh Greenland shark meat contains a chemical called <b>trimethylamine N-oxide</b>. When it's digested, it can make people and animals act drunk and sick.",
@@ -388,7 +388,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Carolina Reaper\"", "https://en.wikipedia.org/wiki/Carolina_Reaper"]]
 },
 {
-  rank: 44, name: "Casu Marzu (Maggot Cheese)", sci: "Made with cheese fly larvae (Piophila casei)", danger: 2, type: "Animal product (cheese)", img: "Casu_marzu", wild: false,
+  rank: 44, name: "Maggot Cheese (Casu Marzu)", sci: "Made with cheese fly larvae (Piophila casei)", danger: 2, type: "Animal product (cheese)", img: "Casu_marzu", wild: false,
   why: "Live maggots might cause allergic reactions and stomach problems, but no serious case has been confirmed.",
   where: "Casu marzu is a traditional sheep's milk cheese from the island of Sardinia, in Italy. Its name means \"rotten cheese.\"",
   poison: "Cheese makers let flies lay eggs in the cheese on purpose. The maggots (fly larvae) that hatch break down the cheese and make it very soft. People eat it with the <b>live maggots</b> still inside.",
@@ -399,7 +399,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Casu marzu\"", "https://en.wikipedia.org/wiki/Casu_marzu"]]
 },
 {
-  rank: 41, name: "Swordfish (Mercury)", sci: "Xiphias gladius", danger: 2, type: "Animal (fish)", img: "Swordfish", wild: false,
+  rank: 41, name: "Swordfish (High in Mercury)", sci: "Xiphias gladius", danger: 2, type: "Animal (fish)", img: "Swordfish", wild: false,
   why: "The danger builds slowly over time and matters most for babies, young kids, and pregnant women.",
   where: "Swordfish are big, fast ocean fish with a long, flat bill like a sword. They're caught around the world and served as steaks. Other big predator fish, like sharks, king mackerel, and bigeye tuna, have the same problem.",
   poison: "Small amounts of <b>mercury</b> end up in the ocean, where bacteria turn it into <b>methylmercury</b>. Tiny creatures absorb it, small fish eat them, and big fish eat the small fish, so it builds up in large predators. It can harm the brain and nerves.",
@@ -410,7 +410,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Mercury in fish\"", "https://en.wikipedia.org/wiki/Mercury_in_fish"], ["Wikipedia, \"Minamata disease\"", "https://en.wikipedia.org/wiki/Minamata_disease"]]
 },
 {
-  rank: 40, name: "Grapefruit (with Some Medicines)", sci: "Citrus × paradisi", danger: 2, type: "Plant (fruit)", img: "Grapefruit", wild: false,
+  rank: 40, name: "Grapefruit with Some Medicines", sci: "Citrus × paradisi", danger: 2, type: "Plant (fruit)", img: "Grapefruit", wild: false,
   why: "It's healthy on its own, but with certain medicines it can cause dangerous side effects.",
   where: "Grapefruit is a large, tart citrus fruit that was first found in Barbados in the 1700s. It's popular for breakfast, as a whole fruit or as juice.",
   poison: "Grapefruit contains chemicals called <b>furanocoumarins</b>. They block an enzyme in the gut that normally breaks down many medicines, so more of many medicines gets into the blood than should. With a few medicines, it does the opposite, and they work less well.",
@@ -487,7 +487,7 @@ const ENTRIES = [
   sources: [["Wikipedia, \"Amanita muscaria\"", "https://en.wikipedia.org/wiki/Amanita_muscaria"]]
 },
 {
-  rank: 20, name: "Whole Grapes (for Little Kids)", sci: "Vitis vinifera", danger: 3, type: "Plant (fruit)", img: "Grape", wild: false,
+  rank: 20, name: "Whole Grapes for Kids Under 5", sci: "Vitis vinifera", danger: 3, type: "Plant (fruit)", img: "Grape", wild: false,
   why: "Whole grapes are one of the most common foods that small children choke on.",
   where: "Grapes are one of the most popular fruits in the world, and they're a healthy snack for everyone. But for children 5 and under, whole grapes can be dangerous.",
   poison: "Grapes aren't poisonous. The danger is <b>choking</b>. A grape is just the right size and shape to block a small child's windpipe, and its smooth, squishy skin makes it hard to cough back up.",

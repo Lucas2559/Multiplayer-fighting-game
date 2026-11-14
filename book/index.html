@@ -42,6 +42,7 @@
   .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; border: 3px double #cdb994; padding: 18px 22px 14px; }
   .cover .kicker { letter-spacing: .3em; text-transform: uppercase; color: #cdb994; font-size: 13px; }
   .cover h1 { font-size: 74px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
+  .cover .also { font: 700 28px/1 Caveat, cursive; color: #cdb994; margin: 2px 0 0; }
   .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
   .cover h2 { font-size: 30px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
   .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 10px 26px 4px; }
@@ -119,6 +120,44 @@
   .divider h1 { font-size: 56px; font-weight: 900; }
   .divider p { font-size: 20px; margin: 0; opacity: .9; }
   .wild-list { columns: 3; font-size: .85em; }
+  .explain .lead { margin: 0 0 8px; }
+  .explain h2 { font-size: 30px; margin: 16px 0 6px; }
+  .explain .scale { gap: 4px; }
+  .explain .questions { margin: 6px 0 12px; padding-left: 24px; }
+  .explain .questions li { margin-bottom: 6px; }
+  .explain .danger-box { margin: 8px 0 14px; }
+  .explain .small { font-size: .85em; color: var(--muted); margin-top: 12px; }
+  .dots { display: grid; grid-template-columns: repeat(20, 1fr); gap: 5px; max-width: 380px; margin: 4px 0 8px 24px; }
+  .dots i { aspect-ratio: 1; border-radius: 50%; background: color-mix(in srgb, var(--d5) 22%, transparent); }
+  .dots i.on { background: var(--d5); }
+  .help .lead { margin: 0 0 10px; }
+  .help h2 { font-size: 28px; margin: 14px 0 4px; }
+  .call-list { columns: 2; column-gap: 20px; margin: 0; padding-left: 20px; font-size: .9em; }
+  .help .small { font-size: .85em; color: var(--muted); }
+  .help-table { width: 100%; border-collapse: collapse; font-size: .78em; line-height: 1.2; }
+  .help-table th { text-align: left; background: var(--accent); color: #fff; padding: 5px 8px; }
+  .help-table td { padding: 3px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .help-table small { color: var(--muted); font-size: .85em; }
+  .help-table b + small::before { content: " · "; }
+  .research h2 { font-size: 28px; margin: 14px 0 4px; }
+  .research p { margin: 0 0 6px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0 4px; text-align: center; }
+  .stats span { background: var(--tag); border-radius: 8px; padding: 8px 4px; font-size: .85em; }
+  .stats b { display: block; font: 700 34px/1 var(--num, var(--head)); color: var(--accent); }
+  .up-title { font-size: 46px; margin: 8px 0 12px; line-height: 1; }
+  .steps { margin: 4px 0 0; padding-left: 0; list-style: none; counter-reset: s; }
+  .steps li { counter-increment: s; position: relative; padding-left: 2.1em; margin-bottom: 6px; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: .05em; width: 1.5em; height: 1.5em; border-radius: 50%; background: var(--lvl); color: #fff; font: 700 .85em/1.5em var(--body); text-align: center; }
+  .myths { list-style: none; padding: 0; margin: 4px 0 0; }
+  .myths li { margin-bottom: 10px; }
+  .verdict { display: inline-block; font-size: .8em; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-right: 8px; color: #fff; }
+  .verdict.yes { background: #3c7a3c; } .verdict.no { background: #b8452e; }
+  .up .sources { margin-top: auto; }
+  .sheet.up { display: flex; flex-direction: column; }
+  .sheet.up .up-photo { flex: 1 1 0; min-height: 80px; height: auto; margin: 4px 0 6px; }
+  .sheet.up1 .up-photo { min-height: 0; }
+  .up-photo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
+  .sheet.up figcaption, .book-mode .sheet.up figcaption { margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .daily .lead { margin: 0 0 6px; }
   .daily h2 { font-size: 32px; margin: 22px 0 12px; }
   .daily-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 18px; }
@@ -292,11 +331,11 @@
     .book-mode .page { flex: none; width: 749px; height: 971px; margin: 0; padding: 16px calc(var(--print-side, 0px) + 10px); border-radius: 0; overflow-y: auto; font-size: 19px; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
     .book-mode.s-vintage .page { font-size: 20px; }
     .book-mode .page.off { display: none; }
-    .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.34; }
-    .book-mode .s1 .illo { flex: 1 1 0; min-height: 98px; margin-bottom: 14px; }
+    .book-mode .sheet { min-height: 0; overflow: hidden; line-height: 1.37; }
+    .book-mode .s1 .illo { flex: 1 1 0; min-height: 90px; margin-bottom: 14px; }
     .book-mode .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
     .book-mode .where { grid-template-columns: 330px 1fr; gap: 12px; }
-    .book-mode .more-photos { flex: 1 1 0; min-height: 90px; }
+    .book-mode .more-photos { flex: 1 1 0; min-height: 78px; }
     .book-mode .sheet.s2 figcaption { margin: 3px 0 0; }
     .book-mode .sheet figcaption { margin: -10px 0 8px; }
     .book-mode .entry header { padding-bottom: 8px; margin-bottom: 10px; }
@@ -308,7 +347,7 @@
     .book-mode.s-sketch .bubble, .s-sketch .book-mode .bubble { margin-bottom: 9px; }
     .book-mode .bubble p, .book-mode .bubble ul { margin-bottom: 2px; }
     .book-mode.s-comic .fact { margin-bottom: 18px; }
-    .book-mode .sources { margin-top: 6px; padding-top: 4px; font-size: 12px; line-height: 1.25; }
+    .book-mode .sources { margin-top: 6px; padding-top: 4px; font-size: 13px; line-height: 1.25; }
     .book-mode .divider { min-height: 0; }
     .book-mode .cover { height: 971px; }
     .book-mode .toc li { padding: 0; font-size: 13.5px; line-height: 1.32; }
@@ -334,6 +373,7 @@
     .sheet { min-height: 0; }
     .s1 .illo { flex: none; height: 240px; }
     .more-photos { flex: none; height: 160px; }
+    .sheet.up .up-photo, .sheet.up1 .up-photo { flex: none; height: 220px; }
     .bubble { width: auto !important; margin-left: 0 !important; }
     .where { grid-template-columns: 1fr; }
     .toc, .wild-list { columns: 1; }
@@ -351,6 +391,7 @@
     .cover h2 { font-size: 20pt; }
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
+    .up1 .up-photo, .up1 .up-photo + figcaption { display: none !important; } /* no room in print */
     .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
     .sheet > .bubble:last-child::after { display: none; } /* its tail would poke off the page */
     .sheet figcaption { margin: -10px 0 8px; }
@@ -385,6 +426,8 @@
 <script src="countries.js"></script>
 <script src="photos.js"></script>
 <script src="risks.js"></script>
+<script src="upclose.js"></script>
+<script src="help.js"></script>
 <script>
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
   ? new URLSearchParams(location.search).get("style") : "sketch";
@@ -478,6 +521,16 @@ function openBook() {
     const free = innerHeight - nav.offsetHeight - 16;
     spread.style.setProperty("--z", Math.min(1.3, (innerWidth - 16) / 1498, free / 971));
   }
+  // An Up Close left page fills leftover space with a photo; drop it if there's only room for a sliver.
+  const trimPhotos = () => document.querySelectorAll(".up1 .up-photo").forEach(f => {
+    f.style.display = f.nextElementSibling.style.display = "";
+    const off = f.closest(".page").classList.contains("off");
+    f.closest(".page").classList.remove("off");
+    if (f.offsetHeight < 70) f.style.display = f.nextElementSibling.style.display = "none";
+    if (off) f.closest(".page").classList.add("off");
+  });
+  document.fonts.ready.then(trimPhotos);
+  addEventListener("resize", trimPhotos);
   prev.onclick = () => show(at - 1);
   next.onclick = () => show(at + 1);
   addEventListener("keydown", e => {
@@ -495,16 +548,18 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
   // Cover: the deadliest food is the big photo; one food from each other level sits below it.
   const byRank = r => ENTRIES.find(e => e.rank === r);
-  const hero = byRank(1);
-  const tile = (e, cls) => `<figure class="illo ${cls}"><img src="${photo(e).thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
+  // The cover photo is green potatoes, to match "Some are in your kitchen right now".
+  const hero = byRank(37), heroPhoto = EXTRA_PHOTOS[37][1];
+  const tile = (e, cls, p = photo(e)) => `<figure class="illo ${cls}"><img src="${p.thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
 
   page("cover", `
     <div class="cover-frame">
       <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
       <h1>The World's Most <br>Dangerous Foods</h1>
       <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
+      <div class="also">…and the plants that pretend to be food</div>
       <h2>Some are in your kitchen right now</h2>
-      <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">Deadly</div></div>
+      <div class="cover-hero">${tile(hero, "hero", heroPhoto)}<div class="stamp">Poisonous</div></div>
       <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
       <div class="byline">By ____________________ &nbsp; Date: __________</div>
@@ -517,7 +572,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <li>Never eat a wild plant, mushroom, or berry unless an expert has told you exactly what it is.</li>
       <li>Some foods in this book are only safe when prepared by trained people, like licensed fugu chefs.</li>
     </ul>
-    <div class="callout"><b>If you think someone has been poisoned,</b> call your local emergency number or poison control center right away. In the US, Poison Control is <b>1-800-222-1222</b>.</div>
+    <div class="callout"><b>If you think someone has been poisoned,</b> call your emergency number or poison control center right away: <b>1-800-222-1222</b> in the US. Other countries: see <a href="#help">Help Around the World</a>.</div>
     <h2>How to Read This Book</h2>
     <p>Every food has a <b>danger level</b> from 1 to 5. The book starts with the mildest foods and works up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
     <ul class="scale">${LEVELS.map(n => `<li><span class="sk" style="color:var(--d${n})">${meter(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
@@ -528,9 +583,47 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     ${LEVELS.map(n => `<div class="toc-level" style="color:var(--d${n})">${meter(n)} <a href="#level${n}" style="color:inherit">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</a></div>
       <ul class="toc">${atLevel(n).map(e => `<li><span class="n">#${e.rank}</span><a href="#e${e.rank}">${e.name}</a></li>`).join("")}</ul>`).join("")}
     <ul class="toc" style="margin-top:18px">
+      <li><span class="n">🏆</span><a href="#ranking">How We Ranked These Foods</a></li>
+      <li><span class="n">📊</span><a href="#bars">How to Read the Chance Bars</a></li>
       <li><span class="n">🏠</span><a href="#daily">In Your Daily Life</a></li>
       <li><span class="n">🌲</span><a href="#wild">Out in the Wild</a></li>
+      <li><span class="n">🔬</span><a href="#research">Our Research</a></li>
       <li><span class="n">📚</span><a href="#sources">Sources &amp; Photo Credits</a></li></ul>`);
+
+  // How the book works: how foods were ranked, and how to read the chance bars.
+  const dc = ENTRIES.find(e => e.rank === 1);
+  const dcDies = RISKS[1].outcomes.find(o => o.label === "Dies").pct;
+  page("front explain", `
+    <h1 id="ranking">🏆 How We Ranked These Foods</h1>
+    <p class="lead">Every food has a <b>danger level</b> and a <b>rank</b>. Here's how we decided both.</p>
+    <h2>Step 1: The danger level</h2>
+    <p>First, each food gets a level from 1 (${LEVEL_NAME[1]}) to 5 (${LEVEL_NAME[5]}), based on the worst thing that usually happens to people who eat it the dangerous way. The five levels are listed on the "Before You Read" page.</p>
+    <h2>Step 2: The rank</h2>
+    <p>Inside each level, foods count down from least to most dangerous. To order them, we asked three questions:</p>
+    <ol class="questions">
+      <li><b>How badly can it hurt you?</b> Feeling sick, a hospital stay, lasting harm, or death.</li>
+      <li><b>How often does it hurt people?</b> How many cases are reported around the world.</li>
+      <li><b>How easy is it to eat by mistake?</b> Does it look like a safe food? Does it taste fine?</li>
+    </ol>
+    <div class="callout"><b>Why is the Death Cap #1?</b> Its chance bar for dying is about ${dcDies}%, lower than some foods. But it causes about 90% of all mushroom poisoning deaths in the world, it looks like mushrooms people eat, and it tastes good. No other food in this book does all three.</div>
+    <p class="small">The levels and ranks are our judgment, based on the research at the back of the book. Experts might put some foods in a different order.</p>`);
+  page("front explain", `
+    <h1 id="bars">📊 How to Read the Chance Bars</h1>
+    <p class="lead">Each food page has bars that show <b>what could happen</b>. Here is the one for the Death Cap:</p>
+    <div class="danger-box" style="background:var(--d5)"><div class="lvl">5<small>of 5</small></div><div class="dz"><b>Danger level: ${LEVEL_NAME[5]}.</b><span class="key">Striped = rough estimate</span>${risks(dc)}</div></div>
+    <ol class="questions">
+      <li><b>The "If…" line</b> tells you the situation the numbers are about.</li>
+      <li><b>Each bar is one bad thing</b> that can happen. A fuller bar means it happens more often.</li>
+      <li><b>The % is out of 100 people</b> in that situation. "~${dcDies}%" means about ${dcDies} out of every 100:</li>
+    </ol>
+    <div class="dots" aria-label="${dcDies} out of 100">${Array.from({ length: 100 }, (_, i) => `<i${i < dcDies ? ' class="on"' : ""}></i>`).join("")}</div>
+    <h2>Things to know</h2>
+    <ul>
+      <li><b>Solid bars</b> come from studies. <b>Striped bars</b> are rough estimates, used when no study gives a number.</li>
+      <li><b>"If someone eats…"</b> counts everyone who ate it. <b>"If someone gets sick from…"</b> counts only people who already got sick, so those numbers look bigger. Don't compare the two kinds.</li>
+      <li>The bars don't add up to 100%. One person can throw up <i>and</i> need a hospital.</li>
+      <li>The numbers assume people get hospital care. Without help, things are often much worse.</li>
+    </ul>`);
 
   // In Your Daily Life: two facing pages of foods from this book that turn up at
   // home, in stores, in gardens and when eating out, each with a short safety tip.
@@ -588,8 +681,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         const r = k => ((e.rank * 37 + i * 61 + k * 17) % 100) / 100;
         const w = i < 3 ? 87 + Math.round(r(1) * 12) : 93 + Math.round(r(1) * 7); // page 2 is fuller
         const side = ["0", "auto", `${Math.round((100 - w) / 2)}%`][Math.floor(r(2) * 3)];
-        const tilt = (r(3) * 3 - 1.5).toFixed(2);
-        return `<div class="bubble v${v}" style="width:${w}%;margin-left:${side};--tilt:${tilt}deg"><h3>${icon} ${title}</h3>${body}</div>`;
+        // Reading text stays straight (easier to read); only the bubbles' widths and places vary.
+        return `<div class="bubble v${v}" style="width:${w}%;margin-left:${side}"><h3>${icon} ${title}</h3>${body}</div>`;
       };
       const one = {
         head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1 class="${e.name.length > 18 ? "long" : ""}">${e.name}</h1><div class="sci">${e.sci}</div></header>`,
@@ -624,6 +717,24 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
         ${o2.map(k => two[k]).join("\n")}
         <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
+      // The deadliest foods get an extra "Up Close" spread (upclose.js).
+      const u = typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank];
+      if (u) {
+        const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>🔍 Up Close</span><span>#${e.rank} ${e.name}</span></div>`;
+        page("entry sheet up up1", `${strip}
+          <h1 class="up-title">Up Close: ${e.name}</h1>
+          ${bubble(0, "📖", `A true story: ${u.story.title}`, `<p>${u.story.text}</p>`)}
+          ${bubble(1, "🔬", "How the poison works", `<ol class="steps">${u.how.map(s => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`).join("")}</ol>`)}
+          ${u.lookalikes ? bubble(2, "👀", "Don't mix it up with", `<p>${u.lookalikes}</p>`) : ""}
+          ${(q => q ? `<figure class="illo up-photo"><img src="${q.thumb}" alt="${e.name}"></figure>
+          <figcaption>Photo: ${q.artist}, ${q.license}, via Wikimedia Commons</figcaption>` : "")(EXTRA_PHOTOS[e.rank][0])}`).style.setProperty("--lvl", `var(--d${e.danger})`);
+        page("entry sheet up up2", `${strip}
+          ${bubble(3, "❓", "Myth or fact?", `<ul class="myths">${u.myths.map(m => `<li><span class="verdict ${m.truth ? "yes" : "no"}">${m.truth ? "✅ Fact" : "❌ Myth"}</span><b>${m.claim}</b><br>${m.explain}</li>`).join("")}</ul>`)}
+          ${bubble(4, "🏥", "What doctors do", `<p>${u.doctors}</p>`)}
+          ${p.thumb ? `<figure class="illo up-photo"><img src="${p.thumb}" alt="${e.name}"></figure>
+          <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : ""}
+          <div class="sources"><b>Sources:</b> ${u.sources.map(x => `<a href="${x}">${new URL(x).hostname.replace(/^www\./, "")}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
+      }
     }
   }
 
@@ -636,7 +747,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <li>Teach younger kids not to put berries, leaves, or mushrooms in their mouths.</li>
       <li>Watch out for plants with lacy leaves and umbrella-shaped clusters of tiny white flowers. Hemlocks look like this, and they are among the deadliest plants on Earth.</li>
       <li>Mushroom poisoning often shows <b>no signs for hours</b>. If someone ate a wild mushroom, get help right away.</li>
-      <li>Save the poison control number in your phone before you go: <b>1-800-222-1222</b> (US).</li>
+      <li>Save your poison control number in your phone first (<a href="#help">see the list</a>).</li>
     </ul>
     <h2>Entries in this book you might find outdoors</h2>
     <ul class="wild-list">${ORDERED.filter(e => e.wild).map(e => `<li><a href="#e${e.rank}">#${e.rank} ${e.name}</a></li>`).join("")}</ul>`);
@@ -644,10 +755,50 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   // Sources and photo credits don't fit on one page, so split them into
   // fixed-size chunks, each on its own page.
   const riskSources = e => ((typeof RISKS !== "undefined" && RISKS[e.rank]?.sources) || []).map(u => [`Danger chances: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
-  const sourceItems = [...new Map(ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e)]).map(s => [s[1], s])).values()]
+  const upSources = e => ((typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank]?.sources) || []).map(u => [`Up Close, ${e.name}: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
+  const helpSources = (typeof HELP_NUMBERS !== "undefined" ? HELP_NUMBERS : []).filter(h => h.source).map(h => [`Help numbers, ${h.country}: ${new URL(h.source).hostname.replace(/^www\./, "")}`, h.source]);
+  const sourceItems = [...new Map([...ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e), ...upSources(e)]), ...helpSources].map(s => [s[1], s])).values()]
     .map(([t, u]) => `<li><a href="${u}">${t}</a></li>`);
   const creditItems = ORDERED.flatMap(e => [photo(e), ...EXTRA_PHOTOS[e.rank]].filter(q => q.file)
     .map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`));
+  // Emergency and poison-help numbers for readers in other countries (help.js).
+  page("front help", `
+    <h1 id="help">🌍 Help Around the World</h1>
+    <p class="lead">If someone may have been poisoned, <b>call for help right away</b>, even if they seem fine. Call your emergency number if they are very sick, can't breathe, or won't wake up. Otherwise, call a poison help line.</p>
+    <table class="help-table"><thead><tr><th>Country</th><th>Emergency</th><th>Poison help</th></tr></thead><tbody>
+      ${(typeof HELP_NUMBERS !== "undefined" ? HELP_NUMBERS : []).map(h => `<tr><td>${h.country}</td><td><b>${h.emergency}</b></td><td>${h.poison ? `<b>${h.poison}</b>${h.poisonNote ? `<small>${h.poisonNote}</small>` : ""}` : `<small>${h.poisonNote || "Call your emergency number"}</small>`}</td></tr>`).join("")}
+    </tbody></table>
+    <h2>When you call, be ready to say</h2>
+    <ul class="call-list"><li>What was eaten, and how much</li><li>When it was eaten</li><li>The person's age and how they are now</li><li>Keep the package, or a photo of the plant</li></ul>
+    <p class="small">Numbers were checked on official websites in November 2026. Save yours in your phone today.</p>`);
+
+  // The research section: how the facts were found and checked, before the source lists.
+  const photoCount = ORDERED.reduce((n, e) => n + (photo(e).file ? 1 : 0) + EXTRA_PHOTOS[e.rank].length, 0);
+  page("front research", `
+    <h1 id="research">🔬 Our Research</h1>
+    <div class="stats"><span><b>${ENTRIES.length}</b>foods</span><span><b>${sourceItems.length}</b>sources</span><span><b>${photoCount}</b>real photos</span><span><b>2</b>full fact-checks</span></div>
+    <h2>Where the facts come from</h2>
+    <p>Most facts come from <b>health agencies</b> (like the CDC, FDA, WHO, the UK's NHS, and Europe's food safety agency), <b>poison control centers</b>, <b>medical journals</b>, and <b>government food-safety offices</b>. History and name facts also come from encyclopedias and museums. Online encyclopedias were only a starting point: every food also has at least one source that isn't one.</p>
+    <h2>How the facts were checked</h2>
+    <p>Every food was fact-checked <b>twice</b>: once when it was first written, and again after the words were made simpler. Dates, numbers, names, and safety advice were each checked against the sources. Anything that couldn't be confirmed was reworded or removed.</p>
+    <h2>How the chance bars were made</h2>
+    <p>The bars were researched separately for each food, from poison-center records, outbreak reports, and medical reviews. Every source link was tested. When no study gave a number, the bar is <b>striped</b> and called a rough estimate.</p>
+    <p>The research behind every food is listed on the source pages at the back.</p>`);
+  page("front research", `
+    <h1>🔎 Check It Yourself</h1>
+    <p>Good researchers don't just trust a book. You can check any fact in this one:</p>
+    <ol class="questions">
+      <li><b>Find the source.</b> The source pages at the back list where each food's facts came from.</li>
+      <li><b>Look at who wrote it.</b> Health agencies, poison centers, and medical journals are the most trusted.</li>
+      <li><b>Check the date.</b> Science changes, and newer studies can change the numbers.</li>
+      <li><b>Compare two sources.</b> If they agree, the fact is probably right.</li>
+    </ol>
+    <h2>Photos</h2>
+    <p>All photos are real and unedited, from Wikimedia Commons. Each photographer is credited at the back of the book.</p>
+    <h2>Help from AI</h2>
+    <p>This book was researched and written with help from AI tools. Every fact was checked against the sources listed on the next pages. Mistakes are still possible: if you find one, check the source and let us know.</p>
+    <div class="callout">This book is for learning, not medical advice. Science changes, and numbers are rounded. If someone may have been poisoned, get help right away.</div>`);
+
   const chunks = (items, size) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
   const SOURCES_PER_PAGE = 60, CREDITS_PER_PAGE = 36;
   chunks(sourceItems, SOURCES_PER_PAGE).forEach((c, i) => page("front", `
