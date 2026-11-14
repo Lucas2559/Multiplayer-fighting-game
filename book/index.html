@@ -181,6 +181,10 @@
   .sheet.s2 > .bubble, .sheet.s2 > .quick { font-size: var(--txt, 1.1em); }
   .sheet.s2 > .bubble { margin-bottom: 0 !important; }
   .sheet.s2 > :not(.danger-strip) { margin-top: auto !important; }
+  .measuring .sheet.s2 > :not(.danger-strip) { margin-top: 0 !important; }
+  .did-you-know { font-size: 1.1em; margin: 0; padding: 0 4px; }
+  .did-you-know b { color: var(--accent); }
+  .measuring .sheet.s2 { padding-bottom: 24px !important; }
   .sheet.s1 .more-photos { flex-grow: 2; }
   .s1 .illo:not(.more-photos .illo) { flex-grow: 3; }
   .more-photos { flex: 1 0 220px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; min-height: 0; }
@@ -437,6 +441,7 @@
 <script src="risks.js"></script>
 <script src="upclose.js"></script>
 <script src="help.js"></script>
+<script src="more.js"></script>
 <script>
 const styleKey = new URLSearchParams(location.search).get("style") in STYLES
   ? new URLSearchParams(location.search).get("style") : "sketch";
@@ -554,7 +559,44 @@ function openBook() {
     });
     hidden.forEach(p => p.classList.add("off"));
   };
-  Promise.all([document.fonts.ready, ...[...document.querySelectorAll(".sheet .illo img")].map(i => i.complete ? 0 : new Promise(z => { i.onload = i.onerror = z; }))]).then(fitPhotos);
+  // Fill each food's text pages: add extra facts one at a time while they still fit.
+  // Measured at the open-book page size (the same on every screen); a little room is
+  // kept spare so the printed page, which is a touch smaller, fits too.
+  const fillPages = () => {
+    const wasBook = document.body.classList.contains("book-mode");
+    const hidden = [...document.querySelectorAll(".page.off")];
+    document.body.classList.add("book-mode", "measuring");
+    hidden.forEach(p => p.classList.remove("off"));
+    for (const pg of pages.filter(p => p.extra)) {
+      const list = pg.querySelector(pg.extra.list);
+      for (const text of pg.extra.items) {
+        const li = document.createElement("li");
+        li.innerHTML = text;
+        list.appendChild(li);
+        if (pg.scrollHeight > pg.clientHeight) li.remove();
+      }
+      if (!list.children.length) {
+        // No room for a whole box: use a smaller "Did you know?" note instead, adding
+        // sentences to it while they fit.
+        const box = list.closest(".bubble");
+        const note = document.createElement("p");
+        note.className = "did-you-know";
+        note.innerHTML = "<b>🔎 Did you know?</b>";
+        box.replaceWith(note);
+        for (const text of pg.extra.items) {
+          const before = note.innerHTML;
+          note.innerHTML += " " + text;
+          if (pg.scrollHeight > pg.clientHeight) note.innerHTML = before;
+        }
+        if (note.innerHTML === "<b>🔎 Did you know?</b>") note.remove();
+      }
+    }
+    hidden.forEach(p => p.classList.add("off"));
+    document.body.classList.remove("measuring");
+    if (!wasBook) document.body.classList.remove("book-mode");
+  };
+  const filled = document.fonts.ready.then(fillPages);
+  Promise.all([filled, ...[...document.querySelectorAll(".sheet .illo img")].map(i => i.complete ? 0 : new Promise(z => { i.onload = i.onerror = z; }))]).then(fitPhotos);
   addEventListener("resize", fitPhotos);
   // Print lays pages out differently: drop the screen sizes and let CSS fit the photos instead.
   addEventListener("beforeprint", () => document.querySelectorAll(".sheet .illo").forEach(f => Object.assign(f.style, { width: "", height: "", flex: "", alignSelf: "", justifySelf: "" })));
@@ -702,6 +744,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     for (const e of group) {
       const p = photo(e);
       const x = EXTRAS[e.rank];
+      const m = typeof MORE !== "undefined" && MORE[e.rank];
       // Each section is a bubble. The shape cycles through five kinds, starting
       // at a different one for each food, so no two foods look the same.
       // Each bubble also gets its own width, sideways nudge and tilt, so the
@@ -737,7 +780,9 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         safe: bubble(5, "🛡️", "How to stay safe", `<p>${e.safe}</p><ul>${x.stay.map(s => `<li>${s}</li>`).join("")}</ul>`),
         photos: `<div class="more-photos">${EXTRA_PHOTOS[e.rank].map(q => `<figure class="illo"><img src="${q.thumb}" alt="${e.name}"></figure>`).join("")}</div>
         <figcaption>Photos: ${EXTRA_PHOTOS[e.rank].map(q => `${q.artist}, ${q.license}`).join("; ")}, via Wikimedia Commons</figcaption>`,
-        fun: bubble(6, "⭐", "Fun facts", `<ul>${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul>`),
+        fun: bubble(6, "⭐", "Fun facts", `<ul class="fun-list">${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul>`),
+        // Extra facts (more.js). openBook() puts in as many as fit, so the page ends up full.
+        more: m ? bubble(7, "🔎", "More to know", `<ul class="more-list"></ul>`) : "",
       };
       // Each food gets its own arrangement of the same pieces, so the pages
       // don't all look alike.
@@ -745,9 +790,15 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       const all = { ...one, ...two };
       const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>`;
       page("entry sheet s1", [one.head, one.danger, one.photo, two.photos].join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
-      texts.forEach((keys, i) => page("entry sheet s2", `${strip}
-        ${keys.map(k => all[k]).join("\n")}
-        ${i === texts.length - 1 ? `<div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>` : `<div class="page-end"></div>`}`).style.setProperty("--lvl", `var(--d${e.danger})`));
+      const moreSources = (m?.sources || []).map(u => { const url = new URL(u);
+        return [url.hostname.endsWith("wikipedia.org") ? `Wikipedia, "${decodeURIComponent(url.pathname.split("/").pop()).replace(/_/g, " ")}"` : url.hostname.replace(/^www\./, ""), u]; });
+      texts.forEach((keys, i) => {
+        const pg = page("entry sheet s2", `${strip}
+        ${keys.map(k => k === "poison" ? all.more + all.poison : all[k]).join("\n")}
+        ${i === texts.length - 1 ? `<div class="sources"><b>Sources:</b> ${[...new Map([...e.sources, MORE_SOURCES[e.rank], ...moreSources].map(x => [x[1], x])).values()].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>` : `<div class="page-end"></div>`}`);
+        pg.style.setProperty("--lvl", `var(--d${e.danger})`);
+        if (m) pg.extra = i === 0 ? { list: ".more-list", items: m.p2 } : { list: ".fun-list", items: m.p3 };
+      });
       // The deadliest foods get an extra "Up Close" spread (upclose.js).
       const u = typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank];
       if (u) {
@@ -788,7 +839,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const riskSources = e => ((typeof RISKS !== "undefined" && RISKS[e.rank]?.sources) || []).map(u => [`Danger chances: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
   const upSources = e => ((typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank]?.sources) || []).map(u => [`Up Close, ${e.name}: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
   const helpSources = (typeof HELP_NUMBERS !== "undefined" ? HELP_NUMBERS : []).filter(h => h.source).map(h => [`Help numbers, ${h.country}: ${new URL(h.source).hostname.replace(/^www\./, "")}`, h.source]);
-  const sourceItems = [...new Map([...ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e), ...upSources(e)]), ...helpSources].map(s => [s[1], s])).values()]
+  const moreSrc = e => ((typeof MORE !== "undefined" && MORE[e.rank]?.sources) || []).map(u => [`More facts, ${e.name}: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
+  const sourceItems = [...new Map([...ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e), ...upSources(e), ...moreSrc(e)]), ...helpSources].map(s => [s[1], s])).values()]
     .map(([t, u]) => `<li><a href="${u}">${t}</a></li>`);
   const creditItems = ORDERED.flatMap(e => [photo(e), ...EXTRA_PHOTOS[e.rank]].filter(q => q.file)
     .map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`));
