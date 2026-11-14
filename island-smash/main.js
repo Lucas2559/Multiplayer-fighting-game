@@ -165,7 +165,29 @@ function spawnPlayer() {
 // ---------------------------------------------------------------- input
 const keys = new Set();
 let camYaw = 0, camPitch = 0.42, dragging = false, lastX = 0;
+// Shift lock: Shift toggles a locked mouse; moving the mouse turns the camera and
+// the player always faces where the camera looks (over-the-shoulder view).
+let shiftLock = false, shoulder = 0;
+let pointerLocked = false;
+function setShiftLock(on) {
+  shiftLock = on && game.state === 'play';
+  $('crosshair').classList.toggle('hidden', !shiftLock);
+  $('lockBadge').classList.toggle('hidden', !shiftLock);
+  if (shiftLock) {
+    // Lock the cursor if the browser allows it; shift lock still works without it.
+    try { renderer.domElement.requestPointerLock?.()?.catch?.(() => {}); } catch {}
+  } else if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+}
+document.addEventListener('pointerlockchange', () => {
+  const nowLocked = document.pointerLockElement === renderer.domElement;
+  if (pointerLocked && !nowLocked && shiftLock) setShiftLock(false);   // Esc released the lock
+  pointerLocked = nowLocked;
+});
+document.addEventListener('pointerlockerror', () => {});
 addEventListener('keydown', (e) => {
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) setShiftLock(!shiftLock);
   keys.add(e.code);
   if (e.code === 'KeyF' || e.code === 'KeyJ') startSwing();
   if (e.code === 'KeyR' && game.state !== 'start') startGame();
@@ -179,6 +201,11 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 });
 addEventListener('pointerup', () => { dragging = false; });
 addEventListener('pointermove', (e) => {
+  if (shiftLock) {
+    camYaw -= e.movementX * 0.0028;
+    camPitch = THREE.MathUtils.clamp(camPitch + e.movementY * 0.0024, 0.05, 1.1);
+    return;
+  }
   if (!dragging) return;
   camYaw -= (e.clientX - lastX) * 0.006; lastX = e.clientX;
   camPitch = THREE.MathUtils.clamp(camPitch + e.movementY * 0.004, 0.15, 1.1);
@@ -378,6 +405,7 @@ function startGame() {
 
 function endGame(cleared) {
   game.state = 'over';
+  setShiftLock(false);
   if (game.score > game.best) {
     game.best = game.score;
     try { localStorage.setItem('islandSmashBest', String(game.best)); } catch {}
@@ -411,8 +439,13 @@ function updatePlayer(dt) {
   const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
   const move = fwd.multiplyScalar(iz).addScaledVector(right, -ix);
   const moving = move.lengthSq() > 0;
-  if (moving) {
-    move.normalize();
+  if (moving) move.normalize();
+  if (shiftLock) {
+    // always face the camera's direction; strafe with A/D
+    const target = camYaw + Math.PI;
+    let d = target - pl.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+    pl.yaw += d * Math.min(1, dt * 20);
+  } else if (moving) {
     const target = Math.atan2(move.x, move.z);
     let d = target - pl.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
     pl.yaw += d * Math.min(1, dt * 12);
@@ -494,13 +527,17 @@ const camTarget = new THREE.Vector3();
 function updateCamera(dt) {
   const t = pBody.translation();
   camTarget.lerp(new THREE.Vector3(t.x, Math.max(t.y, -4) + 0.6, t.z), Math.min(1, dt * 8));
+  // over-the-shoulder offset while shift lock is on
+  shoulder += ((shiftLock ? 1 : 0) - shoulder) * Math.min(1, dt * 8);
+  const right = new THREE.Vector3(Math.cos(camYaw), 0, -Math.sin(camYaw));
+  const look = camTarget.clone().addScaledVector(right, shoulder * 0.9).add(new THREE.Vector3(0, shoulder * 0.4, 0));
   const off = new THREE.Vector3(Math.sin(camYaw) * Math.cos(camPitch), Math.sin(camPitch), Math.cos(camYaw) * Math.cos(camPitch)).multiplyScalar(camDist);
-  camera.position.copy(camTarget).add(off);
+  camera.position.copy(look).add(off);
   if (shake > 0) {
     camera.position.add(new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shake * 0.4));
     shake = Math.max(0, shake - dt);
   }
-  camera.lookAt(camTarget);
+  camera.lookAt(look);
 }
 
 function updateDust(dt) {
