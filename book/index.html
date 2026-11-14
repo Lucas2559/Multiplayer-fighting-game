@@ -576,8 +576,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
   // Cover: the deadliest food is the big photo; one food from each other level sits below it.
   const byRank = r => ENTRIES.find(e => e.rank === r);
-  // The cover photo is green potatoes, to match "Some are in your kitchen right now".
-  const hero = byRank(37), heroPhoto = EXTRA_PHOTOS[37][1];
+  // The cover photo is raw chicken, to match "Some are in your kitchen right now".
+  const hero = byRank(31), heroPhoto = EXTRA_PHOTOS[31][1];
   const tile = (e, cls, p = photo(e)) => `<figure class="illo ${cls}"><img src="${p.thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
 
   page("cover", `
@@ -587,7 +587,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
       <div class="also">…and the plants that pretend to be food</div>
       <h2>Some are in your kitchen right now</h2>
-      <div class="cover-hero">${tile(hero, "hero", heroPhoto)}<div class="stamp">Poisonous</div></div>
+      <div class="cover-hero">${tile(hero, "hero", heroPhoto)}<div class="stamp">Danger</div></div>
       <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
       <div class="byline">By ____________________ &nbsp; Date: __________</div>
