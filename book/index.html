@@ -150,6 +150,14 @@
   .steps li::before { content: counter(s); position: absolute; left: 0; top: .05em; width: 1.5em; height: 1.5em; border-radius: 50%; background: var(--lvl); color: #fff; font: 700 .85em/1.5em var(--body); text-align: center; }
   .myths { list-style: none; padding: 0; margin: 4px 0 0; }
   .myths li { margin-bottom: 10px; }
+  /* Line icons (see ICONS). .f parts get a soft tint of the food's danger color. */
+  .ico { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.16em; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  .ico .f { fill: color-mix(in srgb, var(--lvl, var(--accent)) 45%, transparent); }
+  .ico .s { fill: currentColor; stroke: none; }
+  .bubble h3 .ico { width: 1.3em; height: 1.3em; margin-right: 3px; vertical-align: -0.24em; stroke-width: 2.1; }
+  .toc .n .ico { width: 22px; height: 22px; }
+  .verdict .ico { width: 1em; height: 1em; stroke-width: 3; vertical-align: -0.14em; }
+  .danger-strip .ico { stroke-width: 2.4; }
   .verdict { display: inline-block; font-size: .8em; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-right: 8px; color: #fff; }
   .verdict.yes { background: #3c7a3c; } .verdict.no { background: #b8452e; }
   .up .sources { margin-top: auto; }
@@ -485,7 +493,36 @@ const meter = (n, part = 1) => `<span class="meter" role="img" aria-label="Dange
 const book = document.getElementById("book");
 
 // The land shapes are drawn once and reused by every food's map.
-document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="land" viewBox="0 0 360 145"><path d="${LAND_PATH}"/></symbol></svg>`);
+// Line icons, drawn to match the book's pencil style (used instead of emoji, which look
+// different on every device). icon("skull") gives an inline <svg>.
+const ICONS = {
+  speech: '<path class="f" d="M4 5h16a1.5 1.5 0 0 1 1.5 1.5v8.6A1.5 1.5 0 0 1 20 16.6h-9.6L6 20.2v-3.6H4a1.5 1.5 0 0 1-1.5-1.5V6.5A1.5 1.5 0 0 1 4 5z"/><path d="M7 9.4h10M7 12.4h6.5"/>',
+  tag: '<path class="f" d="M3 12V4.5A1.5 1.5 0 0 1 4.5 3H12l8.8 8.8a1.5 1.5 0 0 1 0 2.1l-6.9 6.9a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.7"/>',
+  globe: '<circle class="f" cx="12" cy="12" r="9"/><path d="M3.2 10.5h17.6M3.8 15.5h16.4M12 3c-3 3.2-3 14.8 0 18M12 3c3 3.2 3 14.8 0 18"/>',
+  skull: '<path class="f" d="M12 2.8c-4.7 0-8 3.3-8 7.6 0 2.6 1.2 4.4 3 5.4v3.4a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3.4c1.8-1 3-2.8 3-5.4 0-4.3-3.3-7.6-8-7.6z"/><circle class="s" cx="8.9" cy="10.8" r="1.9"/><circle class="s" cx="15.1" cy="10.8" r="1.9"/><path d="M12 13.6l-1 2h2zM10.2 20.2v-2.4M13.8 20.2v-2.4"/>',
+  sick: '<circle class="f" cx="12" cy="12" r="9"/><path d="M7.6 8.6l2.4 1.4-2.4 1.4M16.4 8.6L14 10l2.4 1.4M7.5 16.2c1.5-1.4 3-1.4 4.5 0s3 1.4 4.5 0"/>',
+  shield: '<path class="f" d="M12 2.8l7.6 3v5.6c0 4.7-3.2 8.3-7.6 9.8-4.4-1.5-7.6-5.1-7.6-9.8V5.8z"/><path d="M8.4 12.1l2.6 2.6 4.8-5.2"/>',
+  star: '<path class="f" d="M12 2.9l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.2l-5.6 2.9 1.1-6.2L3 9.5l6.2-.9z"/>',
+  search: '<circle class="f" cx="10.3" cy="10.3" r="6.6"/><path d="M15.2 15.2L21 21M7.4 8.6a3.3 3.3 0 0 1 2.4-2"/>',
+  book: '<path class="f" d="M12 6.4C9.8 4.9 6.8 4.4 2.8 4.8v13.5c4-.4 7 .1 9.2 1.6 2.2-1.5 5.2-2 9.2-1.6V4.8c-4-.4-7 .1-9.2 1.6z"/><path d="M12 6.4v13.5"/>',
+  flask: '<path class="f" d="M9.6 3v6.4L4.3 18.6A1.6 1.6 0 0 0 5.7 21h12.6a1.6 1.6 0 0 0 1.4-2.4l-5.3-9.2V3z"/><path d="M8.4 3h7.2M6.6 15h10.8M10 18h.01M13.6 17.4h.01"/>',
+  eye: '<path class="f" d="M1.8 12S5.3 5.8 12 5.8 22.2 12 22.2 12 18.7 18.2 12 18.2 1.8 12 1.8 12z"/><circle class="s" cx="12" cy="12" r="3"/>',
+  question: '<circle class="f" cx="12" cy="12" r="9"/><path d="M9.4 9.4a2.6 2.6 0 1 1 3.7 2.4c-.8.4-1.1 1-1.1 1.8v.5M12 17.2h.01"/>',
+  doctor: '<path d="M5.5 3v5.2a4.2 4.2 0 0 0 8.4 0V3M9.7 12.4v2.8a5.2 5.2 0 0 0 10.4 0v-2.2"/><circle class="f" cx="20.1" cy="10.9" r="2.1"/>',
+  check: '<path d="M5 12.6l4.4 4.4L19 7.2"/>',
+  cross: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  trophy: '<path class="f" d="M7.8 3.6h8.4v5.2a4.2 4.2 0 0 1-8.4 0z"/><path d="M7.8 5.6H4.6a3.2 3.2 0 0 0 3.4 4.3M16.2 5.6h3.2a3.2 3.2 0 0 1-3.4 4.3M12 13v3.6M8.6 20.4h6.8M10 16.6h4v3.8h-4z"/>',
+  chart: '<path d="M3.5 20.5h17M3.5 20.5v-17"/><path class="f" d="M7 20.5v-6h3v6zM12 20.5V8h3v12.5zM17 20.5v-9h3v9z"/>',
+  house: '<path class="f" d="M5.5 9.8V20.5h13V9.8L12 4z"/><path d="M3 11.6L12 3.6l9 8M10 20.5v-5.2h4v5.2"/>',
+  tree: '<path class="f" d="M12 2.8l5.2 6.4h-3l4.2 5.3h-3.2l3.6 4.6H5.2l3.6-4.6H5.6l4.2-5.3h-3z"/><path d="M12 19.1v2.4"/>',
+  books: '<path class="f" d="M3.5 4h4.2v16H3.5zM8.9 4h4.2v16H8.9z"/><path class="f" d="M14.6 5.3l3.9-1 3.8 15.5-3.9 1z"/><path d="M3.5 7.5h4.2M8.9 7.5h4.2M3.5 16.5h4.2M8.9 16.5h4.2"/>',
+  pan: '<circle class="f" cx="10" cy="13.4" r="6.8"/><path d="M16.4 11.2l5.4-2"/><circle class="s" cx="10" cy="13.4" r="2.2"/>',
+  cart: '<path d="M2.4 3.8h2.7l2.3 11h10.9l2.3-7.6H6.2"/><path class="f" d="M6.3 7.2h14.3l-2.3 7.6H7.9z"/><circle cx="9.3" cy="19.2" r="1.6"/><circle cx="17" cy="19.2" r="1.6"/>',
+  flower: '<path class="f" d="M6.8 3.6l2.6 2.6L12 3l2.6 3.2 2.6-2.6v4.6a5.2 5.2 0 0 1-10.4 0z"/><path d="M12 13.4v8M12 19c-1.6-2.6-4.1-3.2-6.2-2.6M12 19.6c1.6-2.6 4.1-3.2 6.2-2.6"/>',
+  plate: '<circle class="f" cx="12.6" cy="13" r="6.2"/><circle cx="12.6" cy="13" r="3.4"/><path d="M2.6 3.6v4.6a1.6 1.6 0 0 0 3.2 0V3.6M4.2 3.6v17.4M21.4 3.6c-1.6 1.2-2.2 3.2-2.2 6.4h2.2v11"/>',
+};
+const icon = name => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="land" viewBox="0 0 360 145"><path d="${LAND_PATH}"/></symbol>${Object.entries(ICONS).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24">${v}</symbol>`).join("")}</svg>`);
 const worldMap = x => `<svg class="map" viewBox="0 7 360 138" role="img" aria-label="World map with the places it's most found shaded"><use href="#land" width="360" height="145"/>${x.shade
   ? x.shade.map(n => `<path class="place" d="${COUNTRY_PATHS[n]}"/>`).join("")
   : x.pins.map(([lat, lon]) => `<circle cx="${lon + 180}" cy="${85 - lat}" r="5"/>`).join("")}</svg>`;
@@ -529,7 +566,7 @@ function openBook() {
     spreads[at].forEach(p => { p.classList.remove("off"); p.scrollTop = 0; });
     prev.disabled = at === 0;
     next.disabled = at === spreads.length - 1;
-    const title = spreads[at].map(p => p.querySelector("h1")?.textContent || p.querySelector(".danger-strip > span:last-child")?.textContent.replace(/^#\d+ /, "")).find(Boolean) || "";
+    const title = spreads[at].map(p => p.querySelector("h1")?.textContent.trim() || p.querySelector(".danger-strip > span:last-child")?.textContent.replace(/^#\d+ /, "")).find(Boolean) || "";
     where.textContent = `${at + 1} of ${spreads.length} · ${title}`;
   }
   const spreadOf = id => spreads.findIndex(s => s.some(p => p.querySelector("#" + CSS.escape(id))));
@@ -587,14 +624,14 @@ function openBook() {
         const box = list.closest(".bubble");
         const note = document.createElement("p");
         note.className = "did-you-know";
-        note.innerHTML = "<b>🔎 Did you know?</b>";
+        note.innerHTML = `<b>${icon("search")} Did you know?</b>`;
         box.replaceWith(note);
         for (const text of pg.extra.items) {
           const before = note.innerHTML;
           note.innerHTML += " " + text;
           if (pg.scrollHeight > pg.clientHeight) note.innerHTML = before;
         }
-        if (note.innerHTML === "<b>🔎 Did you know?</b>") note.remove();
+        if (!note.textContent.replace("Did you know?", "").trim()) note.remove();
       }
     }
     hidden.forEach(p => p.classList.add("off"));
@@ -652,25 +689,25 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     <h2>How to Read This Book</h2>
     <p>Every food has a <b>danger level</b> from 1 to 5. The book starts with the mildest foods and works up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
     <ul class="scale">${LEVELS.map(n => `<li><span class="sk" style="color:var(--d${n})">${meter(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
-    <p style="margin-top:16px">A <b>Lookalike</b> isn't a food at all: it's a poisonous plant or mushroom that people mistake for food. 🌲 means campers might find it outdoors.</p>`);
+    <p style="margin-top:16px">A <b>Lookalike</b> isn't a food at all: it's a poisonous plant or mushroom that people mistake for food. ${icon("tree")} means campers might find it outdoors.</p>`);
 
   page("front", `
     <h1>Contents</h1>
     ${LEVELS.map(n => `<div class="toc-level" style="color:var(--d${n})">${meter(n)} <a href="#level${n}" style="color:inherit">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</a></div>
       <ul class="toc">${atLevel(n).map(e => `<li><span class="n">#${e.rank}</span><a href="#e${e.rank}">${e.name}</a></li>`).join("")}</ul>`).join("")}
     <ul class="toc" style="margin-top:18px">
-      <li><span class="n">🏆</span><a href="#ranking">How We Ranked These Foods</a></li>
-      <li><span class="n">📊</span><a href="#bars">How to Read the Chance Bars</a></li>
-      <li><span class="n">🏠</span><a href="#daily">In Your Daily Life</a></li>
-      <li><span class="n">🌲</span><a href="#wild">Out in the Wild</a></li>
-      <li><span class="n">🔬</span><a href="#research">Our Research</a></li>
-      <li><span class="n">📚</span><a href="#sources">Sources &amp; Photo Credits</a></li></ul>`);
+      <li><span class="n">${icon("trophy")}</span><a href="#ranking">How We Ranked These Foods</a></li>
+      <li><span class="n">${icon("chart")}</span><a href="#bars">How to Read the Chance Bars</a></li>
+      <li><span class="n">${icon("house")}</span><a href="#daily">In Your Daily Life</a></li>
+      <li><span class="n">${icon("tree")}</span><a href="#wild">Out in the Wild</a></li>
+      <li><span class="n">${icon("flask")}</span><a href="#research">Our Research</a></li>
+      <li><span class="n">${icon("books")}</span><a href="#sources">Sources &amp; Photo Credits</a></li></ul>`);
 
   // How the book works: how foods were ranked, and how to read the chance bars.
   const dc = ENTRIES.find(e => e.rank === 1);
   const dcDies = RISKS[1].outcomes.find(o => o.label === "Dies").pct;
   page("front explain", `
-    <h1 id="ranking">🏆 How We Ranked These Foods</h1>
+    <h1 id="ranking">${icon("trophy")} How We Ranked These Foods</h1>
     <p class="lead">Every food has a <b>danger level</b> and a <b>rank</b>. Here's how we decided both.</p>
     <h2>Step 1: The danger level</h2>
     <p>First, each food gets a level from 1 (${LEVEL_NAME[1]}) to 5 (${LEVEL_NAME[5]}), based on the worst thing that usually happens to people who eat it the dangerous way. The five levels are listed on the "Before You Read" page.</p>
@@ -684,7 +721,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     <div class="callout"><b>Why is the Death Cap #1?</b> Its chance bar for dying is about ${dcDies}%, lower than some foods. But it causes about 90% of all mushroom poisoning deaths in the world, it looks like mushrooms people eat, and it tastes good. No other food in this book does all three.</div>
     <p class="small">The levels and ranks are our judgment, based on the research at the back of the book. Experts might put some foods in a different order.</p>`);
   page("front explain", `
-    <h1 id="bars">📊 How to Read the Chance Bars</h1>
+    <h1 id="bars">${icon("chart")} How to Read the Chance Bars</h1>
     <p class="lead">Each food page has bars that show <b>what could happen</b>. Here is the one for the Death Cap:</p>
     <div class="danger-box" style="background:var(--d5)"><div class="lvl">5<small>of 5</small></div><div class="dz"><b>Danger level: ${LEVEL_NAME[5]}.</b><span class="key">Striped = rough estimate</span>${risks(dc)}</div></div>
     <ol class="questions">
@@ -704,20 +741,20 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   // In Your Daily Life: two facing pages of foods from this book that turn up at
   // home, in stores, in gardens and when eating out, each with a short safety tip.
   const DAILY = [
-    ["🍳 In the kitchen", [[43, "Boil dried beans hard. Canned beans are safe."], [37, "Cut off green spots. Throw out very green or bitter ones."],
+    [`${icon("pan")} In the kitchen`, [[43, "Boil dried beans hard. Canned beans are safe."], [37, "Cut off green spots. Throw out very green or bitter ones."],
       [36, "Wait until it's baked!"], [31, "Cook it to 165°F (74°C). Wash your hands after."], [46, "A small pinch is fine. Never spoonfuls."], [39, "Eat the stalks. Throw every leaf away."]]],
-    ["🛒 At the store", [[22, "No honey for babies under 1 year old."], [20, "For kids 5 and under, cut them into quarters."],
+    [`${icon("cart")} At the store`, [[22, "No honey for babies under 1 year old."], [20, "For kids 5 and under, cut them into quarters."],
       [40, "Taking medicine? Ask a pharmacist first."], [33, "A little is fine. Lots every day is not."], [32, "Check the label for \"pasteurized.\""], [50, "Don't bite into the skin. Peel it first."]]],
-    ["🌷 In the garden or yard", [[11, "Don't let little kids suck on the flowers."], [35, "Store bulbs far from onions and other food."],
+    [`${icon("flower")} In the garden or yard`, [[11, "Don't let little kids suck on the flowers."], [35, "Store bulbs far from onions and other food."],
       [13, "Don't eat the red berries."], [10, "Never eat any part, even the red berries."], [38, "Only eat ripe berries, and cook them."], [24, "The shiny berries are not food."]]],
-    ["🍽️ Eating out", [[49, "Sometimes sold as \"white tuna.\" Ask what fish it is."], [19, "Eat them cooked. Hot sauce doesn't kill germs."],
+    [`${icon("plate")} Eating out`, [[49, "Sometimes sold as \"white tuna.\" Ask what fish it is."], [19, "Eat them cooked. Hot sauce doesn't kill germs."],
       [45, "Skip hot-pepper dares and spicy chip challenges."], [3, "Only from a licensed chef."]]],
   ];
   const dailyItem = ([r, tip]) => { const e = ENTRIES.find(x => x.rank === r); if (!e) return "";
     return `<li><img src="${photo(e).thumb}" alt="${e.name}"><div><a href="#e${r}"><span class="dot" style="background:var(--d${e.danger})"></span>#${r} ${e.name.replace(/ \(.*\)/, "")}</a><span>${tip}</span></div></li>`; };
   const dailySection = ([title, items]) => `<h2>${title}</h2><ul class="daily-list">${items.map(dailyItem).join("")}</ul>`;
   page("front daily", `
-    <h1 id="daily">🏠 In Your Daily Life</h1>
+    <h1 id="daily">${icon("house")} In Your Daily Life</h1>
     <p class="lead">You don't have to go into the wild to find dangerous food. Many foods in this book are in an ordinary kitchen, store, or yard. Most are safe when you know the rule.</p>
     ${DAILY.slice(0, 2).map(dailySection).join("")}`);
   page("front daily", `
@@ -774,21 +811,21 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         quick: `<dl class="quick">
           <dt>Family</dt><dd>${x.family}</dd>
           <dt>Science name</dt><dd><i>${e.sci}</i></dd>
-          <dt>Type</dt><dd>${e.type}${e.wild ? " · 🌲 Campers beware" : ""}</dd>
+          <dt>Type</dt><dd>${e.type}${e.wild ? ` · ${icon("tree")} Campers beware` : ""}</dd>
         </dl>`,
-        what: bubble(0, "💬", "What it is", `<p>${e.where}</p>`),
-        named: bubble(1, "🏷️", "How it got its name", `<p>${x.named}</p>`),
-        where: bubble(2, "🗺️", "Where it's most found", `<div class="where">${worldMap(x)}<p>${x.found}</p></div>`),
+        what: bubble(0, icon("speech"), "What it is", `<p>${e.where}</p>`),
+        named: bubble(1, icon("tag"), "How it got its name", `<p>${x.named}</p>`),
+        where: bubble(2, icon("globe"), "Where it's most found", `<div class="where">${worldMap(x)}<p>${x.found}</p></div>`),
       };
       const two = {
-        poison: bubble(3, "☠️", "What makes it dangerous", `<p>${e.poison}</p>`),
-        sick: bubble(4, "🤢", "What happens if you eat it", `<ul>${e.symptoms.map(s => `<li>${s}</li>`).join("")}</ul><p>${e.symptomsNote}</p>`),
-        safe: bubble(5, "🛡️", "How to stay safe", `<p>${e.safe}</p><ul>${x.stay.map(s => `<li>${s}</li>`).join("")}</ul>`),
+        poison: bubble(3, icon("skull"), "What makes it dangerous", `<p>${e.poison}</p>`),
+        sick: bubble(4, icon("sick"), "What happens if you eat it", `<ul>${e.symptoms.map(s => `<li>${s}</li>`).join("")}</ul><p>${e.symptomsNote}</p>`),
+        safe: bubble(5, icon("shield"), "How to stay safe", `<p>${e.safe}</p><ul>${x.stay.map(s => `<li>${s}</li>`).join("")}</ul>`),
         photos: `<div class="more-photos">${EXTRA_PHOTOS[e.rank].map(q => `<figure class="illo"><img src="${q.thumb}" alt="${e.name}"></figure>`).join("")}</div>
         <figcaption>Photos: ${EXTRA_PHOTOS[e.rank].map(q => `${q.artist}, ${q.license}`).join("; ")}, via Wikimedia Commons</figcaption>`,
-        fun: bubble(6, "⭐", "Fun facts", `<ul class="fun-list">${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul>`),
+        fun: bubble(6, icon("star"), "Fun facts", `<ul class="fun-list">${[e.fact, ...x.facts].map(s => `<li>${s}</li>`).join("")}</ul>`),
         // Extra facts (more.js). openBook() puts in as many as fit, so the page ends up full.
-        more: m ? bubble(7, "🔎", "More to know", `<ul class="more-list"></ul>`) : "",
+        more: m ? bubble(7, icon("search"), "More to know", `<ul class="more-list"></ul>`) : "",
       };
       // Each food gets its own arrangement of the same pieces, so the pages
       // don't all look alike.
@@ -808,17 +845,17 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       // The deadliest foods, and the everyday ones, get an extra "Up Close" spread (upclose.js).
       const u = typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank];
       if (u) {
-        const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>🔍 Up Close</span><span>#${e.rank} ${e.name}</span></div>`;
+        const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>${icon("search")} Up Close</span><span>#${e.rank} ${e.name}</span></div>`;
         page("entry sheet up up1", `${strip}
           <h1 class="up-title">Up Close: ${e.name}</h1>
-          ${bubble(0, "📖", `${u.storyLabel || "A true story"}: ${u.story.title}`, `<p>${u.story.text}</p>`)}
-          ${bubble(1, "🔬", u.howTitle || "How the poison works", `<ol class="steps">${u.how.map(s => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`).join("")}</ol>`)}
-          ${u.lookalikes ? bubble(2, "👀", "Don't mix it up with", `<p>${u.lookalikes}</p>`) : ""}
+          ${bubble(0, icon("book"), `${u.storyLabel || "A true story"}: ${u.story.title}`, `<p>${u.story.text}</p>`)}
+          ${bubble(1, icon("flask"), u.howTitle || "How the poison works", `<ol class="steps">${u.how.map(s => `<li>${s.replace(/^\d+\.\s*/, "")}</li>`).join("")}</ol>`)}
+          ${u.lookalikes ? bubble(2, icon("eye"), "Don't mix it up with", `<p>${u.lookalikes}</p>`) : ""}
           ${(q => q ? `<figure class="illo up-photo"><img src="${q.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${q.artist}, ${q.license}, via Wikimedia Commons</figcaption>` : "")(EXTRA_PHOTOS[e.rank][0])}`).style.setProperty("--lvl", `var(--d${e.danger})`);
         page("entry sheet up up2", `${strip}
-          ${bubble(3, "❓", "Myth or fact?", `<ul class="myths">${u.myths.map(m => `<li><span class="verdict ${m.truth ? "yes" : "no"}">${m.truth ? "✅ Fact" : "❌ Myth"}</span><b>${m.claim}</b><br>${m.explain}</li>`).join("")}</ul>`)}
-          ${bubble(4, "🏥", "What doctors do", `<p>${u.doctors}</p>`)}
+          ${bubble(3, icon("question"), "Myth or fact?", `<ul class="myths">${u.myths.map(m => `<li><span class="verdict ${m.truth ? "yes" : "no"}">${m.truth ? `${icon("check")} Fact` : `${icon("cross")} Myth`}</span><b>${m.claim}</b><br>${m.explain}</li>`).join("")}</ul>`)}
+          ${bubble(4, icon("doctor"), "What doctors do", `<p>${u.doctors}</p>`)}
           ${p.thumb ? `<figure class="illo up-photo"><img src="${p.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : ""}
           <div class="sources"><b>Sources:</b> ${u.sources.map(x => `<a href="${x}">${new URL(x).hostname.replace(/^www\./, "")}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
@@ -827,7 +864,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   }
 
   page("front new-spread", `
-    <h1 id="wild">🌲 Out in the Wild: A Guide for Campers</h1>
+    <h1 id="wild">${icon("tree")} Out in the Wild: A Guide for Campers</h1>
     <p>Nature isn't a grocery store. Many deadly plants and mushrooms look like safe ones, and some of the most dangerous ones in this book grow near trails, streams, and campsites.</p>
     <div class="callout"><b>The golden rule:</b> never eat any wild plant, berry, or mushroom unless an expert has identified it for you. If you're not 100% sure, don't eat it.</div>
     <h2>Good habits outdoors</h2>
@@ -853,7 +890,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     .map(q => `<li>#${e.rank} ${e.name}: ${q.artist}, <a href="${q.page}">${q.file.replace(/_/g, " ")}</a>, ${q.license}</li>`));
   // Emergency and poison-help numbers for readers in other countries (help.js).
   page("front help", `
-    <h1 id="help">🌍 Help Around the World</h1>
+    <h1 id="help">${icon("globe")} Help Around the World</h1>
     <p class="lead">If someone may have been poisoned, <b>call for help right away</b>, even if they seem fine. Call your emergency number if they are very sick, can't breathe, or won't wake up. Otherwise, call a poison help line.</p>
     <table class="help-table"><thead><tr><th>Country</th><th>Emergency</th><th>Poison help</th></tr></thead><tbody>
       ${(typeof HELP_NUMBERS !== "undefined" ? HELP_NUMBERS : []).map(h => `<tr><td>${h.country}</td><td><b>${h.emergency}</b></td><td>${h.poison ? `<b>${h.poison}</b>${h.poisonNote ? `<small>${h.poisonNote}</small>` : ""}` : `<small>${h.poisonNote || "Call your emergency number"}</small>`}</td></tr>`).join("")}
@@ -865,7 +902,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   // The research section: how the facts were found and checked, before the source lists.
   const photoCount = ORDERED.reduce((n, e) => n + (photo(e).file ? 1 : 0) + EXTRA_PHOTOS[e.rank].length, 0);
   page("front research", `
-    <h1 id="research">🔬 Our Research</h1>
+    <h1 id="research">${icon("flask")} Our Research</h1>
     <div class="stats"><span><b>${ENTRIES.length}</b>foods</span><span><b>${sourceItems.length}</b>sources</span><span><b>${photoCount}</b>real photos</span><span><b>2</b>full fact-checks</span></div>
     <h2>Where the facts come from</h2>
     <p>Most facts come from <b>health agencies</b> (like the CDC, FDA, WHO, the UK's NHS, and Europe's food safety agency), <b>poison control centers</b>, <b>medical journals</b>, and <b>government food-safety offices</b>. History and name facts also come from encyclopedias and museums. Online encyclopedias were only a starting point: every food also has at least one source that isn't one.</p>
@@ -875,7 +912,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     <p>The bars were researched separately for each food, from poison-center records, outbreak reports, and medical reviews. Every source link was tested. When no study gave a number, the bar is <b>striped</b> and called a rough estimate.</p>
     <p>The research behind every food is listed on the source pages at the back.</p>`);
   page("front research", `
-    <h1>🔎 Check It Yourself</h1>
+    <h1>${icon("search")} Check It Yourself</h1>
     <p>Good researchers don't just trust a book. You can check any fact in this one:</p>
     <ol class="questions">
       <li><b>Find the source.</b> The source pages at the back list where each food's facts came from.</li>
@@ -915,14 +952,14 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     ["Urushiol", "yoo-ROO-shee-ol", "The itchy oil in poison ivy. Mango skin has something like it.", [50]],
   ];
   page("front glossary", `
-    <h1 id="glossary">📖 Glossary</h1>
+    <h1 id="glossary">${icon("book")} Glossary</h1>
     <p class="lead">Hard words from this book, and how to say them.</p>
     <dl>${GLOSSARY.map(([w, say, def, ranks]) => `<div><dt>${w}${say ? ` <span>(${say})</span>` : ""}</dt><dd>${def}${ranks.length ? ` See ${ranks.map(r => `<a href="#e${r}">#${r}</a>`).join(", ")}.` : ""}${w === "Poison control" ? ` See <a href="#help">Help Around the World</a>.` : ""}</dd></div>`).join("")}</dl>`);
 
   const chunks = (items, size) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
   const SOURCES_PER_PAGE = 60, CREDITS_PER_PAGE = 36;
   chunks(sourceItems, SOURCES_PER_PAGE).forEach((c, i) => page("front", `
-    ${i ? "<h2>Sources (continued)</h2>" : `<h1 id="sources">📚 Sources &amp; Photo Credits</h1><h2>Sources</h2>`}
+    ${i ? "<h2>Sources (continued)</h2>" : `<h1 id="sources">${icon("books")} Sources &amp; Photo Credits</h1><h2>Sources</h2>`}
     <ol class="credits" start="${i * SOURCES_PER_PAGE + 1}">${c.join("")}</ol>`));
   chunks(creditItems, CREDITS_PER_PAGE).forEach((c, i) => page("front", `
     <h2>Photo credits${i ? " (continued)" : ""}</h2>
