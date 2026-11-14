@@ -68,7 +68,13 @@
   .front h2 { font-size: 24px; margin: 32px 0 12px; }
   .scale { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
   .scale li { display: flex; gap: 12px; align-items: baseline; }
-  .scale .sk { width: 120px; flex: none; }
+  .scale .sk { width: 120px; flex: none; font-size: 17px; line-height: 1; }
+  .meter { display: inline-flex; gap: .18em; vertical-align: middle; line-height: 1; }
+  .meter i { width: .95em; height: .5em; border-radius: .12em; background: currentColor; }
+  .meter i.off { opacity: .28; }
+  .level-list h2 .meter, .toc-level .meter { font-size: 18px; margin-right: 6px; }
+  .scale-bar .meter { font-size: 13px; }
+  .danger-strip .meter { font-size: 13px; margin-right: 4px; }
   .callout { border-left: 4px solid var(--accent); background: var(--tag); padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0; }
   .toc { columns: 2; column-gap: 32px; padding: 0; list-style: none; margin: 0; }
   .toc li { break-inside: avoid; padding: 3px 0; border-bottom: 1px dotted var(--rule); display: flex; gap: 8px; }
@@ -85,7 +91,7 @@
   .danger-box { display: flex; gap: 16px; align-items: center; color: #fff; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
   .danger-box .lvl { font-family: var(--num, var(--head)); font-weight: 900; font-size: 44px; line-height: 1; flex: none; text-align: center; }
   .danger-box .lvl small { display: block; font: 700 11px/1.4 var(--body); letter-spacing: .15em; text-transform: uppercase; opacity: .85; }
-  .danger-box .sk { font-size: 20px; letter-spacing: 2px; }
+  .danger-box .sk { font-size: 20px; margin-bottom: 4px; }
   .danger-box p { margin: 4px 0 0; }
   .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .pill { background: var(--tag); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
@@ -102,7 +108,7 @@
   .sources { font-size: 14px; color: var(--muted); margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 10px; }
   .sources ol { margin: 4px 0 0; padding-left: 20px; }
   .divider { color: #fff; text-align: center; min-height: 520px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
-  .divider .sk { font-size: 44px; letter-spacing: 6px; }
+  .divider .sk { font-size: 44px; }
   .divider h1 { font-size: 56px; font-weight: 900; }
   .divider p { font-size: 20px; margin: 0; opacity: .9; }
   .wild-list { columns: 3; font-size: .85em; }
@@ -385,7 +391,8 @@ const LEVELS = [1, 2, 3, 4, 5];
 ENTRIES.forEach(e => { if (EASY[e.rank]) { Object.assign(e, EASY[e.rank]); Object.assign(EXTRAS[e.rank], EASY[e.rank]); } });
 const atLevel = n => ENTRIES.filter(e => e.danger === n).sort((a, b) => b.rank - a.rank);
 const ORDERED = LEVELS.flatMap(atLevel);
-const skulls = n => "💀".repeat(n);
+// Danger level as a 5-segment bar: n segments filled, in the surrounding text color.
+const meter = n => `<span class="meter" role="img" aria-label="Danger level ${n} of 5">${[1, 2, 3, 4, 5].map(i => `<i${i > n ? ' class="off"' : ""}></i>`).join("")}</span>`;
 const book = document.getElementById("book");
 
 // The land shapes are drawn once and reused by every food's map.
@@ -471,9 +478,9 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <h1>A Guide to Foods</h1>
       <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
       <h2>The World's Most Dangerous Foods</h2>
-      <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">💀 Deadly</div></div>
+      <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">Deadly</div></div>
       <div class="cover-row">${row.map(e => tile(e, "small")).join("")}</div>
-      <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${skulls(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
+      <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
       <div class="byline">By ____________________ &nbsp; Date: __________</div>
     </div>`);
@@ -488,12 +495,12 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     <div class="callout"><b>If you think someone has been poisoned,</b> call your local emergency number or poison control center right away. In the US, Poison Control is <b>1-800-222-1222</b>.</div>
     <h2>How to Read This Book</h2>
     <p>Every food has a <b>danger level</b> from 1 to 5. The book starts with the mildest foods and works up to the deadliest. Each food also has a rank that counts down as you read, from <b>#50</b>, the least dangerous, to <b>#1</b>, the most dangerous food in the book.</p>
-    <ul class="scale">${LEVELS.map(n => `<li><span class="sk">${skulls(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
+    <ul class="scale">${LEVELS.map(n => `<li><span class="sk" style="color:var(--d${n})">${meter(n)}</span><span><b>Level ${n}, ${LEVEL_NAME[n]}</b>: ${DANGER[n]}</span></li>`).join("")}</ul>
     <p style="margin-top:16px">A <b>Lookalike</b> isn't a food at all: it's a poisonous plant or mushroom that people mistake for food. 🌲 means campers might find it outdoors.</p>`);
 
   page("front", `
     <h1>Contents</h1>
-    ${LEVELS.map(n => `<div class="toc-level" style="color:var(--d${n})">${skulls(n)} <a href="#level${n}" style="color:inherit">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</a></div>
+    ${LEVELS.map(n => `<div class="toc-level" style="color:var(--d${n})">${meter(n)} <a href="#level${n}" style="color:inherit">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</a></div>
       <ul class="toc">${atLevel(n).map(e => `<li><span class="n">#${e.rank}</span><a href="#e${e.rank}">${e.name}</a></li>`).join("")}</ul>`).join("")}
     <ul class="toc" style="margin-top:18px">
       <li><span class="n">🌲</span><a href="#wild">Out in the Wild</a></li>
@@ -511,12 +518,12 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   for (const n of LEVELS) {
     const group = atLevel(n);
     page("divider", `
-      <div class="sk">${skulls(n)}</div>
+      <div class="sk">${meter(n)}</div>
       <h1 id="level${n}">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</h1>
       <p>${DANGER[n][0].toUpperCase() + DANGER[n].slice(1)}</p>
       <p>${group.length === 1 ? "1 food" : group.length + " foods"} · #${group[0].rank}${group.length > 1 ? " to #" + group[group.length - 1].rank : ""}</p>`).style.background = `var(--d${n})`;
     page("level-list", `
-      <h2>${skulls(n)} Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</h2>
+      <h2>${meter(n)} Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</h2>
       <p class="lead">${DANGER[n][0].toUpperCase() + DANGER[n].slice(1)}. Here's what you'll find in this section:</p>
       <ul class="${group.length > 7 ? "many" : ""}">${group.map(e => `<li><a href="#e${e.rank}"><b>#${e.rank} ${e.name}</b></a><br>${e.why}</li>`).join("")}</ul>`).style.background = `var(--d${n})`;
 
@@ -539,7 +546,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
         head: `<header id="e${e.rank}"><div class="rank">#${e.rank}</div><h1 class="${e.name.length > 18 ? "long" : ""}">${e.name}</h1><div class="sci">${e.sci}</div></header>`,
         danger: `<div class="danger-box" style="background:var(--d${e.danger})">
           <div class="lvl">${e.danger}<small>of 5</small></div>
-          <div><div class="sk">${skulls(e.danger)}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
+          <div><div class="sk">${meter(e.danger)}</div><b>Danger level: ${LEVEL_NAME[e.danger]}.</b><p>${e.why}</p></div>
         </div>`,
         photo: p.thumb ? `<figure class="illo"><img src="${p.thumb}" alt="${e.name}"></figure>
           <figcaption>Photo: ${p.artist}, ${p.license}, via Wikimedia Commons</figcaption>` : "",
@@ -565,7 +572,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       const [o1, o2] = LAYOUTS[foodNo++ % LAYOUTS.length];
       page("entry sheet s1", o1.map(k => one[k]).join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
       page("entry sheet s2", `
-        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${skulls(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
+        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
         ${o2.map(k => two[k]).join("\n")}
         <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
     }
