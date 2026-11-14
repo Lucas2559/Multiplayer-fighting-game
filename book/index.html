@@ -156,7 +156,7 @@
   .sheet.up { display: flex; flex-direction: column; }
   .sheet.up .up-photo { flex: 1 1 0; min-height: 80px; height: auto; margin: 4px 0 6px; }
   .sheet.up1 .up-photo { min-height: 0; }
-  .up-photo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
+  .sheet .up-photo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
   .sheet.up figcaption, .book-mode .sheet.up figcaption { margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .daily .lead { margin: 0 0 6px; }
   .daily h2 { font-size: 32px; margin: 22px 0 12px; }
@@ -393,6 +393,7 @@
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
     .up1 .up-photo, .up1 .up-photo + figcaption { display: none !important; } /* no room in print */
+    .sheet .illo img { object-fit: contain; background: transparent; } /* show the whole photo */
     .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
     .sheet > .bubble:last-child::after { display: none; } /* its tail would poke off the page */
     .sheet figcaption { margin: -10px 0 8px; }
@@ -522,16 +523,32 @@ function openBook() {
     const free = innerHeight - nav.offsetHeight - 16;
     spread.style.setProperty("--z", Math.min(1.3, (innerWidth - 16) / 1498, free / 971));
   }
-  // An Up Close left page fills leftover space with a photo; drop it if there's only room for a sliver.
-  const trimPhotos = () => document.querySelectorAll(".up1 .up-photo").forEach(f => {
-    f.style.display = f.nextElementSibling.style.display = "";
-    const off = f.closest(".page").classList.contains("off");
-    f.closest(".page").classList.remove("off");
-    if (f.offsetHeight < 70) f.style.display = f.nextElementSibling.style.display = "none";
-    if (off) f.closest(".page").classList.add("off");
-  });
-  document.fonts.ready.then(trimPhotos);
-  addEventListener("resize", trimPhotos);
+  // Photo frames get whatever space the page leaves, which can be a very different shape from
+  // the photo. Shrink each frame to its photo's own shape so the whole picture shows, uncropped.
+  // (An Up Close left-page photo that only has room for a sliver is dropped instead.)
+  const fitPhotos = () => {
+    const hidden = [...document.querySelectorAll(".page.off")];
+    hidden.forEach(p => p.classList.remove("off"));
+    const figs = [...document.querySelectorAll(".sheet .illo")];
+    figs.forEach(f => { Object.assign(f.style, { width: "", height: "", flex: "", alignSelf: "", justifySelf: "", display: "" });
+      if (f.nextElementSibling?.tagName === "FIGCAPTION") f.nextElementSibling.style.display = ""; });
+    document.querySelectorAll(".up1 .up-photo").forEach(f => {
+      if (f.offsetHeight < 70) f.style.display = f.nextElementSibling.style.display = "none"; });
+    const sizes = figs.map(f => { const img = f.querySelector("img");
+      return img && img.naturalWidth && f.offsetHeight ? { f, ar: img.naturalWidth / img.naturalHeight, w: f.offsetWidth, h: f.offsetHeight,
+        padW: f.offsetWidth - img.offsetWidth, padH: f.offsetHeight - img.offsetHeight } : null; }).filter(Boolean);
+    sizes.forEach(({ f, ar, w, h, padW, padH }) => {
+      const inGrid = f.parentElement.classList.contains("more-photos");
+      if ((h - padH) * ar + padW <= w) { f.style.width = `${(h - padH) * ar + padW}px`; f.style[inGrid ? "justifySelf" : "alignSelf"] = "center"; }
+      else { f.style.height = `${(w - padW) / ar + padH}px`; f.style.flex = "none"; if (inGrid) f.style.alignSelf = "center"; }
+    });
+    hidden.forEach(p => p.classList.add("off"));
+  };
+  Promise.all([document.fonts.ready, ...[...document.querySelectorAll(".sheet .illo img")].map(i => i.complete ? 0 : new Promise(z => { i.onload = i.onerror = z; }))]).then(fitPhotos);
+  addEventListener("resize", fitPhotos);
+  // Print lays pages out differently: drop the screen sizes and let CSS fit the photos instead.
+  addEventListener("beforeprint", () => document.querySelectorAll(".sheet .illo").forEach(f => Object.assign(f.style, { width: "", height: "", flex: "", alignSelf: "", justifySelf: "" })));
+  addEventListener("afterprint", fitPhotos);
   prev.onclick = () => show(at - 1);
   next.onclick = () => show(at + 1);
   addEventListener("keydown", e => {
