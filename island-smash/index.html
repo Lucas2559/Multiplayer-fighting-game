@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Island Smash</title>
+<style>
+  :root { --ink:#fff; --accent:#ffcc66; --panel:rgba(20,10,30,.62); }
+  html,body { margin:0; height:100%; overflow:hidden; background:#2a1a2e; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; color:var(--ink); }
+  canvas { display:block; }
+  #hud { position:fixed; inset:0 0 auto 0; display:flex; gap:28px; align-items:center; padding:12px 20px; background:var(--panel); font-size:22px; font-weight:700; pointer-events:none; }
+  #hud .title { color:var(--accent); letter-spacing:.06em; margin-right:auto; }
+  #hud .warn { color:#ff6b55; }
+  #help { position:fixed; left:16px; bottom:12px; font-size:14px; opacity:.85; pointer-events:none; text-shadow:0 1px 2px #000; }
+  .pop { position:fixed; transform:translate(-50%,-50%); font-weight:800; font-size:24px; pointer-events:none; text-shadow:0 2px 3px rgba(0,0,0,.6); white-space:nowrap; }
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(20,10,30,.45); }
+  .card { background:var(--panel); padding:28px 40px; border-radius:18px; text-align:center; max-width:520px; backdrop-filter: blur(6px); }
+  .card h1 { margin:0 0 6px; color:var(--accent); font-size:46px; letter-spacing:.04em; }
+  .card p { margin:8px 0; font-size:17px; line-height:1.45; }
+  .card kbd { background:rgba(255,255,255,.15); border-radius:5px; padding:1px 7px; font-family:inherit; }
+  .card button { margin-top:16px; font:inherit; font-size:22px; font-weight:800; padding:12px 40px; border:0; border-radius:12px; background:var(--accent); color:#3a1d10; cursor:pointer; }
+  .card button:hover { filter:brightness(1.08); }
+  .hidden { display:none !important; }
+  #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; }
+</style>
+</head>
+<body>
+<div id="loading">Loading island…</div>
+<div id="hud" class="hidden">
+  <span class="title">ISLAND SMASH</span>
+  <span>Score <span id="score">0</span></span>
+  <span id="timeWrap">Time <span id="time">90</span></span>
+  <span>Best <span id="best">0</span></span>
+</div>
+<div id="help" class="hidden"><kbd>WASD</kbd> move · <kbd>Space</kbd> jump · <kbd>Click</kbd>/<kbd>F</kbd> smash · right-drag or <kbd>Q</kbd>/<kbd>E</kbd> turn camera · <kbd>R</kbd> restart</div>
+<div id="start" class="overlay hidden"><div class="card">
+  <h1>ISLAND SMASH</h1>
+  <p>Everything on this floating island is glued down. You have a hammer.</p>
+  <p>Walk up to trees, boulders and the cottage and <b>smash</b> them loose. Knock them off the edge for points. Flying debris knocks other things loose: <b>chain reactions</b>!</p>
+  <p>Don't fall off yourself.</p>
+  <p><kbd>WASD</kbd> move · <kbd>Space</kbd> jump · <kbd>Click</kbd>/<kbd>F</kbd> smash<br>right-drag or <kbd>Q</kbd>/<kbd>E</kbd> turn camera</p>
+  <button id="play">Play</button>
+</div></div>
+<div id="over" class="overlay hidden"><div class="card">
+  <h1 id="overTitle">TIME'S UP!</h1>
+  <p id="overStats"></p>
+  <button id="again">Play again</button>
+</div></div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "rapier": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
+} }
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
