@@ -44,9 +44,9 @@
 <div id="s2" class="scene"><div id="s2flash"></div><div class="caption hand" id="s2a" style="top:250px">Some can make you sick.</div><div class="caption hand" id="s2b" style="top:250px;font-size:96px;color:#ffd5cc">Some can even kill you. 💀</div></div>
 <div id="s3" class="scene paper">
   <div id="s3k" style="position:absolute;top:150px;width:100%;text-align:center;font-size:26px;letter-spacing:.25em;text-transform:uppercase;color:#6b6152">50 Foods · 5 Danger Levels</div>
-  <div id="s3t" class="hand" style="position:absolute;top:200px;width:100%;text-align:center;font-size:150px;color:var(--accent)">A Guide to Foods</div>
-  <div id="s3s" class="hand" style="position:absolute;top:390px;width:100%;text-align:center;font-size:62px">The World's Most Dangerous Foods</div>
-  <svg id="s3u" style="position:absolute;top:365px;left:320px" width="640" height="20"><path d="M5 12 Q 160 2 320 10 T 635 8" fill="none" stroke="#b8452e" stroke-width="5" stroke-linecap="round" stroke-dasharray="700" stroke-dashoffset="700"/></svg>
+  <div id="s3t" class="hand" style="position:absolute;top:185px;width:100%;text-align:center;font-size:112px;line-height:.98;color:var(--accent)">The World's Most<br>Dangerous Foods</div>
+  <div id="s3s" class="hand" style="position:absolute;top:455px;width:100%;text-align:center;font-size:62px">From mild to deadly</div>
+  <svg id="s3u" style="position:absolute;top:418px;left:320px" width="640" height="20"><path d="M5 12 Q 160 2 320 10 T 635 8" fill="none" stroke="#b8452e" stroke-width="5" stroke-linecap="round" stroke-dasharray="700" stroke-dashoffset="700"/></svg>
 </div>
 <div id="s4" class="scene paper"><div class="hand" id="s4h" style="position:absolute;top:28px;width:100%;text-align:center;font-size:66px;color:var(--accent)">How dangerous is it?</div><div id="s4bars"></div></div>
 <div id="s5" class="scene paper"><div id="s5cards"></div><div id="s5n" class="rankbig" style="position:absolute;left:110px;top:40px;font-size:200px">#50</div><div id="s5name" class="hand" style="position:absolute;left:115px;top:250px;font-size:56px;width:430px;line-height:1.05"></div></div>
@@ -54,8 +54,8 @@
 <div id="s7" class="scene"><div id="s7warn" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:0 140px">
     <div style="font-size:90px">🍄 🌿 🫐</div><div class="hand" style="font-size:64px;line-height:1.15">Never eat a wild plant or mushroom unless an expert says it's safe.</div></div>
   <div id="s7end" class="paper" style="position:absolute;inset:0;opacity:0">
-    <div class="hand" style="position:absolute;top:190px;width:100%;text-align:center;font-size:150px;color:var(--accent)">A Guide to Foods</div>
-    <div class="hand" id="s7tag" style="position:absolute;top:380px;width:100%;text-align:center;font-size:64px;color:#b8452e">Read it before you eat it.</div>
+    <div class="hand" style="position:absolute;top:120px;width:100%;text-align:center;font-size:112px;line-height:.98;color:var(--accent)">The World's Most<br>Dangerous Foods</div>
+    <div class="hand" id="s7tag" style="position:absolute;top:390px;width:100%;text-align:center;font-size:64px;color:#b8452e">Read it before you eat it.</div>
     <div id="s7skulls" style="position:absolute;top:480px;width:100%;text-align:center;font-size:44px">💀💀💀💀💀</div>
   </div></div>
 <script src="../../entries.js"></script>
@@ -65,8 +65,8 @@
 <script>
 // Scene start times in seconds; each matches its narration line (narration starts 0.4s in).
 // s0 is the 5-second hook: "Which of these foods could kill you?" at 0.3s, "All of them." at 3.3s.
-const SCENES = [["s0", 0], ["s1", 5], ["s2", 8.6], ["s3", 13.7], ["s4", 18.8], ["s5", 25.5], ["s6", 31.6], ["s7", 39.9]];
-const LENGTH = 49.5;
+const SCENES = [["s0", 0], ["s1", 5], ["s2", 8.6], ["s3", 13.7], ["s4", 19.6], ["s5", 26.3], ["s6", 32.4], ["s7", 40.7]];
+const LENGTH = 51;
 const START = Object.fromEntries(SCENES);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const ease = x => { x = clamp(x); return x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2; };
@@ -146,9 +146,9 @@ function render(t) {
   l = t - START.s3;
   $("s3k").style.opacity = ramp(l, .2, .8);
   $("s3t").style.opacity = ramp(l, .4, 1.1);
-  $("s3t").style.transform = `translateY(${20 * (1 - ramp(l, .4, 1.1))}px) rotate(-1deg)`;
-  $("s3s").style.opacity = ramp(l, 2.2, 2.9);
-  $("s3u").firstElementChild.setAttribute("stroke-dashoffset", 700 * (1 - ramp(l, 2.8, 3.8)));
+  $("s3t").style.transform = `translateY(${20 * (1 - ramp(l, .4, 1.1))}px) rotate(-1deg)`; // title is spoken at .4s
+  $("s3s").style.opacity = ramp(l, 3.3, 4);
+  $("s3u").firstElementChild.setAttribute("stroke-dashoffset", 700 * (1 - ramp(l, 2.2, 3.2)));
   // 4. Danger bars grow one after another, timed to "one, mild... five, deadly".
   l = t - START.s4;
   $("s4h").style.opacity = ramp(l, 0, .5);
@@ -191,11 +191,11 @@ function render(t) {
   // 7. Safety warning, then the end card.
   l = t - START.s7;
   $("s7").style.background = "var(--dark)";
-  $("s7warn").style.opacity = ramp(l, .1, .6) * (1 - ramp(l, 4.4, 4.8));
-  $("s7end").style.opacity = ramp(l, 4.5, 5);
-  $("s7tag").style.opacity = ramp(l, 6.5, 7.1);
-  $("s7tag").style.transform = `rotate(-2deg) scale(${1.15 - .15 * ramp(l, 6.5, 7.1)})`;
-  $("s7skulls").style.opacity = ramp(l, 6.9, 7.5);
+  $("s7warn").style.opacity = ramp(l, .1, .6) * (1 - ramp(l, 4.7, 5.1));
+  $("s7end").style.opacity = ramp(l, 4.8, 5.3);
+  $("s7tag").style.opacity = ramp(l, 7.3, 7.9);
+  $("s7tag").style.transform = `rotate(-2deg) scale(${1.15 - .15 * ramp(l, 7.3, 7.9)})`;
+  $("s7skulls").style.opacity = ramp(l, 7.7, 8.3);
 }
 window.ready = setup().then(() => render(0));
 // Preview mode: ?play plays it in real time.

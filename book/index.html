@@ -44,21 +44,16 @@
   .cover h1 { font-size: 74px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
   .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
   .cover h2 { font-size: 30px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
-  .cover .row-label { font: 700 24px/1 Caveat, cursive; color: #f2e6cc; text-align: left; margin: 2px 6px -4px; }
   .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 10px 26px 4px; }
   .cover .illo { margin: 0; flex: 1; display: flex; flex-direction: column; background: #fff; padding: 9px 9px 0; }
   .cover .illo img { position: static; flex: 1; min-height: 0; width: 100%; height: auto; object-fit: cover; }
   .cover .illo figcaption { font: 700 18px/1.2 Caveat, cursive; color: #33363b; padding: 5px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-align: center; }
   .cover .illo.hero figcaption { font-size: 26px; }
-  .cover-row .illo figcaption { font-size: 15px; padding: 4px 1px 5px; letter-spacing: -.01em; }
-  .cover-row .dot { margin-right: 4px; }
   .cover .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
   .cover .stamp { position: absolute; right: -10px; top: 18px; transform: rotate(12deg); border: 4px solid #e0533d; color: #e0533d; background: rgba(255,250,240,.88);
     font: 700 34px/1 Caveat, cursive; padding: 6px 14px 4px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
-  .cover-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; height: 170px; margin: 6px 4px 4px; }
-  .cover-row .illo, .cover-hero .illo { min-height: 0; min-width: 0; }
+  .cover-hero .illo { min-height: 0; min-width: 0; }
   .cover .illo::before { display: none; } /* no tape on the cover photos */
-  .cover-row .illo:nth-child(odd) { transform: rotate(-2deg); } .cover-row .illo:nth-child(even) { transform: rotate(2deg); }
   .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); margin-top: 6px; }
   .scale-bar span { padding: 6px 4px; }
   .scale-bar small { display: block; font-size: 11px; letter-spacing: 0; margin-bottom: 2px; }
@@ -124,6 +119,15 @@
   .divider h1 { font-size: 56px; font-weight: 900; }
   .divider p { font-size: 20px; margin: 0; opacity: .9; }
   .wild-list { columns: 3; font-size: .85em; }
+  .daily .lead { margin: 0 0 6px; }
+  .daily h2 { font-size: 32px; margin: 22px 0 12px; }
+  .daily-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 18px; }
+  .daily-list li { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: center; line-height: 1.25; }
+  .daily-list img { width: 84px; height: 84px; object-fit: cover; border-radius: 4px; border: 3px solid #fff; box-shadow: 1px 2px 5px rgba(0,0,0,.2); }
+  .daily-list a { display: block; font-weight: 700; color: inherit; text-decoration: none; }
+  .daily-list span:not(.dot) { font-size: .85em; }
+  .daily .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .daily .callout { margin-top: 30px; }
   .wild-list li { break-inside: avoid; }
   .credits { font-size: 12.5px; line-height: 1.3; columns: 2; column-gap: 24px; padding-left: 18px; }
   .credits li { margin-bottom: 4px; break-inside: avoid; overflow-wrap: anywhere; }
@@ -323,7 +327,6 @@
     .cover { height: auto; }
     .cover h1 { font-size: 48px; }
     .cover-hero { flex: none; height: 360px; margin: 10px 0 4px; }
-    .cover-row { grid-template-columns: 1fr 1fr; height: 300px; }
     .scale-bar { font-size: 10px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
@@ -346,7 +349,6 @@
     .cover { height: 9.6in; gap: 8px; }
     .cover h1 { font-size: 54pt; }
     .cover h2 { font-size: 20pt; }
-    .cover-row .illo figcaption { font-size: 13px; }
     .illo img { height: 3.2in; }
     .sheet { height: 9.7in; min-height: 0; overflow: hidden; line-height: 1.36; }
     .s1 .illo { flex: 1 1 0; min-height: 1in; margin-bottom: 14px; }
@@ -493,8 +495,7 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const photo = e => IMG[e.img.replace(/_/g, " ")] || {};
   // Cover: the deadliest food is the big photo; one food from each other level sits below it.
   const byRank = r => ENTRIES.find(e => e.rank === r);
-  // The row shows everyday foods, so readers see this isn't only about rare, exotic things.
-  const hero = byRank(1), row = [36, 37, 22, 20].map(byRank).filter(Boolean);
+  const hero = byRank(1);
   const tile = (e, cls) => `<figure class="illo ${cls}"><img src="${photo(e).thumb}" alt="${e.name}"><figcaption><span class="dot" style="background:var(--d${e.danger})"></span>${cls === "hero" ? `#${e.rank} ` : ""}${e.name.replace(/ \(.*\)/, "")}</figcaption></figure>`;
 
   page("cover", `
@@ -502,10 +503,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       <div class="kicker">${ENTRIES.length} Foods · 5 Danger Levels</div>
       <h1>The World's Most <br>Dangerous Foods</h1>
       <svg class="swoosh" viewBox="0 0 400 14" preserveAspectRatio="none"><path d="M4 9 Q 100 2 200 7 T 396 5" fill="none" stroke="#e0533d" stroke-width="4" stroke-linecap="round"/></svg>
-      <h2>From mild to deadly: what not to eat, and why</h2>
+      <h2>Some are in your kitchen right now</h2>
       <div class="cover-hero">${tile(hero, "hero")}<div class="stamp">Deadly</div></div>
-      <div class="row-label">Some are in your kitchen right now:</div>
-      <div class="cover-row">${row.map(e => tile(e, "small")).join("")}</div>
       <div class="scale-bar">${LEVELS.map(n => `<span style="background:var(--d${n})"><small>${meter(n)}</small>${LEVEL_NAME[n]}</span>`).join("")}</div>
       <p class="tagline">Which of these foods could kill you? <b>Read it before you eat it.</b></p>
       <div class="byline">By ____________________ &nbsp; Date: __________</div>
@@ -529,8 +528,32 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     ${LEVELS.map(n => `<div class="toc-level" style="color:var(--d${n})">${meter(n)} <a href="#level${n}" style="color:inherit">Level <span class="num">${n}</span>: ${LEVEL_NAME[n]}</a></div>
       <ul class="toc">${atLevel(n).map(e => `<li><span class="n">#${e.rank}</span><a href="#e${e.rank}">${e.name}</a></li>`).join("")}</ul>`).join("")}
     <ul class="toc" style="margin-top:18px">
+      <li><span class="n">🏠</span><a href="#daily">In Your Daily Life</a></li>
       <li><span class="n">🌲</span><a href="#wild">Out in the Wild</a></li>
       <li><span class="n">📚</span><a href="#sources">Sources &amp; Photo Credits</a></li></ul>`);
+
+  // In Your Daily Life: two facing pages of foods from this book that turn up at
+  // home, in stores, in gardens and when eating out, each with a short safety tip.
+  const DAILY = [
+    ["🍳 In the kitchen", [[43, "Boil dried beans hard. Canned beans are safe."], [37, "Cut off green spots. Throw out very green or bitter ones."],
+      [36, "Wait until it's baked!"], [31, "Cook it to 165°F (74°C). Wash your hands after."], [46, "A small pinch is fine. Never spoonfuls."], [39, "Eat the stalks. Throw every leaf away."]]],
+    ["🛒 At the store", [[22, "No honey for babies under 1 year old."], [20, "For kids 5 and under, cut them into quarters."],
+      [40, "Taking medicine? Ask a pharmacist first."], [33, "A little is fine. Lots every day is not."], [32, "Check the label for \"pasteurized.\""], [50, "Don't bite into the skin. Peel it first."]]],
+    ["🌷 In the garden or yard", [[11, "Don't let little kids suck on the flowers."], [35, "Store bulbs far from onions and other food."],
+      [13, "Don't eat the red berries."], [10, "Never eat any part, even the red berries."], [38, "Only eat ripe berries, and cook them."], [24, "The shiny berries are not food."]]],
+    ["🍽️ Eating out", [[49, "Sometimes sold as \"white tuna.\" Ask what fish it is."], [19, "Eat them cooked. Hot sauce doesn't kill germs."],
+      [45, "Skip hot-pepper dares and spicy chip challenges."], [3, "Only from a licensed chef."]]],
+  ];
+  const dailyItem = ([r, tip]) => { const e = ENTRIES.find(x => x.rank === r); if (!e) return "";
+    return `<li><img src="${photo(e).thumb}" alt="${e.name}"><div><a href="#e${r}"><span class="dot" style="background:var(--d${e.danger})"></span>#${r} ${e.name.replace(/ \(.*\)/, "")}</a><span>${tip}</span></div></li>`; };
+  const dailySection = ([title, items]) => `<h2>${title}</h2><ul class="daily-list">${items.map(dailyItem).join("")}</ul>`;
+  page("front daily", `
+    <h1 id="daily">🏠 In Your Daily Life</h1>
+    <p class="lead">You don't have to go into the wild to find dangerous food. Many foods in this book are in an ordinary kitchen, store, or yard. Most are safe when you know the rule.</p>
+    ${DAILY.slice(0, 2).map(dailySection).join("")}`);
+  page("front daily", `
+    ${DAILY.slice(2).map(dailySection).join("")}
+    <div class="callout"><b>The rule for everything in this book:</b> if you're not sure a food is safe, don't eat it. Ask an adult, and call poison control if someone feels sick: <b>1-800-222-1222</b> (US).</div>`);
 
   // Page orders, one per food in turn: [left page, right page].
   const LAYOUTS = [
