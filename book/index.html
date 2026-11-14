@@ -55,6 +55,7 @@
     font: 700 34px/1 Caveat, cursive; padding: 6px 14px 4px; border-radius: 6px; letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 3px 10px rgba(0,0,0,.35); }
   .cover-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; height: 170px; margin: 6px 4px 4px; }
   .cover-row .illo, .cover-hero .illo { min-height: 0; min-width: 0; }
+  .cover .illo::before { display: none; } /* no tape on the cover photos */
   .cover-row .illo:nth-child(odd) { transform: rotate(-2deg); } .cover-row .illo:nth-child(even) { transform: rotate(2deg); }
   .scale-bar { display: grid; grid-template-columns: repeat(5, 1fr); border-radius: 4px; overflow: hidden; color: #fff; font: 700 12px/1.2 var(--body); margin-top: 6px; }
   .scale-bar span { padding: 6px 4px; }
