@@ -176,11 +176,17 @@
   .sheet > * { flex: none; }
   .s1 .illo { flex: 1 0 300px; margin-bottom: 22px; }
   .s1 .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
-  .s2 { justify-content: space-between; }
+  /* Text pages have room to spare now that the photos have their own page: bigger text, spread out. */
+  .sheet.s2 { gap: 16px; }
+  .sheet.s2 > .bubble, .sheet.s2 > .quick { font-size: 1.2em; }
+  .sheet.s2 > .bubble { margin-bottom: 0 !important; }
+  .sheet.s2 > :not(.danger-strip) { margin-top: auto !important; }
+  .sheet.s1 .more-photos { flex-grow: 2; }
+  .s1 .illo:not(.more-photos .illo) { flex-grow: 3; }
   .more-photos { flex: 1 0 220px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; min-height: 0; }
   .more-photos .illo { margin: 0; }
   .more-photos .illo img { position: absolute; inset: var(--illo-pad, 0); width: calc(100% - 2 * var(--illo-pad, 0px)); height: calc(100% - 2 * var(--illo-pad, 0px)); }
-  .s2 figcaption { margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .more-photos + figcaption { margin: 4px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .s1 figcaption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .quick { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0 0 6px; }
   .quick dt { font-weight: 700; color: var(--accent); }
@@ -336,7 +342,7 @@
     .book-mode .s1 .illo img { height: calc(100% - 2 * var(--illo-pad, 0px)); }
     .book-mode .where { grid-template-columns: 330px 1fr; gap: 12px; }
     .book-mode .more-photos { flex: 1 1 0; min-height: 78px; }
-    .book-mode .sheet.s2 figcaption { margin: 3px 0 0; }
+    .book-mode .sheet .more-photos + figcaption { margin: 3px 0 0; }
     .book-mode .sheet figcaption { margin: -10px 0 8px; }
     .book-mode .entry header { padding-bottom: 8px; margin-bottom: 10px; }
     .book-mode .danger-box { padding: 8px 14px; margin-bottom: 10px; }
@@ -398,7 +404,7 @@
     .sheet > .bubble:last-child::after { display: none; } /* its tail would poke off the page */
     .sheet figcaption { margin: -10px 0 8px; }
     .more-photos { flex: 1 1 0; min-height: 0.9in; }
-    .sheet.s2 figcaption { margin: 3px 0 0; }
+    .sheet .more-photos + figcaption { margin: 3px 0 0; }
     .entry header { padding-bottom: 8px; margin-bottom: 10px; }
     .danger-box { padding: 8px 14px; margin-bottom: 10px; }
     .entry h3, .s-sketch .entry h3 { font-size: 16.5pt; margin: 7px 0 2px; }
@@ -508,7 +514,7 @@ function openBook() {
     spreads[at].forEach(p => { p.classList.remove("off"); p.scrollTop = 0; });
     prev.disabled = at === 0;
     next.disabled = at === spreads.length - 1;
-    const title = spreads[at].map(p => p.querySelector("h1")?.textContent).find(Boolean) || "";
+    const title = spreads[at].map(p => p.querySelector("h1")?.textContent || p.querySelector(".danger-strip > span:last-child")?.textContent.replace(/^#\d+ /, "")).find(Boolean) || "";
     where.textContent = `${at + 1} of ${spreads.length} · ${title}`;
   }
   const spreadOf = id => spreads.findIndex(s => s.some(p => p.querySelector("#" + CSS.escape(id))));
@@ -666,13 +672,14 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     ${DAILY.slice(2).map(dailySection).join("")}
     <div class="callout"><b>The rule for everything in this book:</b> if you're not sure a food is safe, don't eat it. Ask an adult, and call poison control if someone feels sick: <b>1-800-222-1222</b> (US).</div>`);
 
-  // Page orders, one per food in turn: [left page, right page].
+  // Each food is two spreads: a photo page (title, danger level and all its photos, big),
+  // then three text pages. Orders, one per food in turn: [text page 1, 2, 3].
   const LAYOUTS = [
-    [["head", "danger", "photo", "quick", "what", "named", "where"], ["poison", "sick", "safe", "photos", "fun"]],
-    [["head", "danger", "photo", "what", "quick", "where", "named"], ["photos", "poison", "sick", "fun", "safe"]],
-    [["head", "danger", "what", "photo", "quick", "named", "where"], ["fun", "poison", "photos", "sick", "safe"]],
-    [["head", "danger", "what", "photo", "named", "quick", "where"], ["poison", "photos", "sick", "safe", "fun"]],
-    [["head", "danger", "quick", "photo", "where", "what", "named"], ["safe", "poison", "sick", "fun", "photos"]],
+    [["quick", "what", "named", "where"], ["poison", "sick"], ["safe", "fun"]],
+    [["what", "quick", "where", "named"], ["poison", "sick"], ["safe", "fun"]],
+    [["what", "quick", "named", "where"], ["poison", "sick"], ["safe", "fun"]],
+    [["what", "named", "quick", "where"], ["poison", "sick"], ["safe", "fun"]],
+    [["quick", "where", "what", "named"], ["poison", "sick"], ["safe", "fun"]],
   ];
   let foodNo = 0;
   for (const n of LEVELS) {
@@ -729,12 +736,13 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
       };
       // Each food gets its own arrangement of the same pieces, so the pages
       // don't all look alike.
-      const [o1, o2] = LAYOUTS[foodNo++ % LAYOUTS.length];
-      page("entry sheet s1", o1.map(k => one[k]).join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
-      page("entry sheet s2", `
-        <div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>
-        ${o2.map(k => two[k]).join("\n")}
-        <div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>`).style.setProperty("--lvl", `var(--d${e.danger})`);
+      const texts = LAYOUTS[foodNo++ % LAYOUTS.length];
+      const all = { ...one, ...two };
+      const strip = `<div class="danger-strip" style="background:var(--d${e.danger})"><span>${meter(e.danger)} Danger level ${e.danger}: ${LEVEL_NAME[e.danger]}</span><span>#${e.rank} ${e.name}</span></div>`;
+      page("entry sheet s1", [one.head, one.danger, one.photo, two.photos].join("\n")).style.setProperty("--lvl", `var(--d${e.danger})`);
+      texts.forEach((keys, i) => page("entry sheet s2", `${strip}
+        ${keys.map(k => all[k]).join("\n")}
+        ${i === texts.length - 1 ? `<div class="sources"><b>Sources:</b> ${[...e.sources, MORE_SOURCES[e.rank]].map(([t, u]) => `<a href="${u}">${t}</a>`).join(" · ")}</div>` : `<div class="page-end"></div>`}`).style.setProperty("--lvl", `var(--d${e.danger})`));
       // The deadliest foods get an extra "Up Close" spread (upclose.js).
       const u = typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank];
       if (u) {
