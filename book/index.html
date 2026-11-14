@@ -39,13 +39,13 @@
     background: radial-gradient(circle at 50% 38%, #3b2c22, #1d1713 78%) !important; box-shadow: 0 8px 28px rgba(0,0,0,.35) !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* keep the dark cover when printed */
   .cover::before, .cover::after { opacity: .55; filter: brightness(1.6); }
-  .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; border: 3px double #cdb994; padding: 18px 22px 14px; }
+  .cover-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; border: 3px double #cdb994; padding: 14px 16px 12px; }
   .cover .kicker { letter-spacing: .3em; text-transform: uppercase; color: #cdb994; font-size: 13px; }
-  .cover h1 { font-size: 74px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
-  .cover .also { font: 700 28px/1 Caveat, cursive; color: #cdb994; margin: 2px 0 0; }
+  .cover h1 { font-size: 66px; font-weight: 700; line-height: .92; color: #f2e6cc; margin-top: 2px; }
+  .cover .also { font: 700 26px/1 Caveat, cursive; color: #cdb994; margin: 0; }
   .cover .swoosh { width: 60%; height: 14px; margin: -6px auto 0; display: block; }
-  .cover h2 { font-size: 30px; font-weight: 700; color: #ff8a6a; margin-top: -2px; }
-  .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 10px 26px 4px; }
+  .cover h2 { font-size: 28px; font-weight: 700; color: #ff8a6a; margin-top: -4px; }
+  .cover-hero { position: relative; flex: 1 1 0; min-height: 0; display: flex; margin: 8px 0 2px; }
   .cover .illo { margin: 0; flex: 1; display: flex; flex-direction: column; background: #fff; padding: 9px 9px 0; }
   .cover .illo img { position: static; flex: 1; min-height: 0; width: 100%; height: auto; object-fit: cover; }
   .cover .illo figcaption { font: 700 18px/1.2 Caveat, cursive; color: #33363b; padding: 5px 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-align: center; }
@@ -365,7 +365,8 @@
     .s-comic .page { box-shadow: none; border-width: 0 0 4px; }
     .cover { height: auto; }
     .cover h1 { font-size: 48px; }
-    .cover-hero { flex: none; height: 360px; margin: 10px 0 4px; }
+    .cover-hero { flex: none; height: 440px; margin: 8px 0 2px; }
+    .cover .tagline { white-space: normal; }
     .scale-bar { font-size: 10px; }
     .entry .rank { font-size: 60px; }
     .entry h1, .s-sketch .entry h1, .s-comic .entry h1 { font-size: 30px; }
