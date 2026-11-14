@@ -168,6 +168,12 @@
   .daily .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
   .daily .callout { margin-top: 30px; }
   .wild-list li { break-inside: avoid; }
+  .glossary dl { columns: 2; column-gap: 26px; margin: 8px 0 0; font-size: .82em; line-height: 1.28; }
+  .glossary dl > div { break-inside: avoid; margin-bottom: 9px; }
+  .glossary dt { font-weight: 700; }
+  .glossary dt span { font-weight: 400; font-style: italic; color: var(--muted); }
+  .glossary dd { margin: 0; }
+  .glossary .lead { margin: 0 0 4px; }
   .credits { font-size: 12.5px; line-height: 1.3; columns: 2; column-gap: 24px; padding-left: 18px; }
   .credits li { margin-bottom: 4px; break-inside: avoid; overflow-wrap: anywhere; }
 
@@ -839,7 +845,8 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
   const riskSources = e => ((typeof RISKS !== "undefined" && RISKS[e.rank]?.sources) || []).map(u => [`Danger chances: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
   const upSources = e => ((typeof UPCLOSE !== "undefined" && UPCLOSE[e.rank]?.sources) || []).map(u => [`Up Close, ${e.name}: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
   const helpSources = (typeof HELP_NUMBERS !== "undefined" ? HELP_NUMBERS : []).filter(h => h.source).map(h => [`Help numbers, ${h.country}: ${new URL(h.source).hostname.replace(/^www\./, "")}`, h.source]);
-  const moreSrc = e => ((typeof MORE !== "undefined" && MORE[e.rank]?.sources) || []).map(u => [`More facts, ${e.name}: ${new URL(u).hostname.replace(/^www\./, "")}`, u]);
+  const moreSrc = e => ((typeof MORE !== "undefined" && MORE[e.rank]?.sources) || []).map(u => { const url = new URL(u);
+    return [`More facts, ${e.name}: ${url.hostname.endsWith("wikipedia.org") ? `Wikipedia, "${decodeURIComponent(url.pathname.split("/").pop()).replace(/_/g, " ")}"` : url.hostname.replace(/^www\./, "")}`, u]; });
   const sourceItems = [...new Map([...ORDERED.flatMap(e => [...e.sources, MORE_SOURCES[e.rank], ...riskSources(e), ...upSources(e), ...moreSrc(e)]), ...helpSources].map(s => [s[1], s])).values()]
     .map(([t, u]) => `<li><a href="${u}">${t}</a></li>`);
   const creditItems = ORDERED.flatMap(e => [photo(e), ...EXTRA_PHOTOS[e.rank]].filter(q => q.file)
@@ -881,6 +888,36 @@ fetch("images.json", { cache: "no-cache" }).then(r => r.json()).catch(() => ({})
     <h2>Help from AI</h2>
     <p>This book was researched and written with help from AI tools. Every fact was checked against the sources listed on the next pages. Mistakes are still possible: if you find one, check the source and let us know.</p>
     <div class="callout">This book is for learning, not medical advice. Science changes, and numbers are rounded. If someone may have been poisoned, get help right away.</div>`);
+
+  // Glossary: the hard words used in the book, with links to the foods where they come up.
+  const GLOSSARY = [
+    ["Aflatoxin", "af-luh-TOK-sin", "A poison made by mold on peanuts and corn. Over time it can hurt the liver.", [17]],
+    ["Amatoxins", "AM-uh-tok-sins", "The poisons in the deadliest mushrooms. They destroy the liver.", [1, 4]],
+    ["Antidote", "AN-tih-dote", "A medicine that blocks or undoes a poison. Only a few poisons have one.", []],
+    ["Bacteria", "bak-TEER-ee-uh", "Living things too small to see. Some, like <i>Salmonella</i> and <i>E. coli</i>, make people sick.", [31, 36]],
+    ["Botulism", "BOTCH-uh-liz-um", "A rare, serious illness from a toxin made by bacteria. It makes muscles stop working.", [22, 14]],
+    ["Cardiac glycosides", "KAR-dee-ak GLY-koh-sides", "Plant poisons that change how the heart beats.", [11, 13]],
+    ["Cicutoxin", "sih-KYOO-tok-sin", "The poison in water hemlock. It causes seizures.", [2]],
+    ["Ciguatoxin", "SIG-wah-tok-sin", "A poison from tiny reef algae that builds up in big fish.", [23]],
+    ["Cyanide", "SY-uh-nide", "A fast poison that stops the body's cells from using oxygen.", [26, 25, 18]],
+    ["Fungi", "FUN-jy", "Mushrooms, molds, and yeasts. They aren't plants. One is called a fungus.", [1, 17]],
+    ["Lectin", "LEK-tin", "A protein in raw beans that upsets the stomach. Cooking destroys it.", [43]],
+    ["Lookalike", "", "A dangerous plant or mushroom that looks like a safe one.", [2, 4]],
+    ["Mercury", "MER-kyuh-ree", "A metal that builds up in big fish that eat smaller fish.", [41]],
+    ["Oxalic acid", "ok-SAL-ik", "A sour chemical in rhubarb leaves that can hurt the kidneys.", [39]],
+    ["Poison control", "", "Experts you can call for help if someone may have been poisoned.", []],
+    ["Ricin", "RY-sin", "A deadly protein in castor beans.", [7]],
+    ["Saxitoxin", "SAX-ih-tok-sin", "A poison from algae that builds up in shellfish.", [8]],
+    ["Solanine", "SOH-luh-neen", "A bitter poison in green potatoes and their sprouts.", [37]],
+    ["Spores", "", "Tiny specks that fungi and some bacteria use to spread.", [22, 17]],
+    ["Tetrodotoxin", "teh-TROH-doh-tok-sin", "The pufferfish poison. It stops nerves from sending messages.", [3]],
+    ["Toxin", "TOK-sin", "A poison made by a living thing, like a plant, fungus, or germ.", []],
+    ["Urushiol", "yoo-ROO-shee-ol", "The itchy oil in poison ivy. Mango skin has something like it.", [50]],
+  ];
+  page("front glossary", `
+    <h1 id="glossary">📖 Glossary</h1>
+    <p class="lead">Hard words from this book, and how to say them.</p>
+    <dl>${GLOSSARY.map(([w, say, def, ranks]) => `<div><dt>${w}${say ? ` <span>(${say})</span>` : ""}</dt><dd>${def}${ranks.length ? ` See ${ranks.map(r => `<a href="#e${r}">#${r}</a>`).join(", ")}.` : ""}${w === "Poison control" ? ` See <a href="#help">Help Around the World</a>.` : ""}</dd></div>`).join("")}</dl>`);
 
   const chunks = (items, size) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
   const SOURCES_PER_PAGE = 60, CREDITS_PER_PAGE = 36;
