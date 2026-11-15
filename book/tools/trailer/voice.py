@@ -19,7 +19,7 @@ VOICE = "(A calm adult woman speaking in a plain, even, everyday tone, relaxed a
 LINES = [
     "Some foods look completely harmless.",
     "But some can make you sick. And some can even kill you.",
-    "The World's Most Dangerous Foods. From mild to deadly.",
+    "A new book. The World's Most Dangerous Foods. From mild to deadly.",
     "Every food gets a danger level, from one, mild, to five, deadly.",
     "Fifty foods, counting down from number fifty, all the way to number one.",
     "On every page: where it's found, what makes it dangerous, and how to stay safe. Plus lots of fun facts!",

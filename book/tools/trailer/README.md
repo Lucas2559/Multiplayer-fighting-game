@@ -7,7 +7,7 @@ To make the MP4:
 1. Narration: `voice.py` makes the hook lines `h1.wav`, `h2.wav` and `n1.wav` to `n7.wav` with VoxCPM2 (on the CPU; the Mac GPU gives silence). Line 1 uses voice design and the rest clone line 1, so it's one consistent voice. It takes about 30 minutes. Set up once with Python 3.12: `python3.12 -m venv voxcpm_env && voxcpm_env/bin/pip install voxcpm soundfile`. The first run downloads the model (about 5 GB). The earlier version used macOS `say` (voice Samantha, rate 165). The lines:
    1. Some foods look completely harmless.
    2. But some can make you sick. And some can even kill you.
-   3. The World's Most Dangerous Foods. From mild to deadly.
+   3. A new book. The World's Most Dangerous Foods. From mild to deadly.
    4. Every food gets a danger level, from one, mild, to five, deadly.
    5. Fifty foods, counting down from number fifty, all the way to number one.
    6. On every page: where it's found, what makes it dangerous, and how to stay safe. Plus lots of fun facts!
@@ -23,3 +23,5 @@ ffmpeg -framerate 30 -i frames/%05d.jpg -i h1.wav -i h2.wav -i n1.wav ... -i n7.
 ```
 
 The animations inside each scene are timed to the narration's words. If the narration changes length, update `SCENES`/`LENGTH` in trailer.html and the `adelay` values (scene start + 0.4 s).
+
+Line 3 was re-recorded on its own to say "A new book": its reference voice was cut from the finished trailer (5.35 s to 8.2 s, line 1), and the new take (seed 7, 4.96 s) replaced the old line at 14.1 s, 2.7 dB quieter to match. The art matches the book's cover: dark title and end scenes in Fraunces, the book's own SVG icons (read from `../../index.html`), and a 3D copy of the cover on the end card.
